@@ -17,7 +17,7 @@ const extractFirstName = (prospectText) => {
   if (!prospectText) return "";
 
   // Get first sequence of alphanumeric chars (including accented letters)
-  const match = prospectText.match(/^[\p{L}\p{N}]+/u);
+  const match = prospectText.match(/[\p{L}\p{N}]+/u);
 
   return match ? match[0] : "";
 };
