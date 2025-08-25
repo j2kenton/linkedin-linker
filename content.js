@@ -182,7 +182,7 @@ const processSearchResults = async () => {
 
   // Check if there's a next page
   const nextPageButton = document.querySelector("button[aria-label='Next']");
-  if (nextPageButton) {
+  if (nextPageButton && !nextPageButton.disabled) {
     console.log("Moving to next page...");
     nextPageButton.click();
 
@@ -196,7 +196,7 @@ const processSearchResults = async () => {
       processSearchResults();
     }, generateRandomTimeout());
   } else {
-    console.log("No more pages to process.");
+    console.log("No more pages to process or next page button is disabled.");
   }
 };
 
