@@ -58,6 +58,34 @@
       font-size: 12px;
       color: #856404;
     }
+    .settings {
+      text-align: left;
+      margin: 20px 0;
+      padding: 15px;
+      background-color: #f8f9fa;
+      border-radius: 4px;
+      border: 1px solid #e9ecef;
+    }
+    .checkbox-label {
+      display: flex;
+      align-items: center;
+      font-size: 14px;
+      font-weight: 500;
+      color: #333;
+      cursor: pointer;
+      margin-bottom: 5px;
+    }
+    .checkbox-label input[type="checkbox"] {
+      margin: 0 10px 0 0;
+      transform: scale(1.1);
+      accent-color: #0077b5;
+    }
+    .checkbox-description {
+      font-size: 12px;
+      color: #666;
+      margin-left: 26px;
+      font-style: italic;
+    }
   </style>
 </head>
 <body>
@@ -69,6 +97,17 @@
 
     <div class="warning">
       ⚠️ Use responsibly and in accordance with LinkedIn's Terms of Service.
+    </div>
+
+    <div class="settings">
+      <label class="checkbox-label">
+        <input type="checkbox" id="liveModeCheckbox">
+        <span class="checkmark"></span>
+        Live Mode (actually send requests)
+      </label>
+      <div class="checkbox-description">
+        Uncheck for test mode (logs actions without sending)
+      </div>
     </div>
 
     <button id="startButton" class="button">Start Automation</button>

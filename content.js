@@ -16,6 +16,7 @@ let prospectsProcessed = 0;
 let currentPage = 1;
 let currentProspectsList = [];
 let currentProspectIndex = 0;
+let isLiveMode = false;
 
 // Function to connect to prospect at current index in the preserved list
 const connectToProspectAtIndex = async () => {
@@ -41,55 +42,68 @@ const connectToProspectAtIndex = async () => {
       return;
     }
 
-    console.log(`Processing prospect ${currentProspectIndex + 1}/${currentProspectsList.length}: ${firstName}`);
+    console.log(`${isLiveMode ? '🔴 LIVE' : '🟡 TEST'}: Processing prospect ${currentProspectIndex + 1}/${currentProspectsList.length}: ${firstName}`);
     prospectsProcessed++;
     currentProspectIndex++; // Increment index for next call
 
-    connectButton.click();
-    setTimeout(() => {
-      const modal = document.querySelector(".ember-view .send-invite");
-      if (modal) {
-        const addNoteButton = modal.querySelector('button[aria-label^="Add"]');
-        if (addNoteButton) {
-          addNoteButton.click();
-          setTimeout(async () => {
-            const noteTextArea = modal.querySelector("textarea");
-            if (noteTextArea) {
-              noteTextArea.value = buildNote(firstName);
-              // programmatically make text area dirty
-              noteTextArea.dispatchEvent(new Event("input", { bubbles: true }));
+    if (isLiveMode) {
+      connectButton.click();
+      setTimeout(() => {
+        const modal = document.querySelector(".ember-view .send-invite");
+        if (modal) {
+          const addNoteButton = modal.querySelector('button[aria-label^="Add"]');
+          if (addNoteButton) {
+            addNoteButton.click();
+            setTimeout(async () => {
+              const noteTextArea = modal.querySelector("textarea");
+              if (noteTextArea) {
+                noteTextArea.value = buildNote(firstName);
+                // programmatically make text area dirty
+                noteTextArea.dispatchEvent(new Event("input", { bubbles: true }));
 
-              const cancelButton = modal.querySelector('button[aria-label^="Cancel"]');
-              if (cancelButton) {
-                // Add random delay before clicking cancel
-                await new Promise((resolveInner) => {
-                  setTimeout(() => {
-                    cancelButton.click();
-                    resolveInner();
-                  }, generateRandomTimeout());
-                });
+                const cancelButton = modal.querySelector('button[aria-label^="Cancel"]');
+                if (cancelButton) {
+                  // Add random delay before clicking cancel
+                  await new Promise((resolveInner) => {
+                    setTimeout(() => {
+                      cancelButton.click();
+                      resolveInner();
+                    }, generateRandomTimeout());
+                  });
 
-                // Wait a bit then dismiss the modal
-                await new Promise((resolveInner) => {
-                  setTimeout(() => {
-                    const dismissButton = modal.querySelector('button[aria-label^="Dismiss"]');
-                    if (dismissButton) {
-                      dismissButton.click();
-                    }
-                    resolveInner();
-                  }, generateRandomTimeout());
-                });
+                  // Wait a bit then dismiss the modal
+                  await new Promise((resolveInner) => {
+                    setTimeout(() => {
+                      const dismissButton = modal.querySelector('button[aria-label^="Dismiss"]');
+                      if (dismissButton) {
+                        dismissButton.click();
+                      }
+                      resolveInner();
+                    }, generateRandomTimeout());
+                  });
+                }
               }
-            }
+              resolve();
+            }, generateRandomTimeout());
+          } else {
             resolve();
-          }, generateRandomTimeout());
+          }
         } else {
+          console.log(`🔴 LIVE: Modal not found for ${firstName}`);
           resolve();
         }
-      } else {
-        resolve();
-      }
-    }, generateRandomTimeout());
+      }, generateRandomTimeout());
+    } else {
+      console.log(`🟡 TEST MODE: Would click connect button for ${firstName}`);
+      setTimeout(() => {
+        console.log(`🟡 TEST MODE: Would open modal and add note for ${firstName}`);
+        setTimeout(async () => {
+          console.log(`🟡 TEST MODE: Would fill note: "${buildNote(firstName).substring(0, 50)}..."`);
+          console.log(`🟡 TEST MODE: Would wait then cancel connection request for ${firstName}`);
+          resolve();
+        }, generateRandomTimeout());
+      }, generateRandomTimeout());
+    }
   });
 };
 
@@ -164,6 +178,10 @@ const startConnectionProcess = async () => {
 // Listen for messages from popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "startAutomation") {
+    // Set live mode based on popup setting
+    isLiveMode = request.liveMode || false;
+    console.log(`${isLiveMode ? '🔴 Starting in LIVE mode' : '🟡 Starting in TEST mode'}`);
+
     startConnectionProcess();
     sendResponse({status: "started"});
   }
