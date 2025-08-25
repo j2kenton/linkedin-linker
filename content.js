@@ -40,6 +40,16 @@ const connectToProspectAtIndex = async () => {
 
     // Get the prospect at current index
     const prospectElement = currentProspectsList[currentProspectIndex];
+
+    if (!prospectElement) {
+      console.log(
+        `No prospect element found for index ${currentProspectIndex}, skipping...`
+      );
+      currentProspectIndex++; // Move to next prospect
+      resolve();
+      return;
+    }
+    
     const firstName = extractFirstName(prospectElement.innerText);
 
     // Find the connect button within this specific prospect
