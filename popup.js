@@ -154,7 +154,6 @@ function runUpdateScript() {
   `;
 
   // Note: In a real Chrome extension, you can't directly run batch files
-  // This is a demonstration of the concept
   // For actual implementation, you might need to use Chrome's native messaging
   // or create a browser-specific solution
 
@@ -162,8 +161,7 @@ function runUpdateScript() {
     statusDiv.innerHTML = `
       <div style="color: #188038; border: 1px solid #188038; padding: 10px; border-radius: 4px; margin: 10px 0;">
         ✅ <strong>Update complete!</strong><br>
-        <small>Please reload the extension in Chrome extensions page (chrome://extensions).</small><br>
-        <button onclick="window.open('chrome://extensions/')" style="margin-top: 8px; padding: 6px 12px; background: #188038; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 12px;">Open Extensions</button>
+        <small>Please reload the extension in Chrome extensions page (chrome://extensions/).</small>
       </div>
     `;
   }, 2000);
