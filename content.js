@@ -43,35 +43,65 @@ const connectToProspectAtIndex = async () => {
     const firstName = extractFirstName(prospectElement.innerText);
 
     // Find the connect button within this specific prospect
-    const connectButton = prospectElement.querySelector("button[aria-label$='connect']");
+    const connectButton = prospectElement.querySelector(
+      "button[aria-label$='connect']"
+    );
 
     if (!connectButton) {
-      console.log(`No connect button found for prospect ${firstName}, skipping...`);
+      console.log(
+        `No connect button found for prospect ${firstName}, skipping...`
+      );
       currentProspectIndex++; // Move to next prospect
       resolve();
       return;
     }
 
-    console.log(`${isLiveMode ? '🔴 LIVE' : '🟡 TEST'}: Processing prospect ${currentProspectIndex + 1}/${currentProspectsList.length}: ${firstName}`);
+    console.log(
+      `${isLiveMode ? "🔴 LIVE" : "🟡 TEST"}: Processing prospect ${
+        currentProspectIndex + 1
+      }/${currentProspectsList.length}: ${firstName}`
+    );
     prospectsProcessed++;
     currentProspectIndex++; // Increment index for next call
 
-    if (isLiveMode) {
-      connectButton.click();
-      setTimeout(() => {
-        const modal = document.querySelector(".ember-view .send-invite");
-        if (modal) {
-          const addNoteButton = modal.querySelector('button[aria-label^="Add"]');
-          if (addNoteButton) {
-            addNoteButton.click();
-            setTimeout(async () => {
-              const noteTextArea = modal.querySelector("textarea");
-              if (noteTextArea) {
-                noteTextArea.value = buildNote(firstName);
-                // programmatically make text area dirty
-                noteTextArea.dispatchEvent(new Event("input", { bubbles: true }));
+    connectButton.click();
+    setTimeout(() => {
+      const modal = document.querySelector(".ember-view .send-invite");
+      if (modal) {
+        const addNoteButton = modal.querySelector('button[aria-label^="Add"]');
+        if (addNoteButton) {
+          addNoteButton.click();
+          setTimeout(async () => {
+            const noteTextArea = modal.querySelector("textarea");
+            if (noteTextArea) {
+              noteTextArea.value = buildNote(firstName);
+              // programmatically make text area dirty
+              noteTextArea.dispatchEvent(new Event("input", { bubbles: true }));
 
-                const cancelButton = modal.querySelector('button[aria-label^="Cancel"]');
+              if (isLiveMode) {
+                const sendButton = modal.querySelector(
+                  'button[aria-label^="Send"]'
+                );
+                if (sendButton) {
+                  // Add random delay before clicking send
+                  await new Promise((resolveInner) => {
+                    setTimeout(() => {
+                      sendButton.click();
+                      console.log(
+                        `🔴 LIVE: Sent connection request to ${firstName}`
+                      );
+                      resolveInner();
+                    }, generateRandomTimeout());
+                  });
+                } else {
+                  console.log(
+                    `🔴 LIVE: Send button not found for ${firstName}`
+                  );
+                }
+              } else {
+                const cancelButton = modal.querySelector(
+                  'button[aria-label^="Cancel"]'
+                );
                 if (cancelButton) {
                   // Add random delay before clicking cancel
                   await new Promise((resolveInner) => {
@@ -84,7 +114,9 @@ const connectToProspectAtIndex = async () => {
                   // Wait a bit then dismiss the modal
                   await new Promise((resolveInner) => {
                     setTimeout(() => {
-                      const dismissButton = modal.querySelector('button[aria-label^="Dismiss"]');
+                      const dismissButton = modal.querySelector(
+                        'button[aria-label^="Dismiss"]'
+                      );
                       if (dismissButton) {
                         dismissButton.click();
                       }
@@ -93,34 +125,26 @@ const connectToProspectAtIndex = async () => {
                   });
                 }
               }
-              resolve();
-            }, generateRandomTimeout());
-          } else {
+            }
             resolve();
-          }
+          }, generateRandomTimeout());
         } else {
-          console.log(`🔴 LIVE: Modal not found for ${firstName}`);
           resolve();
         }
-      }, generateRandomTimeout());
-    } else {
-      console.log(`🟡 TEST MODE: Would click connect button for ${firstName}`);
-      setTimeout(() => {
-        console.log(`🟡 TEST MODE: Would open modal and add note for ${firstName}`);
-        setTimeout(async () => {
-          console.log(`🟡 TEST MODE: Would fill note: "${buildNote(firstName).substring(0, 50)}..."`);
-          console.log(`🟡 TEST MODE: Would wait then cancel connection request for ${firstName}`);
-          resolve();
-        }, generateRandomTimeout());
-      }, generateRandomTimeout());
-    }
+      } else {
+        console.log(`🔴 LIVE: Modal not found for ${firstName}`);
+        resolve();
+      }
+    }, generateRandomTimeout());
   });
 };
 
 // Function to initialize prospects list for current page
 const initializeCurrentPageList = () => {
   // Capture all prospects on current page
-  currentProspectsList = [...document.querySelectorAll(".search-results-container ul[role=list] li")];
+  currentProspectsList = [
+    ...document.querySelectorAll(".search-results-container ul[role=list] li"),
+  ];
   currentProspectIndex = 0; // Reset index for new page
 
   console.log(`Initialized page with ${currentProspectsList.length} prospects`);
@@ -138,10 +162,14 @@ const processCurrentPage = async () => {
     await connectToProspectAtIndex();
 
     // Add delay between prospects
-    await new Promise((resolve) => setTimeout(resolve, generateRandomTimeout()));
+    await new Promise((resolve) =>
+      setTimeout(resolve, generateRandomTimeout())
+    );
   }
 
-  console.log(`Finished processing page. Total prospects processed: ${prospectsProcessed}`);
+  console.log(
+    `Finished processing page. Total prospects processed: ${prospectsProcessed}`
+  );
 };
 
 // Function to start the connection process
@@ -190,9 +218,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "startAutomation") {
     // Set live mode based on popup setting
     isLiveMode = request.liveMode || false;
-    console.log(`${isLiveMode ? '🔴 Starting in LIVE mode' : '🟡 Starting in TEST mode'}`);
+    console.log(
+      `${isLiveMode ? "🔴 Starting in LIVE mode" : "🟡 Starting in TEST mode"}`
+    );
 
     startConnectionProcess();
-    sendResponse({status: "started"});
+    sendResponse({ status: "started" });
   }
 });
