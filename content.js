@@ -12,6 +12,16 @@ P.S. if you're ever looking for a Frontend Developer... 😉
 const generateRandomTimeout = (multiplier = 5000) =>
   Math.floor(Math.random() * multiplier) + 500;
 
+// Function to extract first name with regional accent support
+const extractFirstName = (prospectText) => {
+  if (!prospectText) return "";
+
+  // Get first sequence of alphanumeric chars (including accented letters)
+  const match = prospectText.match(/^[\p{L}\p{N}]+/u);
+
+  return match ? match[0] : "";
+};
+
 let prospectsProcessed = 0;
 let currentPage = 1;
 let currentProspectsList = [];
@@ -30,7 +40,7 @@ const connectToProspectAtIndex = async () => {
 
     // Get the prospect at current index
     const prospectElement = currentProspectsList[currentProspectIndex];
-    const firstName = prospectElement.innerText.trim().split(" ")[0];
+    const firstName = extractFirstName(prospectElement.innerText);
 
     // Find the connect button within this specific prospect
     const connectButton = prospectElement.querySelector("button[aria-label$='connect']");
