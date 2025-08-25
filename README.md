@@ -31,9 +31,11 @@ A Chrome extension that automates LinkedIn connection requests with sequential p
 
 1. **Navigate** to a LinkedIn search results page
 2. **Click the extension icon** in Chrome toolbar
-3. **Click "Start Automation"**
-4. **Watch the console** for progress updates
-5. **Automation will process** prospects sequentially across pages
+3. **Check for updates** (automatic when popup opens)
+4. **Toggle Live/Test mode** as needed
+5. **Click "Start Automation"**
+6. **Watch the console** for progress updates
+7. **Automation will process** prospects sequentially across pages
 
 ## Files Structure
 
