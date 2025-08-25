@@ -221,6 +221,9 @@ const startConnectionProcess = async () => {
   await processSearchResults();
 
   console.log("Connection process completed.");
+
+  // Send completion message to popup
+  chrome.runtime.sendMessage({ action: "automationCompleted" });
 };
 
 // Listen for messages from popup

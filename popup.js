@@ -47,6 +47,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Update button state
     startButton.disabled = true;
     startButton.textContent = 'Starting...';
+    liveModeCheckbox.disabled = true; // Disable live mode checkbox while running
     statusDiv.textContent = '🚀 Starting automation...';
     statusDiv.style.color = '#666';
 
@@ -66,6 +67,7 @@ document.addEventListener('DOMContentLoaded', function() {
       console.error('Error starting automation:', error);
       startButton.disabled = false;
       startButton.textContent = 'Start Automation';
+      liveModeCheckbox.disabled = false; // Re-enable checkbox on error
       statusDiv.textContent = '❌ Error: Could not start automation';
       statusDiv.style.color = '#d93025';
     }
@@ -92,6 +94,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Check current tab on popup open
   updateStatusBasedOnTab();
+
+  // Listen for completion message from content script
+  chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.action === "automationCompleted") {
+      // Re-enable UI elements
+      startButton.disabled = false;
+      startButton.textContent = 'Start Automation';
+      liveModeCheckbox.disabled = false;
+      statusDiv.textContent = '✅ Automation completed! Ready for next run.';
+      statusDiv.style.color = '#188038';
+    }
+  });
 });
 
 // Function to check for extension updates
