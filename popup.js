@@ -4,7 +4,6 @@ document.addEventListener('DOMContentLoaded', function() {
   const startButton = document.getElementById('startButton');
   const statusDiv = document.getElementById('status');
   const liveModeCheckbox = document.getElementById('liveModeCheckbox');
-  const saveParamsButton = document.getElementById('saveParamsButton');
 
   // Form elements
   const companyNameInput = document.getElementById('companyName');
@@ -13,8 +12,6 @@ document.addEventListener('DOMContentLoaded', function() {
   const locationIdsInput = document.getElementById('locationIds');
   const connectionDegreeInput = document.getElementById('connectionDegree');
   const startPageInput = document.getElementById('startPage');
-  const generatedLink = document.getElementById('generatedLink');
-  const searchLink = document.getElementById('searchLink');
   const goToSearchButton = document.getElementById('goToSearchButton');
 
   // Check for updates when popup opens
@@ -58,33 +55,6 @@ document.addEventListener('DOMContentLoaded', function() {
     setTimeout(() => {
       updateStatusBasedOnTab();
     }, 3000);
-  });
-
-  // Handle save parameters button
-  saveParamsButton.addEventListener('click', () => {
-    const selectedDegrees = Array.from(connectionDegreeInput.selectedOptions).map(option => option.value).join(',');
-    const params = {
-      companyName: companyNameInput.value,
-      companiesIds: companiesIdsInput.value,
-      titleOfProspect: titleOfProspectInput.value,
-      locationIds: locationIdsInput.value,
-      connectionDegree: selectedDegrees,
-      startPage: parseInt(startPageInput.value) || 1
-    };
-
-    chrome.storage.local.set(params, () => {
-      statusDiv.textContent = '✅ Parameters saved successfully!';
-      statusDiv.style.color = '#188038';
-
-      // Generate and show the LinkedIn search link
-      const url = generateLinkedInURL();
-      searchLink.href = url;
-      generatedLink.style.display = 'block';
-
-      setTimeout(() => {
-        updateStatusBasedOnTab();
-      }, 3000);
-    });
   });
 
   // Handle "Take me to search results" button
