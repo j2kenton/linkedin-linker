@@ -27,7 +27,13 @@ document.addEventListener('DOMContentLoaded', function() {
     companiesIdsInput.value = result.companiesIds || '1035';
     titleOfProspectInput.value = result.titleOfProspect || 'Engineering Manager';
     locationIdsInput.value = result.locationIds || '101620260';
-    connectionDegreeInput.value = result.connectionDegree || 'S,O';
+
+    // Handle connection degree multi-select
+    const savedDegrees = (result.connectionDegree || 'S,O').split(',').map(d => d.trim());
+    Array.from(connectionDegreeInput.options).forEach(option => {
+      option.selected = savedDegrees.includes(option.value);
+    });
+
     startPageInput.value = result.startPage || 1;
   });
 
@@ -53,12 +59,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Handle save parameters button
   saveParamsButton.addEventListener('click', () => {
+    const selectedDegrees = Array.from(connectionDegreeInput.selectedOptions).map(option => option.value).join(',');
     const params = {
       companyName: companyNameInput.value,
       companiesIds: companiesIdsInput.value,
       titleOfProspect: titleOfProspectInput.value,
       locationIds: locationIdsInput.value,
-      connectionDegree: connectionDegreeInput.value,
+      connectionDegree: selectedDegrees,
       startPage: parseInt(startPageInput.value) || 1
     };
 
@@ -87,7 +94,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const locationIdsString = JSON.stringify(locationIds);
     const urlEncodedLocationIds = encodeURIComponent(locationIdsString);
 
-    const connectionDegree = connectionDegreeInput.value.split(',').map(deg => deg.trim());
+    const connectionDegree = Array.from(connectionDegreeInput.selectedOptions).map(option => option.value);
     const connectionDegreeString = JSON.stringify(connectionDegree);
     const urlEncodedConnectionDegree = encodeURIComponent(connectionDegreeString);
 

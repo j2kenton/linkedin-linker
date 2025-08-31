@@ -129,8 +129,12 @@
         <input type="text" id="locationIds" placeholder="e.g. 101620260" style="width: 100%; padding: 5px; margin-top: 5px;">
       </div>
       <div style="margin-bottom: 10px;">
-        <label for="connectionDegree">Connection Degree (comma-separated, S/O):</label>
-        <input type="text" id="connectionDegree" placeholder="e.g. S,O" style="width: 100%; padding: 5px; margin-top: 5px;">
+        <label for="connectionDegree">Connection Degree:</label>
+        <select id="connectionDegree" multiple style="width: 100%; padding: 5px; margin-top: 5px; height: 80px;">
+          <option value="F">F (1st)</option>
+          <option value="S">S (2nd)</option>
+          <option value="O">O (Out of Network)</option>
+        </select>
       </div>
       <div style="margin-bottom: 10px;">
         <label for="startPage">Start Page:</label>
