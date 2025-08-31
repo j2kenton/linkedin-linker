@@ -82,18 +82,20 @@ document.addEventListener('DOMContentLoaded', function() {
   greetingPart2Input.addEventListener('input', updateMessagePreview);
   messageTextTextarea.addEventListener('input', updateMessagePreview);
 
-  // Handle "Save message format" button
+  // Handle "Save auto-connect settings" button
   saveMessageButton.addEventListener('click', () => {
-    const messageParams = {
+    const autoConnectParams = {
       greetingPart1: greetingPart1Input.value,
       includeFirstName: includeFirstNameCheckbox.checked,
       greetingPart2: greetingPart2Input.value,
-      messageText: messageTextTextarea.value
+      messageText: messageTextTextarea.value,
+      liveMode: liveModeCheckbox.checked,
+      stopPage: stopPageInput.value
     };
 
-    chrome.storage.local.set(messageParams, () => {
+    chrome.storage.local.set(autoConnectParams, () => {
       // Show success message
-      statusDiv.textContent = '💾 Message format saved successfully!';
+      statusDiv.textContent = '💾 Auto-connect settings saved successfully!';
       statusDiv.style.color = '#188038';
 
       // Clear success message after 3 seconds
