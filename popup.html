@@ -110,6 +110,35 @@
       </div>
     </div>
 
+    <div class="settings">
+      <h4 style="margin: 0 0 10px 0; color: #333;">Search Parameters</h4>
+      <div style="margin-bottom: 10px;">
+        <label for="companyName">Company Name:</label>
+        <input type="text" id="companyName" placeholder="e.g. Microsoft" style="width: 100%; padding: 5px; margin-top: 5px;">
+      </div>
+      <div style="margin-bottom: 10px;">
+        <label for="companiesIds">Company IDs (comma-separated):</label>
+        <input type="text" id="companiesIds" placeholder="e.g. 1035" style="width: 100%; padding: 5px; margin-top: 5px;">
+      </div>
+      <div style="margin-bottom: 10px;">
+        <label for="titleOfProspect">Title:</label>
+        <input type="text" id="titleOfProspect" placeholder="e.g. Engineering Manager" style="width: 100%; padding: 5px; margin-top: 5px;">
+      </div>
+      <div style="margin-bottom: 10px;">
+        <label for="locationIds">Location IDs (comma-separated):</label>
+        <input type="text" id="locationIds" placeholder="e.g. 101620260" style="width: 100%; padding: 5px; margin-top: 5px;">
+      </div>
+      <div style="margin-bottom: 10px;">
+        <label for="connectionDegree">Connection Degree (comma-separated, S/O):</label>
+        <input type="text" id="connectionDegree" placeholder="e.g. S,O" style="width: 100%; padding: 5px; margin-top: 5px;">
+      </div>
+      <div style="margin-bottom: 10px;">
+        <label for="startPage">Start Page:</label>
+        <input type="number" id="startPage" placeholder="1" min="1" style="width: 100%; padding: 5px; margin-top: 5px;">
+      </div>
+      <button id="saveParamsButton" class="button" style="margin-top: 10px;">Save Parameters</button>
+    </div>
+
     <button id="startButton" class="button">Start Automation</button>
 
     <div id="status" class="status">

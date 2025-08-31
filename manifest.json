@@ -5,7 +5,8 @@
   "description": "Automates LinkedIn connection requests with sequential processing and random delays",
   "permissions": [
     "activeTab",
-    "storage"
+    "storage",
+    "tabs"
   ],
   "host_permissions": [
     "https://www.linkedin.com/*"

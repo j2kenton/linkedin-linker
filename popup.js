@@ -4,14 +4,31 @@ document.addEventListener('DOMContentLoaded', function() {
   const startButton = document.getElementById('startButton');
   const statusDiv = document.getElementById('status');
   const liveModeCheckbox = document.getElementById('liveModeCheckbox');
+  const saveParamsButton = document.getElementById('saveParamsButton');
+
+  // Form elements
+  const companyNameInput = document.getElementById('companyName');
+  const companiesIdsInput = document.getElementById('companiesIds');
+  const titleOfProspectInput = document.getElementById('titleOfProspect');
+  const locationIdsInput = document.getElementById('locationIds');
+  const connectionDegreeInput = document.getElementById('connectionDegree');
+  const startPageInput = document.getElementById('startPage');
 
   // Check for updates when popup opens
   checkForUpdates();
 
-  // Load saved live mode setting
-  chrome.storage.local.get(['liveMode'], (result) => {
+  // Load saved settings
+  chrome.storage.local.get(['liveMode', 'companyName', 'companiesIds', 'titleOfProspect', 'locationIds', 'connectionDegree', 'startPage'], (result) => {
     const liveMode = result.liveMode !== undefined ? result.liveMode : false;
     liveModeCheckbox.checked = liveMode;
+
+    // Load search parameters with defaults
+    companyNameInput.value = result.companyName || 'Microsoft';
+    companiesIdsInput.value = result.companiesIds || '1035';
+    titleOfProspectInput.value = result.titleOfProspect || 'Engineering Manager';
+    locationIdsInput.value = result.locationIds || '101620260';
+    connectionDegreeInput.value = result.connectionDegree || 'S,O';
+    startPageInput.value = result.startPage || 1;
   });
 
   // Handle live mode checkbox changes
@@ -34,13 +51,67 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 3000);
   });
 
+  // Handle save parameters button
+  saveParamsButton.addEventListener('click', () => {
+    const params = {
+      companyName: companyNameInput.value,
+      companiesIds: companiesIdsInput.value,
+      titleOfProspect: titleOfProspectInput.value,
+      locationIds: locationIdsInput.value,
+      connectionDegree: connectionDegreeInput.value,
+      startPage: parseInt(startPageInput.value) || 1
+    };
+
+    chrome.storage.local.set(params, () => {
+      statusDiv.textContent = '✅ Parameters saved successfully!';
+      statusDiv.style.color = '#188038';
+      setTimeout(() => {
+        updateStatusBasedOnTab();
+      }, 3000);
+    });
+  });
+
+  // Function to generate LinkedIn search URL
+  function generateLinkedInURL() {
+    const companyName = companyNameInput.value;
+    const urlEncodedCompanyName = encodeURIComponent(companyName);
+
+    const companiesIds = companiesIdsInput.value.split(',').map(id => id.trim());
+    const companiesIdsString = JSON.stringify(companiesIds);
+    const urlEncodedCompaniesIds = encodeURIComponent(companiesIdsString);
+
+    const titleOfProspect = titleOfProspectInput.value;
+    const urlEncodedTitle = encodeURIComponent(titleOfProspect);
+
+    const locationIds = locationIdsInput.value.split(',').map(id => id.trim());
+    const locationIdsString = JSON.stringify(locationIds);
+    const urlEncodedLocationIds = encodeURIComponent(locationIdsString);
+
+    const connectionDegree = connectionDegreeInput.value.split(',').map(deg => deg.trim());
+    const connectionDegreeString = JSON.stringify(connectionDegree);
+    const urlEncodedConnectionDegree = encodeURIComponent(connectionDegreeString);
+
+    const startPage = parseInt(startPageInput.value) || 1;
+
+    const startingUrl = `https://www.linkedin.com/search/results/people/?currentCompany=${urlEncodedCompaniesIds}&geoUrn=${urlEncodedLocationIds}&keywords=${urlEncodedTitle}%20${urlEncodedCompanyName}&network=${urlEncodedConnectionDegree}&origin=FACETED_SEARCH&page=${startPage}&sid=BpI&titleFreeText=${urlEncodedTitle}`;
+
+    return startingUrl;
+  }
+
   startButton.addEventListener('click', async () => {
     // Check if we're on a LinkedIn search results page
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
     if (!tab.url || !tab.url.includes('linkedin.com/search/results/people')) {
-      statusDiv.textContent = '❌ Please navigate to a LinkedIn search results page first';
-      statusDiv.style.color = '#d93025';
+      // Generate URL and open it
+      const url = generateLinkedInURL();
+      chrome.tabs.create({ url: url }, () => {
+        statusDiv.textContent = '🔗 Opening LinkedIn search page...';
+        statusDiv.style.color = '#0077b5';
+        setTimeout(() => {
+          updateStatusBasedOnTab();
+        }, 3000);
+      });
       return;
     }
 

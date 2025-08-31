@@ -1,20 +1,24 @@
-// // const companyName = "Microsoft";
-// // const urlEncodedCompanyName = encodeURIComponent(companyName);
+// const companyName = "Microsoft";
+// const urlEncodedCompanyName = encodeURIComponent(companyName);
 
-// // const companiesIds = ["1035"]; // 1441 for google
-// // const companiesIdsString = JSON.stringify(companiesIds);
-// // const urlEncodedCompaniesIds = encodeURIComponent(companiesIdsString);
+// const companiesIds = ["1035"]; // 1441 for google
+// const companiesIdsString = JSON.stringify(companiesIds);
+// const urlEncodedCompaniesIds = encodeURIComponent(companiesIdsString);
 
-// // const titleOfProspect = "Engineering Manager";
-// // const urlEncodedTitle = encodeURIComponent(titleOfProspect);
+// const titleOfProspect = "Engineering Manager";
+// const urlEncodedTitle = encodeURIComponent(titleOfProspect);
 
-// // const locationIds = ["101620260"];
-// // const locationIdsString = JSON.stringify(locationIds);
-// // const urlEncodedLocationIds = encodeURIComponent(locationIdsString);
+// const locationIds = ["101620260"];
+// const locationIdsString = JSON.stringify(locationIds);
+// const urlEncodedLocationIds = encodeURIComponent(locationIdsString);
+
+// const connectionDegree = ["S", "O"];
+// const connectionDegreeString = JSON.stringify(connectionDegree);
+// const urlEncodedConnectionDegree = encodeURIComponent(connectionDegreeString);
 
 // const startPage = 1;
 
-// const startingUrl = `https://www.linkedin.com/search/results/people/?currentCompany=${urlEncodedCompaniesIds}&geoUrn=${urlEncodedLocationIds}&keywords=${urlEncodedTitle}%20${urlEncodedCompanyName}&origin=FACETED_SEARCH&page=${startPage}&sid=BpI&titleFreeText=${urlEncodedTitle}`;
+// const startingUrl = `https://www.linkedin.com/search/results/people/?currentCompany=${urlEncodedCompaniesIds}&geoUrn=${urlEncodedLocationIds}&keywords=${urlEncodedTitle}%20${urlEncodedCompanyName}&network=${urlEncodedConnectionDegree}&origin=FACETED_SEARCH&page=${startPage}&sid=BpI&titleFreeText=${urlEncodedTitle}`;
 
 // let IS_LIVE_MODE = false;
 
