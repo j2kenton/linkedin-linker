@@ -13,6 +13,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const connectionDegreeInput = document.getElementById('connectionDegree');
   const startPageInput = document.getElementById('startPage');
   const goToSearchButton = document.getElementById('goToSearchButton');
+  const getFromUrlButton = document.getElementById('getFromUrlButton');
 
   // Check for updates when popup opens
   checkForUpdates();
@@ -35,6 +36,57 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     startPageInput.value = result.startPage !== undefined ? result.startPage : 1;
+  });
+
+  // Handle "Get from current URL" button
+  getFromUrlButton.addEventListener('click', () => {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      const currentTab = tabs[0];
+      if (!currentTab || !currentTab.url) {
+        statusDiv.textContent = '❌ Unable to get current tab URL';
+        statusDiv.style.color = '#d93025';
+        return;
+      }
+
+      if (!currentTab.url.includes('linkedin.com/search/results/people')) {
+        statusDiv.textContent = '❌ Please navigate to a LinkedIn search results page first';
+        statusDiv.style.color = '#d93025';
+        return;
+      }
+
+      // Extract currentCompany parameter from URL
+      const url = new URL(currentTab.url);
+      const currentCompanyParam = url.searchParams.get('currentCompany');
+
+      if (!currentCompanyParam) {
+        statusDiv.textContent = '❌ No company information found in current search URL';
+        statusDiv.style.color = '#d93025';
+        return;
+      }
+
+      try {
+        // Decode and parse the JSON array
+        const decodedParam = decodeURIComponent(currentCompanyParam);
+        const companyIdsArray = JSON.parse(decodedParam);
+
+        if (!Array.isArray(companyIdsArray) || companyIdsArray.length === 0) {
+          statusDiv.textContent = '❌ Invalid company data in URL';
+          statusDiv.style.color = '#d93025';
+          return;
+        }
+
+        // Join with comma and set to field
+        const companyIdsString = companyIdsArray.join(',');
+        companiesIdsInput.value = companyIdsString;
+
+        statusDiv.textContent = `✅ Company ID(s) extracted: ${companyIdsString}`;
+        statusDiv.style.color = '#188038';
+      } catch (error) {
+        console.error('Error parsing company data:', error);
+        statusDiv.textContent = '❌ Failed to parse company data from URL';
+        statusDiv.style.color = '#d93025';
+      }
+    });
   });
 
   // Handle live mode checkbox changes
