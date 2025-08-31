@@ -100,17 +100,6 @@
     </div>
 
     <div class="settings">
-      <label class="checkbox-label">
-        <input type="checkbox" id="liveModeCheckbox">
-        <span class="checkmark"></span>
-        Live Mode (actually send requests)
-      </label>
-      <div class="checkbox-description">
-        Uncheck for test mode (logs actions without sending)
-      </div>
-    </div>
-
-    <div class="settings">
       <h4 style="margin: 0 0 10px 0; color: #333;">Search Parameters</h4>
       <div style="margin-bottom: 10px;">
         <label for="companyName">Company Name:</label>
@@ -129,7 +118,7 @@
         <input type="text" id="locationIds" placeholder="e.g. 101620260" style="width: 100%; padding: 5px; margin-top: 5px;">
       </div>
       <div style="margin-bottom: 10px;">
-        <label for="connectionDegree">Connection Degree:</label>
+        <label for="connectionDegree">Connection Degree (multi-select):</label>
         <select id="connectionDegree" multiple style="width: 100%; padding: 5px; margin-top: 5px; height: 80px;">
           <option value="F">F (1st)</option>
           <option value="S">S (2nd)</option>
@@ -141,15 +130,27 @@
         <input type="number" id="startPage" placeholder="1" min="1" style="width: 100%; padding: 5px; margin-top: 5px;">
       </div>
       <button id="saveParamsButton" class="button" style="margin-top: 10px;">Save Parameters</button>
+      <p style="font-size: 12px; color: #666; margin: 10px 0;">Navigate to search results and then go to "Start Automation"</p>
+      <div id="generatedLink" style="display: none; margin-top: 10px;">
+        <a id="searchLink" href="#" target="_blank" style="color: #0077b5; text-decoration: none;">Corresponding LinkedIn Search Page</a>
+      </div>
+    </div>
+
+    <div class="settings">
+      <label class="checkbox-label">
+        <input type="checkbox" id="liveModeCheckbox">
+        <span class="checkmark"></span>
+        Live Mode (actually send requests)
+      </label>
+      <div class="checkbox-description">
+        Uncheck for test mode (logs actions without sending)
+      </div>
     </div>
 
     <button id="startButton" class="button">Start Automation</button>
 
     <div id="status" class="status">
       Click the button when on a LinkedIn search results page
-    </div>
-    <div id="generatedLink" style="display: none; margin-top: 10px;">
-      <a id="searchLink" href="#" target="_blank" style="color: #0077b5; text-decoration: none;">Open LinkedIn Search Page</a>
     </div>
   </div>
 
