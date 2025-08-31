@@ -88,29 +88,66 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Function to generate LinkedIn search URL
   function generateLinkedInURL() {
-    const companyName = companyNameInput.value;
-    const urlEncodedCompanyName = encodeURIComponent(companyName);
+    let url = 'https://www.linkedin.com/search/results/people/?origin=FACETED_SEARCH';
+    const params = [];
 
-    const companiesIds = companiesIdsInput.value.split(',').map(id => id.trim());
-    const companiesIdsString = JSON.stringify(companiesIds);
-    const urlEncodedCompaniesIds = encodeURIComponent(companiesIdsString);
+    // Company Name
+    const companyName = companyNameInput.value.trim();
+    if (companyName) {
+      params.push(`company=${encodeURIComponent(companyName)}`);
+    }
 
-    const titleOfProspect = titleOfProspectInput.value;
-    const urlEncodedTitle = encodeURIComponent(titleOfProspect);
+    // Keywords: combine title and companyName if present
+    let keywords = '';
+    const titleOfProspect = titleOfProspectInput.value.trim();
+    if (titleOfProspect) {
+      keywords = encodeURIComponent(titleOfProspect);
+    }
+    if (companyName) {
+      keywords += (keywords ? '%20' : '') + encodeURIComponent(companyName);
+    }
+    if (keywords) {
+      params.push(`keywords=${keywords}`);
+    }
 
-    const locationIds = locationIdsInput.value.split(',').map(id => id.trim());
-    const locationIdsString = JSON.stringify(locationIds);
-    const urlEncodedLocationIds = encodeURIComponent(locationIdsString);
+    // Companies IDs
+    const companiesIds = companiesIdsInput.value.split(',').map(id => id.trim()).filter(id => id);
+    if (companiesIds.length > 0) {
+      const companiesIdsString = JSON.stringify(companiesIds);
+      params.push(`currentCompany=${encodeURIComponent(companiesIdsString)}`);
+    }
 
+    // Location IDs
+    const locationIds = locationIdsInput.value.split(',').map(id => id.trim()).filter(id => id);
+    if (locationIds.length > 0) {
+      const locationIdsString = JSON.stringify(locationIds);
+      params.push(`geoUrn=${encodeURIComponent(locationIdsString)}`);
+    }
+
+    // Connection Degree
     const connectionDegree = Array.from(connectionDegreeInput.selectedOptions).map(option => option.value);
-    const connectionDegreeString = JSON.stringify(connectionDegree);
-    const urlEncodedConnectionDegree = encodeURIComponent(connectionDegreeString);
+    if (connectionDegree.length > 0) {
+      const connectionDegreeString = JSON.stringify(connectionDegree);
+      params.push(`network=${encodeURIComponent(connectionDegreeString)}`);
+    }
 
+    // Start Page
     const startPage = parseInt(startPageInput.value) || 1;
+    params.push(`page=${startPage}`);
 
-    const startingUrl = `https://www.linkedin.com/search/results/people/?currentCompany=${urlEncodedCompaniesIds}&geoUrn=${urlEncodedLocationIds}&keywords=${urlEncodedTitle}%20${urlEncodedCompanyName}&network=${urlEncodedConnectionDegree}&origin=FACETED_SEARCH&page=${startPage}&sid=BpI&titleFreeText=${urlEncodedTitle}`;
+    // Title Free Text
+    if (titleOfProspect) {
+      params.push(`titleFreeText=${encodeURIComponent(titleOfProspect)}`);
+    }
 
-    return startingUrl;
+    // Add sid
+    params.push('sid=BpI');
+
+    if (params.length > 0) {
+      url += '&' + params.join('&');
+    }
+
+    return url;
   }
 
   startButton.addEventListener('click', async () => {
