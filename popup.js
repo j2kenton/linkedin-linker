@@ -389,7 +389,7 @@ document.addEventListener('DOMContentLoaded', function() {
           statusDiv.style.color = '#f57c00';
         }
       } else {
-        statusDiv.textContent = 'Navigate to LinkedIn search results page';
+        statusDiv.textContent = '';
         statusDiv.style.color = '#666';
       }
     });
