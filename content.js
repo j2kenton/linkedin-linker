@@ -29,6 +29,7 @@ const extractFirstName = (prospectText) => {
 
 let prospectsProcessed = 0;
 let currentPage = 1;
+let pagesProcessed = 0;
 let currentProspectsList = [];
 let currentProspectIndex = 0;
 let isLiveMode = false;
@@ -197,8 +198,11 @@ const processSearchResults = async () => {
   // Process all prospects on the current page
   await processCurrentPage();
 
+  // Increment pages processed counter
+  pagesProcessed++;
+
   // Check if we've reached the max pages limit
-  if (maxPages !== null && currentPage >= maxPages) {
+  if (maxPages !== null && pagesProcessed >= maxPages) {
     console.log(`Reached maximum pages limit (${maxPages}). Stopping automation.`);
     console.log("Connection process completed.");
 
@@ -234,9 +238,21 @@ const processSearchResults = async () => {
   }
 };
 
+// Function to get current page number from URL
+const getCurrentPageFromURL = () => {
+  const url = new URL(window.location.href);
+  const pageParam = url.searchParams.get('page');
+  return pageParam ? parseInt(pageParam) : 1;
+};
+
 // Function to start the connection process
 const startConnectionProcess = async () => {
   console.log("Starting connection process...");
+
+  // Set currentPage based on URL page parameter
+  currentPage = getCurrentPageFromURL();
+  pagesProcessed = 0; // Reset pages processed counter
+  console.log(`Starting on page ${currentPage}`);
 
   // Add a small delay to ensure everything is ready
   await new Promise((resolve) => setTimeout(resolve, generateRandomTimeout()));
@@ -263,9 +279,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
     // Store max pages setting
     maxPages = request.maxPages !== undefined && request.maxPages !== '' ? parseInt(request.maxPages) : null;
-
-    // Reset page counter for new automation
-    currentPage = 1;
 
     console.log(
       `${isLiveMode ? "🔴 Starting in LIVE mode" : "🟡 Starting in TEST mode"}`
