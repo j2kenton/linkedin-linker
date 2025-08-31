@@ -25,18 +25,18 @@ document.addEventListener('DOMContentLoaded', function() {
     liveModeCheckbox.checked = liveMode;
 
     // Load search parameters with defaults
-    companyNameInput.value = result.companyName || 'Microsoft';
-    companiesIdsInput.value = result.companiesIds || '1035';
-    titleOfProspectInput.value = result.titleOfProspect || 'Engineering Manager';
-    locationIdsInput.value = result.locationIds || '101620260';
+    companyNameInput.value = result.companyName !== undefined ? result.companyName : 'Microsoft';
+    companiesIdsInput.value = result.companiesIds !== undefined ? result.companiesIds : '1035';
+    titleOfProspectInput.value = result.titleOfProspect !== undefined ? result.titleOfProspect : 'Engineering Manager';
+    locationIdsInput.value = result.locationIds !== undefined ? result.locationIds : '101620260';
 
     // Handle connection degree multi-select
-    const savedDegrees = (result.connectionDegree || 'S,O').split(',').map(d => d.trim());
+    const savedDegrees = (result.connectionDegree !== undefined ? result.connectionDegree : 'S,O').split(',').map(d => d.trim());
     Array.from(connectionDegreeInput.options).forEach(option => {
       option.selected = savedDegrees.includes(option.value);
     });
 
-    startPageInput.value = result.startPage || 1;
+    startPageInput.value = result.startPage !== undefined ? result.startPage : 1;
   });
 
   // Handle live mode checkbox changes
