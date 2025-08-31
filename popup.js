@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const startPageInput = document.getElementById('startPage');
   const generatedLink = document.getElementById('generatedLink');
   const searchLink = document.getElementById('searchLink');
+  const goToSearchButton = document.getElementById('goToSearchButton');
 
   // Check for updates when popup opens
   checkForUpdates();
@@ -83,6 +84,34 @@ document.addEventListener('DOMContentLoaded', function() {
       setTimeout(() => {
         updateStatusBasedOnTab();
       }, 3000);
+    });
+  });
+
+  // Handle "Take me to search results" button
+  goToSearchButton.addEventListener('click', () => {
+    const selectedDegrees = Array.from(connectionDegreeInput.selectedOptions).map(option => option.value).join(',');
+    const params = {
+      companyName: companyNameInput.value,
+      companiesIds: companiesIdsInput.value,
+      titleOfProspect: titleOfProspectInput.value,
+      locationIds: locationIdsInput.value,
+      connectionDegree: selectedDegrees,
+      startPage: parseInt(startPageInput.value) || 1
+    };
+
+    chrome.storage.local.set(params, () => {
+      // Generate URL and open in new tab
+      const url = generateLinkedInURL();
+      chrome.tabs.create({ url: url });
+
+      // Update status
+      statusDiv.textContent = '🔗 Opening LinkedIn search page...';
+      statusDiv.style.color = '#0077b5';
+
+      // Hide the popup after a short delay
+      setTimeout(() => {
+        window.close();
+      }, 1000);
     });
   });
 
