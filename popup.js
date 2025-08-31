@@ -14,6 +14,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const startPageInput = document.getElementById('startPage');
   const goToSearchButton = document.getElementById('goToSearchButton');
   const getFromUrlButton = document.getElementById('getFromUrlButton');
+  const getLocationFromUrlButton = document.getElementById('getLocationFromUrlButton');
 
   // Check for updates when popup opens
   checkForUpdates();
@@ -38,7 +39,7 @@ document.addEventListener('DOMContentLoaded', function() {
     startPageInput.value = result.startPage !== undefined ? result.startPage : 1;
   });
 
-  // Handle "Get from current URL" button
+  // Handle "Get from current URL" button (Company)
   getFromUrlButton.addEventListener('click', () => {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       const currentTab = tabs[0];
@@ -84,6 +85,57 @@ document.addEventListener('DOMContentLoaded', function() {
       } catch (error) {
         console.error('Error parsing company data:', error);
         statusDiv.textContent = '❌ Failed to parse company data from URL';
+        statusDiv.style.color = '#d93025';
+      }
+    });
+  });
+
+  // Handle "Get from current URL" button (Location)
+  getLocationFromUrlButton.addEventListener('click', () => {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      const currentTab = tabs[0];
+      if (!currentTab || !currentTab.url) {
+        statusDiv.textContent = '❌ Unable to get current tab URL';
+        statusDiv.style.color = '#d93025';
+        return;
+      }
+
+      if (!currentTab.url.includes('linkedin.com/search/results/people')) {
+        statusDiv.textContent = '❌ Please navigate to a LinkedIn search results page first';
+        statusDiv.style.color = '#d93025';
+        return;
+      }
+
+      // Extract geoUrn parameter from URL
+      const url = new URL(currentTab.url);
+      const geoUrnParam = url.searchParams.get('geoUrn');
+
+      if (!geoUrnParam) {
+        statusDiv.textContent = '❌ No location information found in current search URL';
+        statusDiv.style.color = '#d93025';
+        return;
+      }
+
+      try {
+        // Decode and parse the JSON array
+        const decodedParam = decodeURIComponent(geoUrnParam);
+        const locationIdsArray = JSON.parse(decodedParam);
+
+        if (!Array.isArray(locationIdsArray) || locationIdsArray.length === 0) {
+          statusDiv.textContent = '❌ Invalid location data in URL';
+          statusDiv.style.color = '#d93025';
+          return;
+        }
+
+        // Join with comma and set to field
+        const locationIdsString = locationIdsArray.join(',');
+        locationIdsInput.value = locationIdsString;
+
+        statusDiv.textContent = `✅ Location ID(s) extracted: ${locationIdsString}`;
+        statusDiv.style.color = '#188038';
+      } catch (error) {
+        console.error('Error parsing location data:', error);
+        statusDiv.textContent = '❌ Failed to parse location data from URL';
         statusDiv.style.color = '#d93025';
       }
     });
