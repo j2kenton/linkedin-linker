@@ -13,6 +13,8 @@ document.addEventListener('DOMContentLoaded', function() {
   const locationIdsInput = document.getElementById('locationIds');
   const connectionDegreeInput = document.getElementById('connectionDegree');
   const startPageInput = document.getElementById('startPage');
+  const generatedLink = document.getElementById('generatedLink');
+  const searchLink = document.getElementById('searchLink');
 
   // Check for updates when popup opens
   checkForUpdates();
@@ -72,6 +74,12 @@ document.addEventListener('DOMContentLoaded', function() {
     chrome.storage.local.set(params, () => {
       statusDiv.textContent = '✅ Parameters saved successfully!';
       statusDiv.style.color = '#188038';
+
+      // Generate and show the LinkedIn search link
+      const url = generateLinkedInURL();
+      searchLink.href = url;
+      generatedLink.style.display = 'block';
+
       setTimeout(() => {
         updateStatusBasedOnTab();
       }, 3000);
