@@ -1,12 +1,17 @@
 // LinkedIn Connection Automator Content Script
 
-const buildNote = (firstName) => {
-  return `Hi ${firstName || ""} 👋,
-It's been a privilege to be part of ILDC for the last 4 years. I'm moving on now but I wanted to personally wish you all the best in the future!
-Jonathan
+const buildNote = (firstName, messageSettings) => {
+  const { greetingPart1, includeFirstName, greetingPart2, messageText } = messageSettings;
 
-P.S. if you're ever looking for a Frontend Developer... 😉
-(Matan Borenkraout was my tech lead)`;
+  let message = greetingPart1;
+
+  if (includeFirstName && firstName) {
+    message += ` ${firstName}`;
+  }
+
+  message += ` ${greetingPart2}\n${messageText}`;
+
+  return message;
 };
 
 const generateRandomTimeout = (multiplier = 5000) =>
@@ -27,6 +32,8 @@ let currentPage = 1;
 let currentProspectsList = [];
 let currentProspectIndex = 0;
 let isLiveMode = false;
+let messageSettings = {};
+let maxPages = null; // null means no limit
 
 // Function to connect to prospect at current index in the preserved list
 const connectToProspectAtIndex = async () => {
@@ -84,7 +91,7 @@ const connectToProspectAtIndex = async () => {
           setTimeout(async () => {
             const noteTextArea = modal.querySelector("textarea");
             if (noteTextArea) {
-              noteTextArea.value = buildNote(firstName);
+              noteTextArea.value = buildNote(firstName, messageSettings);
               // programmatically make text area dirty
               noteTextArea.dispatchEvent(new Event("input", { bubbles: true }));
 
@@ -190,11 +197,24 @@ const processSearchResults = async () => {
   // Process all prospects on the current page
   await processCurrentPage();
 
+  // Check if we've reached the max pages limit
+  if (maxPages !== null && currentPage >= maxPages) {
+    console.log(`Reached maximum pages limit (${maxPages}). Stopping automation.`);
+    console.log("Connection process completed.");
+
+    // Send completion message to popup
+    chrome.runtime.sendMessage({ action: "automationCompleted" });
+    return;
+  }
+
   // Check if there's a next page
   const nextPageButton = document.querySelector("button[aria-label='Next']");
   if (nextPageButton && !nextPageButton.disabled) {
     console.log("Moving to next page...");
     nextPageButton.click();
+
+    // Increment page counter
+    currentPage++;
 
     // Wait for the next page to load
     await new Promise((resolve) =>
@@ -207,6 +227,10 @@ const processSearchResults = async () => {
     }, generateRandomTimeout());
   } else {
     console.log("No more pages to process or next page button is disabled.");
+    console.log("Connection process completed.");
+
+    // Send completion message to popup
+    chrome.runtime.sendMessage({ action: "automationCompleted" });
   }
 };
 
@@ -231,9 +255,27 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "startAutomation") {
     // Set live mode based on popup setting
     isLiveMode = request.liveMode || false;
+
+    // Store message settings from popup
+    if (request.messageSettings) {
+      messageSettings = request.messageSettings;
+    }
+
+    // Store max pages setting
+    maxPages = request.maxPages !== undefined && request.maxPages !== '' ? parseInt(request.maxPages) : null;
+
+    // Reset page counter for new automation
+    currentPage = 1;
+
     console.log(
       `${isLiveMode ? "🔴 Starting in LIVE mode" : "🟡 Starting in TEST mode"}`
     );
+
+    if (maxPages !== null) {
+      console.log(`Max pages limit set to: ${maxPages}`);
+    } else {
+      console.log("No max pages limit set");
+    }
 
     startConnectionProcess();
     sendResponse({ status: "started" });

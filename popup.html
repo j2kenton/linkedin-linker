@@ -106,8 +106,9 @@
         <input type="text" id="companyName" placeholder="e.g. Microsoft" style="width: 100%; padding: 5px; margin-top: 5px;">
       </div>
       <div style="margin-bottom: 10px;">
-        <label for="companiesIds">Company ID (if known):</label>
+        <label for="companiesIds">Current company ID:</label>
         <input type="text" id="companiesIds" placeholder="e.g. 1035" style="width: 100%; padding: 5px; margin-top: 5px;">
+        <div style="margin: 5px 0; font-size: 11px; color: #666; font-style: italic;">Select this yourself by clicking "All filters" button on results page and then click:</div>
         <button id="getFromUrlButton" style="margin-top: 5px; padding: 4px 8px; font-size: 12px; background: #f0f0f0; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;">Get from current URL</button>
       </div>
       <div style="margin-bottom: 10px;">
@@ -115,23 +116,59 @@
         <input type="text" id="titleOfProspect" placeholder="e.g. Engineering Manager" style="width: 100%; padding: 5px; margin-top: 5px;">
       </div>
       <div style="margin-bottom: 10px;">
-        <label for="locationIds">Location ID (if known):</label>
+        <label for="locationIds">Location ID (where the <b>connection</b> lives - <b>not</b> job location):</label>
         <input type="text" id="locationIds" placeholder="e.g. 101620260" style="width: 100%; padding: 5px; margin-top: 5px;">
+        <div style="margin: 5px 0; font-size: 11px; color: #666; font-style: italic;">Select this yourself by clicking "All filters" button on results page and then click:</div>
         <button id="getLocationFromUrlButton" style="margin-top: 5px; padding: 4px 8px; font-size: 12px; background: #f0f0f0; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;">Get from current URL</button>
       </div>
       <div style="margin-bottom: 10px;">
         <label for="connectionDegree">Connection degree (multi-select):</label>
         <select id="connectionDegree" multiple style="width: 100%; padding: 5px; margin-top: 5px; height: 80px;">
-          <option value="F">F (1st)</option>
-          <option value="S">S (2nd)</option>
-          <option value="O">O (Out of Network)</option>
+          <option value="F">1st</option>
+          <option value="S">2nd</option>
+          <option value="O">3rd+</option>
         </select>
       </div>
       <div style="margin-bottom: 10px;">
         <label for="startPage">Page number to start at:</label>
         <input type="number" id="startPage" placeholder="1" min="1" style="width: 100%; padding: 5px; margin-top: 5px;">
       </div>
-      <button id="goToSearchButton" class="button" style="margin-top: 10px;">Take me to search results</button>
+      <button id="goToSearchButton" class="button" style="margin-top: 10px;">🔍 Save & search</button>
+    </div>
+
+    <div class="settings">
+      <h4 style="margin: 0 0 10px 0; color: #333;">Message Settings</h4>
+      <div style="margin-bottom: 10px;">
+        <label for="greetingPart1">Greeting part 1:</label>
+        <input type="text" id="greetingPart1" placeholder="e.g. Hi" style="width: 100%; padding: 5px; margin-top: 5px;">
+      </div>
+      <div style="margin-bottom: 10px;">
+        <label class="checkbox-label">
+          <input type="checkbox" id="includeFirstNameCheckbox">
+          <span class="checkmark"></span>
+          Include first name of connection
+        </label>
+      </div>
+      <div style="margin-bottom: 10px;">
+        <label for="greetingPart2">Greeting part 2:</label>
+        <input type="text" id="greetingPart2" placeholder="e.g. 👋," style="width: 100%; padding: 5px; margin-top: 5px;">
+      </div>
+      <div style="margin-bottom: 10px;">
+        <label for="messageText">Message:</label>
+        <textarea id="messageText" rows="8" style="width: 100%; padding: 5px; margin-top: 5px; resize: vertical; font-family: inherit;" placeholder="Enter your connection message here..."></textarea>
+      </div>
+      <div style="margin-bottom: 10px;">
+        <label>Message Preview:</label>
+        <div id="messagePreview" style="width: 100%; padding: 10px; margin-top: 5px; background-color: #f8f9fa; border: 1px solid #e9ecef; border-radius: 4px; font-family: inherit; white-space: pre-wrap; min-height: 60px;"></div>
+      </div>
+      <button id="saveMessageButton" class="button" style="margin-top: 10px; width: auto; padding: 8px 16px; font-size: 12px;">💾 Save message format</button>
+    </div>
+
+    <div class="settings">
+      <div style="margin-bottom: 10px;">
+        <label for="stopPage">Max pages to process (leave blank for no max):</label>
+        <input type="number" id="stopPage" placeholder="" min="1" style="width: 100%; padding: 5px; margin-top: 5px;">
+      </div>
     </div>
 
     <div class="settings">
@@ -145,7 +182,7 @@
       </div>
     </div>
 
-    <button id="startButton" class="button">Start Automation</button>
+    <button id="startButton" class="button">Send connection requests</button>
 
     <div id="status" class="status">
       Click the button when on a LinkedIn search results page

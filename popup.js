@@ -12,15 +12,24 @@ document.addEventListener('DOMContentLoaded', function() {
   const locationIdsInput = document.getElementById('locationIds');
   const connectionDegreeInput = document.getElementById('connectionDegree');
   const startPageInput = document.getElementById('startPage');
+  const stopPageInput = document.getElementById('stopPage');
   const goToSearchButton = document.getElementById('goToSearchButton');
   const getFromUrlButton = document.getElementById('getFromUrlButton');
   const getLocationFromUrlButton = document.getElementById('getLocationFromUrlButton');
+
+  // Message settings elements
+  const greetingPart1Input = document.getElementById('greetingPart1');
+  const includeFirstNameCheckbox = document.getElementById('includeFirstNameCheckbox');
+  const greetingPart2Input = document.getElementById('greetingPart2');
+  const messageTextTextarea = document.getElementById('messageText');
+  const messagePreviewDiv = document.getElementById('messagePreview');
+  const saveMessageButton = document.getElementById('saveMessageButton');
 
   // Check for updates when popup opens
   checkForUpdates();
 
   // Load saved settings
-  chrome.storage.local.get(['liveMode', 'companyName', 'companiesIds', 'titleOfProspect', 'locationIds', 'connectionDegree', 'startPage'], (result) => {
+  chrome.storage.local.get(['liveMode', 'companyName', 'companiesIds', 'titleOfProspect', 'locationIds', 'connectionDegree', 'startPage', 'stopPage', 'greetingPart1', 'includeFirstName', 'greetingPart2', 'messageText'], (result) => {
     const liveMode = result.liveMode !== undefined ? result.liveMode : false;
     liveModeCheckbox.checked = liveMode;
 
@@ -31,12 +40,67 @@ document.addEventListener('DOMContentLoaded', function() {
     locationIdsInput.value = result.locationIds !== undefined ? result.locationIds : '101620260';
 
     // Handle connection degree multi-select
-    const savedDegrees = (result.connectionDegree !== undefined ? result.connectionDegree : 'S,O').split(',').map(d => d.trim());
+    const savedDegrees = (result.connectionDegree !== undefined ? result.connectionDegree : 'F,S,O').split(',').map(d => d.trim());
     Array.from(connectionDegreeInput.options).forEach(option => {
       option.selected = savedDegrees.includes(option.value);
     });
 
     startPageInput.value = result.startPage !== undefined ? result.startPage : 1;
+    stopPageInput.value = result.stopPage !== undefined ? result.stopPage : '';
+
+    // Load message settings with defaults
+    greetingPart1Input.value = result.greetingPart1 !== undefined ? result.greetingPart1 : '';
+    includeFirstNameCheckbox.checked = result.includeFirstName !== undefined ? result.includeFirstName : false;
+    greetingPart2Input.value = result.greetingPart2 !== undefined ? result.greetingPart2 : '';
+    messageTextTextarea.value = result.messageText !== undefined ? result.messageText : '';
+
+    // Update preview after loading settings
+    updateMessagePreview();
+  });
+
+  // Function to update message preview
+  function updateMessagePreview() {
+    const greetingPart1 = greetingPart1Input.value || '';
+    const includeFirstName = includeFirstNameCheckbox.checked;
+    const greetingPart2 = greetingPart2Input.value || '';
+    const messageText = messageTextTextarea.value || '';
+
+    let previewMessage = greetingPart1;
+
+    if (includeFirstName) {
+      previewMessage += ' [First Name]';
+    }
+
+    previewMessage += ` ${greetingPart2}\n${messageText}`;
+
+    messagePreviewDiv.textContent = previewMessage;
+  }
+
+  // Add event listeners for real-time preview updates
+  greetingPart1Input.addEventListener('input', updateMessagePreview);
+  includeFirstNameCheckbox.addEventListener('change', updateMessagePreview);
+  greetingPart2Input.addEventListener('input', updateMessagePreview);
+  messageTextTextarea.addEventListener('input', updateMessagePreview);
+
+  // Handle "Save message format" button
+  saveMessageButton.addEventListener('click', () => {
+    const messageParams = {
+      greetingPart1: greetingPart1Input.value,
+      includeFirstName: includeFirstNameCheckbox.checked,
+      greetingPart2: greetingPart2Input.value,
+      messageText: messageTextTextarea.value
+    };
+
+    chrome.storage.local.set(messageParams, () => {
+      // Show success message
+      statusDiv.textContent = '💾 Message format saved successfully!';
+      statusDiv.style.color = '#188038';
+
+      // Clear success message after 3 seconds
+      setTimeout(() => {
+        updateStatusBasedOnTab();
+      }, 3000);
+    });
   });
 
   // Handle "Get from current URL" button (Company)
@@ -170,7 +234,8 @@ document.addEventListener('DOMContentLoaded', function() {
       titleOfProspect: titleOfProspectInput.value,
       locationIds: locationIdsInput.value,
       connectionDegree: selectedDegrees,
-      startPage: parseInt(startPageInput.value) || 1
+      startPage: parseInt(startPageInput.value) || 1,
+      stopPage: stopPageInput.value ? parseInt(stopPageInput.value) : ''
     };
 
     chrome.storage.local.set(params, () => {
@@ -278,10 +343,20 @@ document.addEventListener('DOMContentLoaded', function() {
     statusDiv.style.color = '#666';
 
     try {
-      // Send message to content script with live mode setting
+      // Collect message settings
+      const messageSettings = {
+        greetingPart1: greetingPart1Input.value,
+        includeFirstName: includeFirstNameCheckbox.checked,
+        greetingPart2: greetingPart2Input.value,
+        messageText: messageTextTextarea.value
+      };
+
+      // Send message to content script with live mode setting, message settings, and max pages
       const response = await chrome.tabs.sendMessage(tab.id, {
         action: "startAutomation",
-        liveMode: liveModeCheckbox.checked
+        liveMode: liveModeCheckbox.checked,
+        messageSettings: messageSettings,
+        maxPages: stopPageInput.value
       });
 
       if (response && response.status === "started") {
