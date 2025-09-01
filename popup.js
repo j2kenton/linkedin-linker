@@ -17,6 +17,10 @@ document.addEventListener('DOMContentLoaded', function() {
   const goToSearchButton = document.getElementById('goToSearchButton');
   const getFromUrlButton = document.getElementById('getFromUrlButton');
   const getLocationFromUrlButton = document.getElementById('getLocationFromUrlButton');
+  const getCompanyNameFromUrlButton = document.getElementById('getCompanyNameFromUrlButton');
+  const getTitleFromUrlButton = document.getElementById('getTitleFromUrlButton');
+  const getConnectionDegreeFromUrlButton = document.getElementById('getConnectionDegreeFromUrlButton');
+  const getStartPageFromUrlButton = document.getElementById('getStartPageFromUrlButton');
 
   // Message settings elements
   const greetingPart1Input = document.getElementById('greetingPart1');
@@ -205,6 +209,194 @@ document.addEventListener('DOMContentLoaded', function() {
       } catch (error) {
         console.error('Error parsing location data:', error);
         statusDiv.textContent = '❌ Failed to parse location data from URL';
+        statusDiv.style.color = '#d93025';
+      }
+    });
+  });
+
+  // Handle "Get from current URL" button (Company Name)
+  getCompanyNameFromUrlButton.addEventListener('click', () => {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      const currentTab = tabs[0];
+      if (!currentTab || !currentTab.url) {
+        statusDiv.textContent = '❌ Unable to get current tab URL';
+        statusDiv.style.color = '#d93025';
+        return;
+      }
+
+      if (!currentTab.url.includes('linkedin.com/search/results/people')) {
+        statusDiv.textContent = '❌ Please navigate to a LinkedIn search results page first';
+        statusDiv.style.color = '#d93025';
+        return;
+      }
+
+      // Extract company parameter from URL
+      const url = new URL(currentTab.url);
+      const companyParam = url.searchParams.get('company');
+
+      if (!companyParam) {
+        statusDiv.textContent = '❌ No company name found in current search URL';
+        statusDiv.style.color = '#d93025';
+        return;
+      }
+
+      try {
+        // Decode the company name
+        const companyName = decodeURIComponent(companyParam);
+        companyNameInput.value = companyName;
+
+        statusDiv.textContent = `✅ Company name extracted: ${companyName}`;
+        statusDiv.style.color = '#188038';
+      } catch (error) {
+        console.error('Error parsing company name:', error);
+        statusDiv.textContent = '❌ Failed to parse company name from URL';
+        statusDiv.style.color = '#d93025';
+      }
+    });
+  });
+
+  // Handle "Get from current URL" button (Title)
+  getTitleFromUrlButton.addEventListener('click', () => {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      const currentTab = tabs[0];
+      if (!currentTab || !currentTab.url) {
+        statusDiv.textContent = '❌ Unable to get current tab URL';
+        statusDiv.style.color = '#d93025';
+        return;
+      }
+
+      if (!currentTab.url.includes('linkedin.com/search/results/people')) {
+        statusDiv.textContent = '❌ Please navigate to a LinkedIn search results page first';
+        statusDiv.style.color = '#d93025';
+        return;
+      }
+
+      // Extract titleFreeText parameter from URL
+      const url = new URL(currentTab.url);
+      const titleParam = url.searchParams.get('titleFreeText');
+
+      if (!titleParam) {
+        statusDiv.textContent = '❌ No job title found in current search URL';
+        statusDiv.style.color = '#d93025';
+        return;
+      }
+
+      try {
+        // Decode the job title
+        const jobTitle = decodeURIComponent(titleParam);
+        titleOfProspectInput.value = jobTitle;
+
+        statusDiv.textContent = `✅ Job title extracted: ${jobTitle}`;
+        statusDiv.style.color = '#188038';
+      } catch (error) {
+        console.error('Error parsing job title:', error);
+        statusDiv.textContent = '❌ Failed to parse job title from URL';
+        statusDiv.style.color = '#d93025';
+      }
+    });
+  });
+
+  // Handle "Get from current URL" button (Connection Degree)
+  getConnectionDegreeFromUrlButton.addEventListener('click', () => {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      const currentTab = tabs[0];
+      if (!currentTab || !currentTab.url) {
+        statusDiv.textContent = '❌ Unable to get current tab URL';
+        statusDiv.style.color = '#d93025';
+        return;
+      }
+
+      if (!currentTab.url.includes('linkedin.com/search/results/people')) {
+        statusDiv.textContent = '❌ Please navigate to a LinkedIn search results page first';
+        statusDiv.style.color = '#d93025';
+        return;
+      }
+
+      // Extract network parameter from URL
+      const url = new URL(currentTab.url);
+      const networkParam = url.searchParams.get('network');
+
+      if (!networkParam) {
+        statusDiv.textContent = '❌ No connection degree found in current search URL';
+        statusDiv.style.color = '#d93025';
+        return;
+      }
+
+      try {
+        // Decode and parse the JSON array
+        const decodedParam = decodeURIComponent(networkParam);
+        const connectionDegrees = JSON.parse(decodedParam);
+
+        if (!Array.isArray(connectionDegrees) || connectionDegrees.length === 0) {
+          statusDiv.textContent = '❌ Invalid connection degree data in URL';
+          statusDiv.style.color = '#d93025';
+          return;
+        }
+
+        // Clear existing selections
+        Array.from(connectionDegreeInput.options).forEach(option => {
+          option.selected = false;
+        });
+
+        // Select the matching options
+        connectionDegrees.forEach(degree => {
+          const option = Array.from(connectionDegreeInput.options).find(opt => opt.value === degree);
+          if (option) {
+            option.selected = true;
+          }
+        });
+
+        statusDiv.textContent = `✅ Connection degrees extracted: ${connectionDegrees.join(', ')}`;
+        statusDiv.style.color = '#188038';
+      } catch (error) {
+        console.error('Error parsing connection degrees:', error);
+        statusDiv.textContent = '❌ Failed to parse connection degrees from URL';
+        statusDiv.style.color = '#d93025';
+      }
+    });
+  });
+
+  // Handle "Get from current URL" button (Start Page)
+  getStartPageFromUrlButton.addEventListener('click', () => {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      const currentTab = tabs[0];
+      if (!currentTab || !currentTab.url) {
+        statusDiv.textContent = '❌ Unable to get current tab URL';
+        statusDiv.style.color = '#d93025';
+        return;
+      }
+
+      if (!currentTab.url.includes('linkedin.com/search/results/people')) {
+        statusDiv.textContent = '❌ Please navigate to a LinkedIn search results page first';
+        statusDiv.style.color = '#d93025';
+        return;
+      }
+
+      // Extract page parameter from URL
+      const url = new URL(currentTab.url);
+      const pageParam = url.searchParams.get('page');
+
+      if (!pageParam) {
+        statusDiv.textContent = '❌ No page number found in current search URL';
+        statusDiv.style.color = '#d93025';
+        return;
+      }
+
+      try {
+        // Parse the page number
+        const pageNumber = parseInt(pageParam);
+        if (isNaN(pageNumber) || pageNumber < 1) {
+          statusDiv.textContent = '❌ Invalid page number in URL';
+          statusDiv.style.color = '#d93025';
+          return;
+        }
+
+        startPageInput.value = pageNumber;
+        statusDiv.textContent = `✅ Start page extracted: ${pageNumber}`;
+        statusDiv.style.color = '#188038';
+      } catch (error) {
+        console.error('Error parsing page number:', error);
+        statusDiv.textContent = '❌ Failed to parse page number from URL';
         statusDiv.style.color = '#d93025';
       }
     });
