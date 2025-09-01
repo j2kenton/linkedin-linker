@@ -1,0 +1,29 @@
+name: Auto Commit and Push
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  auto-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update README timestamp
+        run: |
+          echo "" >> README.md
+          echo "## Last Updated: $(date)" >> README.md
+
+      - name: Auto commit changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: 'Auto commit: Update timestamp'
+          file_pattern: '*.md'
