@@ -48,7 +48,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     startPageInput.value = result.startPage !== undefined ? result.startPage : 1;
     stopPageInput.value = result.stopPage !== undefined ? result.stopPage : '';
-    maxConnectionsInput.value = result.maxConnections !== undefined ? result.maxConnections : '';
+    maxConnectionsInput.value = result.maxConnections !== undefined ? result.maxConnections : '200';
 
     // Load message settings with defaults
     greetingPart1Input.value = result.greetingPart1 !== undefined ? result.greetingPart1 : '';
