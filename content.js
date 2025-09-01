@@ -40,7 +40,7 @@ let maxConnections = null; // null means no limit
 // Function to connect to prospect at current index in the preserved list
 const connectToProspectAtIndex = async () => {
   return new Promise((resolve) => {
-    // Check if we've reached the max connections limit
+    // Check if we've reached the max connections limit BEFORE processing
     if (maxConnections !== null && prospectsProcessed >= maxConnections) {
       console.log(`Reached maximum connections limit (${maxConnections}). Stopping automation.`);
       console.log("Connection process completed.");
@@ -89,7 +89,7 @@ const connectToProspectAtIndex = async () => {
     console.log(
       `${isLiveMode ? "🔴 LIVE" : "🟡 TEST"}: Processing prospect ${
         currentProspectIndex + 1
-      }/${currentProspectsList.length}: ${firstName}`
+      }/${currentProspectsList.length}: ${firstName} (Total processed: ${prospectsProcessed})`
     );
 
     // Increment counter BEFORE processing
