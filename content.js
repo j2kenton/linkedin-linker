@@ -35,10 +35,22 @@ let currentProspectIndex = 0;
 let isLiveMode = false;
 let messageSettings = {};
 let maxPages = null; // null means no limit
+let maxConnections = null; // null means no limit
 
 // Function to connect to prospect at current index in the preserved list
 const connectToProspectAtIndex = async () => {
   return new Promise((resolve) => {
+    // Check if we've reached the max connections limit
+    if (maxConnections !== null && prospectsProcessed >= maxConnections) {
+      console.log(`Reached maximum connections limit (${maxConnections}). Stopping automation.`);
+      console.log("Connection process completed.");
+
+      // Send completion message to popup
+      chrome.runtime.sendMessage({ action: "automationCompleted" });
+      resolve();
+      return;
+    }
+
     // Check if we've processed all prospects in current list
     if (currentProspectIndex >= currentProspectsList.length) {
       console.log("No more prospects in current list.");
@@ -172,11 +184,23 @@ const initializeCurrentPageList = () => {
 const processCurrentPage = async () => {
   console.log("Starting to process prospects on current page...");
 
+  // Check if we've already reached the max connections limit
+  if (maxConnections !== null && prospectsProcessed >= maxConnections) {
+    console.log(`Already reached maximum connections limit (${maxConnections}). Skipping page processing.`);
+    return;
+  }
+
   // Initialize the prospects list for this page
   initializeCurrentPageList();
 
-  // Keep processing prospects by index until we've processed all in the list
+  // Keep processing prospects by index until we've processed all in the list or reached the limit
   while (currentProspectIndex < currentProspectsList.length) {
+    // Check if we've reached the max connections limit during processing
+    if (maxConnections !== null && prospectsProcessed >= maxConnections) {
+      console.log(`Reached maximum connections limit (${maxConnections}) during page processing. Stopping.`);
+      break;
+    }
+
     await connectToProspectAtIndex();
 
     // Add delay between prospects
@@ -204,6 +228,16 @@ const processSearchResults = async () => {
   // Check if we've reached the max pages limit
   if (maxPages !== null && pagesProcessed >= maxPages) {
     console.log(`Reached maximum pages limit (${maxPages}). Stopping automation.`);
+    console.log("Connection process completed.");
+
+    // Send completion message to popup
+    chrome.runtime.sendMessage({ action: "automationCompleted" });
+    return;
+  }
+
+  // Check if we've reached the max connections limit
+  if (maxConnections !== null && prospectsProcessed >= maxConnections) {
+    console.log(`Reached maximum connections limit (${maxConnections}). Stopping automation.`);
     console.log("Connection process completed.");
 
     // Send completion message to popup
@@ -280,6 +314,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     // Store max pages setting
     maxPages = request.maxPages !== undefined && request.maxPages !== '' ? parseInt(request.maxPages) : null;
 
+    // Store max connections setting
+    maxConnections = request.maxConnections !== undefined && request.maxConnections !== '' ? parseInt(request.maxConnections) : null;
+
     console.log(
       `${isLiveMode ? "🔴 Starting in LIVE mode" : "🟡 Starting in TEST mode"}`
     );
@@ -288,6 +325,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       console.log(`Max pages limit set to: ${maxPages}`);
     } else {
       console.log("No max pages limit set");
+    }
+
+    if (maxConnections !== null) {
+      console.log(`Max connections limit set to: ${maxConnections}`);
+    } else {
+      console.log("No max connections limit set");
     }
 
     startConnectionProcess();
