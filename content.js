@@ -344,6 +344,38 @@ const getCurrentPageFromURL = () => {
 const startConnectionProcess = async () => {
   console.log("Starting connection process...");
 
+  // Check if we're on a LinkedIn search results page
+  if (!window.location.href.includes('linkedin.com/search/results/people')) {
+    console.log("Not on search results page, navigating to search results...");
+
+    // Generate a basic search URL for people
+    const searchUrl = 'https://www.linkedin.com/search/results/people/?origin=FACETED_SEARCH&sid=BpI';
+
+    // Navigate to search results page
+    window.location.href = searchUrl;
+
+    // Wait for navigation to complete
+    await new Promise((resolve) => {
+      const checkNavigation = setInterval(() => {
+        if (window.location.href.includes('linkedin.com/search/results/people')) {
+          clearInterval(checkNavigation);
+          console.log("Successfully navigated to search results page");
+          resolve();
+        }
+      }, 1000);
+
+      // Safety timeout
+      setTimeout(() => {
+        clearInterval(checkNavigation);
+        console.log("Navigation timeout, proceeding anyway");
+        resolve();
+      }, 10000);
+    });
+
+    // Add extra delay to ensure page is fully loaded
+    await new Promise((resolve) => setTimeout(resolve, generateRandomTimeout() * 2));
+  }
+
   // Set currentPage based on URL page parameter
   currentPage = getCurrentPageFromURL();
   pagesProcessed = 0; // Reset pages processed counter
