@@ -218,8 +218,13 @@ const connectToProspectAtIndex = async () => {
           resolve();
         }
       } else {
-        console.log(`🔴 LIVE: Modal not found for ${firstName}`);
+        console.log(`🔴 LIVE: Modal not found for ${firstName}. Aborting automation.`);
+        console.log("Connection process aborted due to modal not found.");
+
+        // Send completion message to popup
+        chrome.runtime.sendMessage({ action: "automationCompleted" });
         resolve();
+        return;
       }
     }, generateRandomTimeout());
   });
