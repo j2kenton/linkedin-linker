@@ -516,15 +516,8 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   startButton.addEventListener('click', async () => {
-    // Check if we're on a LinkedIn search results page
+    // Get the active tab
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-
-    if (!tab.url || !tab.url.includes('linkedin.com/search/results/people')) {
-      // Show error message instead of redirecting
-      statusDiv.textContent = '❌ Please navigate to a LinkedIn search results page first';
-      statusDiv.style.color = '#d93025';
-      return;
-    }
 
     // Update button state
     startButton.disabled = true;
