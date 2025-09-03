@@ -110,26 +110,36 @@ const connectToProspectAtIndex = async () => {
       return;
     }
 
-    connectButton.click();
+    connectButton.dispatchEvent(new Event('click', { bubbles: true }));
     setTimeout(() => {
       const modal = document.querySelector(".ember-view .send-invite");
       if (modal) {
         const addNoteButton = modal.querySelector('button[aria-label^="Add"]');
         if (addNoteButton) {
-          addNoteButton.click();
+          addNoteButton.dispatchEvent(new Event('click', { bubbles: true }));
           setTimeout(async () => {
             const noteTextArea = modal.querySelector("textarea");
             if (noteTextArea) {
-              noteTextArea.focus();
-              noteTextArea.select();
-              const success = document.execCommand('insertText', false, buildNote(firstName, messageSettings));
-              if (!success) {
-                console.log("execCommand failed, trying value assignment");
-                try {
-                  noteTextArea.value = buildNote(firstName, messageSettings);
-                  noteTextArea.dispatchEvent(new Event("input", { bubbles: true }));
-                } catch (error) {
-                  console.log("Value assignment also failed:", error);
+              const message = buildNote(firstName, messageSettings);
+              try {
+                await navigator.clipboard.writeText(message);
+                noteTextArea.focus();
+                noteTextArea.select();
+                document.execCommand('paste');
+              } catch (e) {
+                console.log("Clipboard failed", e);
+                // fallback to execCommand
+                noteTextArea.focus();
+                noteTextArea.select();
+                const success = document.execCommand('insertText', false, message);
+                if (!success) {
+                  console.log("execCommand failed, trying value assignment");
+                  try {
+                    noteTextArea.value = message;
+                    noteTextArea.dispatchEvent(new Event("input", { bubbles: true }));
+                  } catch (error) {
+                    console.log("Value assignment also failed:", error);
+                  }
                 }
               }
 
@@ -141,7 +151,7 @@ const connectToProspectAtIndex = async () => {
                   // Add random delay before clicking send
                   await new Promise((resolveInner) => {
                     setTimeout(() => {
-                      sendButton.click();
+                      sendButton.dispatchEvent(new Event('click', { bubbles: true }));
                       console.log(
                         `🔴 LIVE: Sent connection request to ${firstName}`
                       );
@@ -161,7 +171,7 @@ const connectToProspectAtIndex = async () => {
                   // Add random delay before clicking cancel
                   await new Promise((resolveInner) => {
                     setTimeout(() => {
-                      cancelButton.click();
+                      cancelButton.dispatchEvent(new Event('click', { bubbles: true }));
                       resolveInner();
                     }, generateRandomTimeout());
                   });
@@ -173,7 +183,7 @@ const connectToProspectAtIndex = async () => {
                         'button[aria-label^="Dismiss"]'
                       );
                       if (dismissButton) {
-                        dismissButton.click();
+                        dismissButton.dispatchEvent(new Event('click', { bubbles: true }));
                       }
                       resolveInner();
                     }, generateRandomTimeout());
@@ -274,7 +284,7 @@ const processSearchResults = async () => {
   const nextPageButton = document.querySelector("button[aria-label='Next']");
   if (nextPageButton && !nextPageButton.disabled) {
     console.log("Moving to next page...");
-    nextPageButton.click();
+    nextPageButton.dispatchEvent(new Event('click', { bubbles: true }));
 
     // Increment page counter
     currentPage++;
