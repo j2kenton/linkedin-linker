@@ -17,6 +17,25 @@ const buildNote = (firstName, messageSettings) => {
 const generateRandomTimeout = (multiplier = 5000) =>
   Math.floor(Math.random() * multiplier) + 500;
 
+// Fallback function for clipboard-based text insertion
+async function fallbackToClipboard(message, noteTextArea) {
+  try {
+    await navigator.clipboard.writeText(message);
+    noteTextArea.focus();
+    noteTextArea.select();
+    document.execCommand('paste');
+  } catch (e) {
+    console.log("Clipboard fallback failed:", e);
+    // Final fallback to direct assignment
+    try {
+      noteTextArea.value = message;
+      noteTextArea.dispatchEvent(new Event("input", { bubbles: true }));
+    } catch (finalError) {
+      console.log("All text insertion methods failed:", finalError);
+    }
+  }
+}
+
 // Function to extract first name with regional accent support
 const extractFirstName = (prospectText) => {
   if (!prospectText) return "";
@@ -121,26 +140,28 @@ const connectToProspectAtIndex = async () => {
             const noteTextArea = modal.querySelector("textarea");
             if (noteTextArea) {
               const message = buildNote(firstName, messageSettings);
-              try {
-                await navigator.clipboard.writeText(message);
-                noteTextArea.focus();
-                noteTextArea.select();
-                document.execCommand('paste');
-              } catch (e) {
-                console.log("Clipboard failed", e);
-                // fallback to execCommand
-                noteTextArea.focus();
-                noteTextArea.select();
-                const success = document.execCommand('insertText', false, message);
-                if (!success) {
-                  console.log("execCommand failed, trying value assignment");
-                  try {
-                    noteTextArea.value = message;
-                    noteTextArea.dispatchEvent(new Event("input", { bubbles: true }));
-                  } catch (error) {
-                    console.log("Value assignment also failed:", error);
-                  }
+
+              // Try to use Trusted Types if available
+              if (window.trustedTypes && window.trustedTypes.createPolicy) {
+                try {
+                  // Create a policy with an allowed name from CSP
+                  const policy = window.trustedTypes.createPolicy('jSecure', {
+                    createHTML: (string) => string,
+                    createScript: (string) => string,
+                    createScriptURL: (string) => string,
+                  });
+
+                  // Use the policy to create trusted content
+                  noteTextArea.value = policy.createHTML(message);
+                  noteTextArea.dispatchEvent(new Event("input", { bubbles: true }));
+                } catch (trustedError) {
+                  console.log("Trusted Types failed:", trustedError);
+                  // Fallback to clipboard approach
+                  fallbackToClipboard(message, noteTextArea);
                 }
+              } else {
+                // No Trusted Types support, use clipboard
+                fallbackToClipboard(message, noteTextArea);
               }
 
               if (isLiveMode) {
