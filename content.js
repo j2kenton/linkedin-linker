@@ -232,29 +232,20 @@ const connectToProspectAtIndex = async () => {
 
 // Function to initialize prospects list for current page
 const initializeCurrentPageList = () => {
-  // Try different selectors based on page type
-  let prospects = [];
+  // Use all selectors together for maximum coverage
+  let prospects = [
+    // Search results specific selectors
+    ...document.querySelectorAll("div[role=main] div > a"),
+    ...document.querySelectorAll(".search-results-container ul li"),
 
-  // For search results pages
-  if (window.location.href.includes('linkedin.com/search/results/people')) {
-    prospects = [
-      ...document.querySelectorAll("div[role=main] div > a"),
-      ...document.querySelectorAll(".search-results-container ul li")
-    ];
-  }
-  // For other LinkedIn pages (feed, profile, etc.)
-  else {
-    // Try to find people cards or connection suggestions
-    prospects = [
-      ...document.querySelectorAll("div[data-test-id*='profile-card']"),
-      ...document.querySelectorAll("div[data-test-id*='connection-card']"),
-      ...document.querySelectorAll("div[data-test-id*='people-card']"),
-      ...document.querySelectorAll("div.entity-result__item"),
-      ...document.querySelectorAll("div.discovery-card"),
-      ...document.querySelectorAll("div[data-control-name*='people_card']"),
-      ...document.querySelectorAll(".search-results-container ul li")
-    ];
-  }
+    // General people card selectors
+    ...document.querySelectorAll("div[data-test-id*='profile-card']"),
+    ...document.querySelectorAll("div[data-test-id*='connection-card']"),
+    ...document.querySelectorAll("div[data-test-id*='people-card']"),
+    ...document.querySelectorAll("div.entity-result__item"),
+    ...document.querySelectorAll("div.discovery-card"),
+    ...document.querySelectorAll("div[data-control-name*='people_card']")
+  ];
 
   // Filter to only include elements that have connect buttons
   currentProspectsList = prospects.filter(element => {
