@@ -42,7 +42,7 @@ const connectToProspectAtIndex = async () => {
   return new Promise((resolve) => {
     // Check if we've reached the max connections limit BEFORE processing
     if (maxConnections !== null && prospectsProcessed >= maxConnections) {
-      console.log(`Reached maximum connections limit (${maxConnections}). Stopping automation.`);
+      console.log(`🔴 MAX LIMIT REACHED: Already processed ${prospectsProcessed}/${maxConnections} connections. Stopping automation.`);
       console.log("Connection process completed.");
 
       // Send completion message to popup
