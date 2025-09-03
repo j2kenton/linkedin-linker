@@ -232,10 +232,32 @@ const connectToProspectAtIndex = async () => {
 
 // Function to initialize prospects list for current page
 const initializeCurrentPageList = () => {
-  // Capture all prospects on current page
-  currentProspectsList = [
-    ...document.querySelectorAll("div[role=main] div > a"),
-  ];
+  // Try different selectors based on page type
+  let prospects = [];
+
+  // For search results pages
+  if (window.location.href.includes('linkedin.com/search/results/people')) {
+    prospects = [...document.querySelectorAll("div[role=main] div > a")];
+  }
+  // For other LinkedIn pages (feed, profile, etc.)
+  else {
+    // Try to find people cards or connection suggestions
+    prospects = [
+      ...document.querySelectorAll("div[data-test-id*='profile-card']"),
+      ...document.querySelectorAll("div[data-test-id*='connection-card']"),
+      ...document.querySelectorAll("div[data-test-id*='people-card']"),
+      ...document.querySelectorAll("div.entity-result__item"),
+      ...document.querySelectorAll("div.discovery-card"),
+      ...document.querySelectorAll("div[data-control-name*='people_card']")
+    ];
+  }
+
+  // Filter to only include elements that have connect buttons
+  currentProspectsList = prospects.filter(element => {
+    const connectButton = element.querySelector("button[aria-label$='connect']");
+    return connectButton !== null;
+  });
+
   currentProspectIndex = 0; // Reset index for new page
 
   console.log(`Initialized page with ${currentProspectsList.length} prospects`);
@@ -343,38 +365,6 @@ const getCurrentPageFromURL = () => {
 // Function to start the connection process
 const startConnectionProcess = async () => {
   console.log("Starting connection process...");
-
-  // Check if we're on a LinkedIn search results page
-  if (!window.location.href.includes('linkedin.com/search/results/people')) {
-    console.log("Not on search results page, navigating to search results...");
-
-    // Generate a basic search URL for people
-    const searchUrl = 'https://www.linkedin.com/search/results/people/?origin=FACETED_SEARCH&sid=BpI';
-
-    // Navigate to search results page
-    window.location.href = searchUrl;
-
-    // Wait for navigation to complete
-    await new Promise((resolve) => {
-      const checkNavigation = setInterval(() => {
-        if (window.location.href.includes('linkedin.com/search/results/people')) {
-          clearInterval(checkNavigation);
-          console.log("Successfully navigated to search results page");
-          resolve();
-        }
-      }, 1000);
-
-      // Safety timeout
-      setTimeout(() => {
-        clearInterval(checkNavigation);
-        console.log("Navigation timeout, proceeding anyway");
-        resolve();
-      }, 10000);
-    });
-
-    // Add extra delay to ensure page is fully loaded
-    await new Promise((resolve) => setTimeout(resolve, generateRandomTimeout() * 2));
-  }
 
   // Set currentPage based on URL page parameter
   currentPage = getCurrentPageFromURL();
