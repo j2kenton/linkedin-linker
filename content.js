@@ -350,35 +350,33 @@ const processCurrentPage = async () => {
       console.log("All current prospects processed. Checking for more...");
 
       const previousCount = currentProspectsList.length;
+      let newProspectsFound = false;
 
-      // Scroll to bottom
-      await scrollToBottom();
+      // Keep scrolling until we find new prospects or reach max attempts
+      while (!newProspectsFound && scrollAttempts < maxScrollAttempts) {
+        console.log(`Scroll attempt ${scrollAttempts + 1}/${maxScrollAttempts}...`);
 
-      // Wait 10 seconds for new content to load
-      console.log("Waiting 10 seconds for new content to load...");
-      await new Promise((resolve) => setTimeout(resolve, 10000));
+        // Scroll to bottom
+        await scrollToBottom();
 
-      // Check if new prospects were loaded
-      const newProspectsFound = checkForNewProspects(previousCount);
+        // Wait 10 seconds for new content to load
+        console.log("Waiting 10 seconds for new content to load...");
+        await new Promise((resolve) => setTimeout(resolve, 10000));
+
+        // Check if new prospects were loaded
+        newProspectsFound = checkForNewProspects(previousCount);
+
+        if (!newProspectsFound) {
+          console.log("No new prospects found after scrolling. Trying again...");
+          scrollAttempts++;
+        }
+      }
 
       if (newProspectsFound) {
         console.log("New prospects found! Continuing processing...");
         scrollAttempts = 0; // Reset scroll attempts when new prospects are found
       } else {
-        console.log("No new prospects found after scrolling.");
-        scrollAttempts++;
-        if (scrollAttempts < maxScrollAttempts) {
-          console.log(`Attempting scroll again (${scrollAttempts}/${maxScrollAttempts})...`);
-          // Try scrolling again in case content is still loading
-          await scrollToBottom();
-          await new Promise((resolve) => setTimeout(resolve, 5000)); // Wait 5 more seconds
-
-          const retryNewProspectsFound = checkForNewProspects(previousCount);
-          if (retryNewProspectsFound) {
-            console.log("New prospects found on retry! Continuing processing...");
-            scrollAttempts = 0; // Reset scroll attempts
-          }
-        }
+        console.log(`No new prospects found after ${maxScrollAttempts} scroll attempts.`);
       }
     }
   }
