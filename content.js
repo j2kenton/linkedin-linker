@@ -120,9 +120,18 @@ const connectToProspectAtIndex = async () => {
           setTimeout(async () => {
             const noteTextArea = modal.querySelector("textarea");
             if (noteTextArea) {
-              noteTextArea.value = buildNote(firstName, messageSettings);
-              // programmatically make text area dirty
-              noteTextArea.dispatchEvent(new Event("input", { bubbles: true }));
+              noteTextArea.focus();
+              noteTextArea.select();
+              const success = document.execCommand('insertText', false, buildNote(firstName, messageSettings));
+              if (!success) {
+                console.log("execCommand failed, trying value assignment");
+                try {
+                  noteTextArea.value = buildNote(firstName, messageSettings);
+                  noteTextArea.dispatchEvent(new Event("input", { bubbles: true }));
+                } catch (error) {
+                  console.log("Value assignment also failed:", error);
+                }
+              }
 
               if (isLiveMode) {
                 const sendButton = modal.querySelector(
