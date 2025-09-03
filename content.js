@@ -476,7 +476,10 @@ const startConnectionProcess = async () => {
 
 // Listen for messages from popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action === "startAutomation") {
+  if (request.action === "ping") {
+    // Respond to ping to indicate content script is ready
+    sendResponse({ status: "ready" });
+  } else if (request.action === "startAutomation") {
     // Set live mode based on popup setting
     isLiveMode = request.liveMode || false;
 

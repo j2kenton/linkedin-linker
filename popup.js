@@ -527,6 +527,33 @@ document.addEventListener('DOMContentLoaded', function() {
     statusDiv.style.color = '#666';
 
     try {
+      // First check if content script is ready by sending a ping
+      console.log('Checking if content script is ready...');
+
+      // Try to ping the content script first
+      const pingResponse = await chrome.tabs.sendMessage(tab.id, {
+        action: "ping"
+      }).catch(() => null);
+
+      if (!pingResponse) {
+        // Content script not ready, try to inject it
+        console.log('Content script not ready, attempting to inject...');
+
+        try {
+          await chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            files: ['content.js']
+          });
+          console.log('Content script injected successfully');
+
+          // Wait a moment for the script to initialize
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        } catch (injectError) {
+          console.error('Failed to inject content script:', injectError);
+          throw new Error('Could not load automation script on this page');
+        }
+      }
+
       // Collect message settings
       const messageSettings = {
         greetingPart1: greetingPart1Input.value,
@@ -548,13 +575,21 @@ document.addEventListener('DOMContentLoaded', function() {
         startButton.textContent = 'Running...';
         statusDiv.textContent = `✅ Automation started in ${liveModeCheckbox.checked ? 'LIVE' : 'TEST'} mode! Check console for progress.`;
         statusDiv.style.color = liveModeCheckbox.checked ? '#d93025' : '#f57c00';
+      } else {
+        throw new Error('Content script did not respond properly');
       }
     } catch (error) {
       console.error('Error starting automation:', error);
       startButton.disabled = false;
       startButton.textContent = 'Start Automation';
       liveModeCheckbox.disabled = false; // Re-enable checkbox on error
-      statusDiv.textContent = '❌ Error: Could not start automation';
+
+      // Provide more specific error messages
+      let errorMessage = '❌ Error: Could not start automation';
+      if (error.message) {
+        errorMessage += ` - ${error.message}`;
+      }
+      statusDiv.textContent = errorMessage;
       statusDiv.style.color = '#d93025';
     }
   });
