@@ -520,15 +520,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
     if (!tab.url || !tab.url.includes('linkedin.com/search/results/people')) {
-      // Generate URL and open it
-      const url = generateLinkedInURL();
-      chrome.tabs.create({ url: url }, () => {
-        statusDiv.textContent = '🔗 Opening LinkedIn search page...';
-        statusDiv.style.color = '#0077b5';
-        setTimeout(() => {
-          updateStatusBasedOnTab();
-        }, 3000);
-      });
+      // Show error message instead of redirecting
+      statusDiv.textContent = '❌ Please navigate to a LinkedIn search results page first';
+      statusDiv.style.color = '#d93025';
       return;
     }
 
