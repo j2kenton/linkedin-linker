@@ -258,6 +258,62 @@ const initializeCurrentPageList = () => {
   console.log(`Initialized page with ${currentProspectsList.length} prospects`);
 };
 
+// Function to scroll to the bottom of the page
+const scrollToBottom = () => {
+  return new Promise((resolve) => {
+    console.log("Scrolling to bottom of page...");
+
+    // Scroll to the bottom of the page
+    window.scrollTo({
+      top: document.body.scrollHeight,
+      behavior: 'smooth'
+    });
+
+    // Wait a bit for the scroll to complete
+    setTimeout(() => {
+      console.log("Scroll to bottom completed");
+      resolve();
+    }, 2000); // 2 second delay for smooth scroll
+  });
+};
+
+// Function to check if new prospects were loaded after scrolling
+const checkForNewProspects = (previousCount) => {
+  // Re-scan for prospects
+  const newProspects = [
+    // Search results specific selectors
+    ...document.querySelectorAll("div[role=main] div > a"),
+    ...document.querySelectorAll(".search-results-container ul li"),
+
+    // General people card selectors
+    ...document.querySelectorAll("div[data-test-id*='profile-card']"),
+    ...document.querySelectorAll("div[data-test-id*='connection-card']"),
+    ...document.querySelectorAll("div[data-test-id*='people-card']"),
+    ...document.querySelectorAll("div.entity-result__item"),
+    ...document.querySelectorAll("div.discovery-card"),
+    ...document.querySelectorAll("div[data-control-name*='people_card']")
+  ];
+
+  // Filter to only include elements that have connect buttons
+  const newFilteredProspects = newProspects.filter(element => {
+    const connectButton = element.querySelector("button[aria-label$='connect']");
+    return connectButton !== null;
+  });
+
+  const newCount = newFilteredProspects.length;
+  const newProspectsFound = newCount > previousCount;
+
+  console.log(`Previous prospects: ${previousCount}, New prospects: ${newCount}, New found: ${newProspectsFound}`);
+
+  if (newProspectsFound) {
+    // Update the current prospects list with new prospects
+    currentProspectsList = newFilteredProspects;
+    currentProspectIndex = previousCount; // Start processing from where we left off
+  }
+
+  return newProspectsFound;
+};
+
 // Function to process all prospects on the current page
 const processCurrentPage = async () => {
   console.log("Starting to process prospects on current page...");
@@ -271,8 +327,11 @@ const processCurrentPage = async () => {
   // Initialize the prospects list for this page
   initializeCurrentPageList();
 
-  // Keep processing prospects by index until we've processed all in the list or reached the limit
-  while (currentProspectIndex < currentProspectsList.length) {
+  let scrollAttempts = 0;
+  const maxScrollAttempts = 5; // Prevent infinite scrolling
+
+  // Keep processing prospects and scrolling for more until no new prospects found
+  while (currentProspectIndex < currentProspectsList.length && scrollAttempts < maxScrollAttempts) {
     // Check if we've reached the max connections limit during processing
     if (maxConnections !== null && prospectsProcessed >= maxConnections) {
       console.log(`Reached maximum connections limit (${maxConnections}) during page processing. Stopping.`);
@@ -285,6 +344,43 @@ const processCurrentPage = async () => {
     await new Promise((resolve) =>
       setTimeout(resolve, generateRandomTimeout())
     );
+
+    // If we've processed all current prospects, try to scroll for more
+    if (currentProspectIndex >= currentProspectsList.length) {
+      console.log("All current prospects processed. Checking for more...");
+
+      const previousCount = currentProspectsList.length;
+
+      // Scroll to bottom
+      await scrollToBottom();
+
+      // Wait 10 seconds for new content to load
+      console.log("Waiting 10 seconds for new content to load...");
+      await new Promise((resolve) => setTimeout(resolve, 10000));
+
+      // Check if new prospects were loaded
+      const newProspectsFound = checkForNewProspects(previousCount);
+
+      if (newProspectsFound) {
+        console.log("New prospects found! Continuing processing...");
+        scrollAttempts = 0; // Reset scroll attempts when new prospects are found
+      } else {
+        console.log("No new prospects found after scrolling.");
+        scrollAttempts++;
+        if (scrollAttempts < maxScrollAttempts) {
+          console.log(`Attempting scroll again (${scrollAttempts}/${maxScrollAttempts})...`);
+          // Try scrolling again in case content is still loading
+          await scrollToBottom();
+          await new Promise((resolve) => setTimeout(resolve, 5000)); // Wait 5 more seconds
+
+          const retryNewProspectsFound = checkForNewProspects(previousCount);
+          if (retryNewProspectsFound) {
+            console.log("New prospects found on retry! Continuing processing...");
+            scrollAttempts = 0; // Reset scroll attempts
+          }
+        }
+      }
+    }
   }
 
   console.log(
