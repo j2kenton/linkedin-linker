@@ -237,7 +237,10 @@ const initializeCurrentPageList = () => {
 
   // For search results pages
   if (window.location.href.includes('linkedin.com/search/results/people')) {
-    prospects = [...document.querySelectorAll("div[role=main] div > a")];
+    prospects = [
+      ...document.querySelectorAll("div[role=main] div > a"),
+      ...document.querySelectorAll(".search-results-container ul li")
+    ];
   }
   // For other LinkedIn pages (feed, profile, etc.)
   else {
@@ -248,7 +251,8 @@ const initializeCurrentPageList = () => {
       ...document.querySelectorAll("div[data-test-id*='people-card']"),
       ...document.querySelectorAll("div.entity-result__item"),
       ...document.querySelectorAll("div.discovery-card"),
-      ...document.querySelectorAll("div[data-control-name*='people_card']")
+      ...document.querySelectorAll("div[data-control-name*='people_card']"),
+      ...document.querySelectorAll(".search-results-container ul li")
     ];
   }
 
