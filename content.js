@@ -229,7 +229,7 @@ const connectToProspectAtIndex = async () => {
 const initializeCurrentPageList = () => {
   // Capture all prospects on current page
   currentProspectsList = [
-    ...document.querySelectorAll(".search-results-container ul[role=list] li"),
+    ...document.querySelectorAll("div[role=main] div > a"),
   ];
   currentProspectIndex = 0; // Reset index for new page
 
