@@ -282,29 +282,48 @@ const clickMoreButton = () => {
   return new Promise((resolve) => {
     console.log("Looking for 'more' button...");
 
-    // Find all buttons that contain "more" in their text or aria-label
-    const buttons = document.querySelectorAll('button');
-    let moreButton = null;
+    // Find all clickable elements that might contain "more"
+    const selectors = [
+      'button',
+      'a',
+      'div[role="button"]',
+      'span[role="button"]',
+      '[data-control-name*="more"]',
+      '[aria-label*="more" i]',
+      '[aria-label*="show more" i]',
+      '[aria-label*="load more" i]'
+    ];
 
-    for (let button of buttons) {
-      const text = button.textContent.toLowerCase();
-      const ariaLabel = button.getAttribute('aria-label') ? button.getAttribute('aria-label').toLowerCase() : '';
-      if (text.includes('more') || ariaLabel.includes('more')) {
-        moreButton = button;
-        break;
+    let moreElement = null;
+
+    for (let selector of selectors) {
+      const elements = document.querySelectorAll(selector);
+      for (let element of elements) {
+        const text = element.textContent ? element.textContent.toLowerCase() : '';
+        const ariaLabel = element.getAttribute('aria-label') ? element.getAttribute('aria-label').toLowerCase() : '';
+        const title = element.getAttribute('title') ? element.getAttribute('title').toLowerCase() : '';
+
+        if (text.includes('more') || ariaLabel.includes('more') || title.includes('more') ||
+            text.includes('show more') || ariaLabel.includes('show more') || title.includes('show more') ||
+            text.includes('load more') || ariaLabel.includes('load more') || title.includes('load more')) {
+          moreElement = element;
+          console.log(`Found 'more' element: ${selector} with text: "${text}" aria-label: "${ariaLabel}"`);
+          break;
+        }
       }
+      if (moreElement) break;
     }
 
-    if (moreButton) {
-      console.log("Found 'more' button, clicking it...");
-      moreButton.click();
+    if (moreElement) {
+      console.log("Clicking 'more' element...");
+      moreElement.click();
       // Wait for content to load after clicking
       setTimeout(() => {
-        console.log("'More' button clicked, waiting for content...");
+        console.log("'More' element clicked, waiting for content...");
         resolve();
       }, 3000); // 3 second delay
     } else {
-      console.log("No 'more' button found.");
+      console.log("No 'more' element found.");
       resolve();
     }
   });
