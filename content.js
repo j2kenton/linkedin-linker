@@ -277,6 +277,39 @@ const scrollToBottom = () => {
   });
 };
 
+// Function to look for and click a button containing "more"
+const clickMoreButton = () => {
+  return new Promise((resolve) => {
+    console.log("Looking for 'more' button...");
+
+    // Find all buttons that contain "more" in their text or aria-label
+    const buttons = document.querySelectorAll('button');
+    let moreButton = null;
+
+    for (let button of buttons) {
+      const text = button.textContent.toLowerCase();
+      const ariaLabel = button.getAttribute('aria-label') ? button.getAttribute('aria-label').toLowerCase() : '';
+      if (text.includes('more') || ariaLabel.includes('more')) {
+        moreButton = button;
+        break;
+      }
+    }
+
+    if (moreButton) {
+      console.log("Found 'more' button, clicking it...");
+      moreButton.click();
+      // Wait for content to load after clicking
+      setTimeout(() => {
+        console.log("'More' button clicked, waiting for content...");
+        resolve();
+      }, 3000); // 3 second delay
+    } else {
+      console.log("No 'more' button found.");
+      resolve();
+    }
+  });
+};
+
 // Function to check if new prospects were loaded after scrolling
 const checkForNewProspects = (previousCount) => {
   // Re-scan for prospects
@@ -358,6 +391,9 @@ const processCurrentPage = async () => {
 
         // Scroll to bottom
         await scrollToBottom();
+
+        // Look for and click 'more' button if found
+        await clickMoreButton();
 
         // Wait 10 seconds for new content to load
         console.log("Waiting 10 seconds for new content to load...");
