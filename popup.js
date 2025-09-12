@@ -28,13 +28,14 @@ document.addEventListener('DOMContentLoaded', function() {
   const greetingPart2Input = document.getElementById('greetingPart2');
   const messageTextTextarea = document.getElementById('messageText');
   const messagePreviewDiv = document.getElementById('messagePreview');
+  const autoAdjustCheckbox = document.getElementById('autoAdjustCheckbox');
   const saveMessageButton = document.getElementById('saveMessageButton');
 
   // Check for updates when popup opens
   checkForUpdates();
 
   // Load saved settings
-  chrome.storage.local.get(['liveMode', 'companyName', 'companiesIds', 'titleOfProspect', 'locationIds', 'connectionDegree', 'startPage', 'stopPage', 'maxConnections', 'greetingPart1', 'includeFirstName', 'greetingPart2', 'messageText'], (result) => {
+  chrome.storage.local.get(['liveMode', 'companyName', 'companiesIds', 'titleOfProspect', 'locationIds', 'connectionDegree', 'startPage', 'stopPage', 'maxConnections', 'autoAdjust', 'greetingPart1', 'includeFirstName', 'greetingPart2', 'messageText'], (result) => {
     const liveMode = result.liveMode !== undefined ? result.liveMode : false;
     liveModeCheckbox.checked = liveMode;
 
@@ -53,6 +54,7 @@ document.addEventListener('DOMContentLoaded', function() {
     startPageInput.value = result.startPage !== undefined ? result.startPage : 1;
     stopPageInput.value = result.stopPage !== undefined ? result.stopPage : '';
     maxConnectionsInput.value = result.maxConnections !== undefined ? result.maxConnections : '200';
+    autoAdjustCheckbox.checked = result.autoAdjust !== undefined ? result.autoAdjust : false;
 
     // Load message settings with defaults
     greetingPart1Input.value = result.greetingPart1 !== undefined ? result.greetingPart1 : '';
@@ -97,7 +99,8 @@ document.addEventListener('DOMContentLoaded', function() {
       messageText: messageTextTextarea.value,
       liveMode: liveModeCheckbox.checked,
       stopPage: stopPageInput.value,
-      maxConnections: maxConnectionsInput.value
+      maxConnections: maxConnectionsInput.value,
+      autoAdjust: autoAdjustCheckbox.checked
     };
 
     chrome.storage.local.set(autoConnectParams, () => {
@@ -562,13 +565,14 @@ document.addEventListener('DOMContentLoaded', function() {
         messageText: messageTextTextarea.value
       };
 
-      // Send message to content script with live mode setting, message settings, max pages, and max connections
+      // Send message to content script with live mode setting, message settings, max pages, max connections, and auto-adjust
       const response = await chrome.tabs.sendMessage(tab.id, {
         action: "startAutomation",
         liveMode: liveModeCheckbox.checked,
         messageSettings: messageSettings,
         maxPages: stopPageInput.value,
-        maxConnections: maxConnectionsInput.value
+        maxConnections: maxConnectionsInput.value,
+        autoAdjust: autoAdjustCheckbox.checked
       });
 
       if (response && response.status === "started") {

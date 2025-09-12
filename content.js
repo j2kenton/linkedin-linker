@@ -43,7 +43,13 @@ const extractFirstName = (prospectText) => {
   // Get first sequence of alphanumeric chars (including accented letters)
   const match = prospectText.match(/[\p{L}\p{N}]+/u);
 
-  return match ? match[0] : "";
+  if (match) {
+    const firstName = match[0];
+    // Capitalize first letter and make rest lowercase
+    return firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase();
+  }
+
+  return "";
 };
 
 let prospectsProcessed = 0;
@@ -55,6 +61,7 @@ let isLiveMode = false;
 let messageSettings = {};
 let maxPages = null; // null means no limit
 let maxConnections = null; // null means no limit
+let autoAdjust = false; // auto-adjust max connections setting
 
 // Function to connect to prospect at current index in the preserved list
 const connectToProspectAtIndex = async () => {
@@ -176,6 +183,20 @@ const connectToProspectAtIndex = async () => {
                       console.log(
                         `🔴 LIVE: Sent connection request to ${firstName}`
                       );
+
+                      // Auto-adjust: decrement max connections limit if enabled
+                      if (autoAdjust && maxConnections !== null && maxConnections > 0) {
+                        maxConnections--;
+                        console.log(`🔄 Auto-adjust: Decreased max connections limit to ${maxConnections}`);
+
+                        // Update the stored value in chrome.storage.local
+                        chrome.storage.local.set({ maxConnections: maxConnections.toString() }, () => {
+                          if (chrome.runtime.lastError) {
+                            console.error('Error updating maxConnections in storage:', chrome.runtime.lastError);
+                          }
+                        });
+                      }
+
                       resolveInner();
                     }, generateRandomTimeout());
                   });
@@ -277,21 +298,21 @@ const scrollToBottom = () => {
   });
 };
 
-// Function to look for and click a button containing "more"
+// Function to look for and click a button containing "more results"
 const clickMoreButton = () => {
   return new Promise((resolve) => {
-    console.log("Looking for 'more' button...");
+    console.log("Looking for 'more results' button...");
 
-    // Find all clickable elements that might contain "more"
+    // Find all clickable elements that might contain "more results"
     const selectors = [
       'button',
       'a',
       'div[role="button"]',
       'span[role="button"]',
       '[data-control-name*="more"]',
-      '[aria-label*="more" i]',
-      '[aria-label*="show more" i]',
-      '[aria-label*="load more" i]'
+      '[aria-label*="more results" i]',
+      '[aria-label*="show more results" i]',
+      '[aria-label*="load more results" i]'
     ];
 
     let moreElement = null;
@@ -303,11 +324,12 @@ const clickMoreButton = () => {
         const ariaLabel = element.getAttribute('aria-label') ? element.getAttribute('aria-label').toLowerCase() : '';
         const title = element.getAttribute('title') ? element.getAttribute('title').toLowerCase() : '';
 
-        if (text.includes('more') || ariaLabel.includes('more') || title.includes('more') ||
-            text.includes('show more') || ariaLabel.includes('show more') || title.includes('show more') ||
-            text.includes('load more') || ariaLabel.includes('load more') || title.includes('load more')) {
+        // Only look for "more results" variants
+        if (text.includes('more results') || ariaLabel.includes('more results') || title.includes('more results') ||
+            text.includes('show more results') || ariaLabel.includes('show more results') || title.includes('show more results') ||
+            text.includes('load more results') || ariaLabel.includes('load more results') || title.includes('load more results')) {
           moreElement = element;
-          console.log(`Found 'more' element: ${selector} with text: "${text}" aria-label: "${ariaLabel}"`);
+          console.log(`Found 'more results' element: ${selector} with text: "${text}" aria-label: "${ariaLabel}"`);
           break;
         }
       }
@@ -315,15 +337,15 @@ const clickMoreButton = () => {
     }
 
     if (moreElement) {
-      console.log("Clicking 'more' element...");
+      console.log("Clicking 'more results' element...");
       moreElement.click();
       // Wait for content to load after clicking
       setTimeout(() => {
-        console.log("'More' element clicked, waiting for content...");
+        console.log("'More results' element clicked, waiting for content...");
         resolve();
       }, 3000); // 3 second delay
     } else {
-      console.log("No 'more' element found.");
+      console.log("No 'more results' element found.");
       resolve();
     }
   });
@@ -546,6 +568,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
     // Store max connections setting
     maxConnections = request.maxConnections !== undefined && request.maxConnections !== '' ? parseInt(request.maxConnections) : null;
+
+    // Store auto-adjust setting
+    autoAdjust = request.autoAdjust || false;
 
     console.log(
       `${isLiveMode ? "🔴 Starting in LIVE mode" : "🟡 Starting in TEST mode"}`
