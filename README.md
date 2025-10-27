@@ -92,8 +92,6 @@ The extension requires:
 
 ## Development
 
-## Development
-
 ### TypeScript Setup
 
 This project is written in TypeScript and compiled to JavaScript. The TypeScript source files are in the `src/` directory, and the compiled output goes to the `dist/` directory.
