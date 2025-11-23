@@ -185,24 +185,22 @@ const connectToProspectAtIndex = async (): Promise<void> => {
       }/${currentProspectsList.length}: ${firstName} (Total processed: ${prospectsProcessed})`
     );
 
-    // Increment counter BEFORE processing
-    prospectsProcessed++;
-    currentProspectIndex++; // Increment index for next call
-
-    // Check if we've reached the max connections limit AFTER incrementing
-    // We use > maxConnections because we want to stop AFTER processing the maxConnections-th prospect
-    if (maxConnections !== null && prospectsProcessed > maxConnections) {
+    // Check if we've reached the max connections limit BEFORE processing
+    if (maxConnections !== null && prospectsProcessed >= maxConnections) {
       console.log(`Reached maximum connections limit (${maxConnections}). Stopping automation.`);
       console.log("Connection process completed.");
 
       // Send completion message to popup
       chrome.runtime.sendMessage({ action: "automationCompleted" });
 
-      // Don't process this prospect since we've exceeded the limit
+      // Don't process this prospect since we've reached the limit
       resolve();
       return;
     }
 
+    // Increment counter BEFORE processing
+    prospectsProcessed++;
+    currentProspectIndex++; // Increment index for next call
     connectButton.dispatchEvent(new Event('click', { bubbles: true }));
     setTimeout(() => {
       const modal = document.querySelector(".ember-view .send-invite") as HTMLElement | null;
