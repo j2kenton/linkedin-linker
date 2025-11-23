@@ -256,6 +256,12 @@ const connectToProspectAtIndex = async (): Promise<void> => {
                         chrome.storage.local.set({ maxConnections: maxConnections.toString() }, () => {
                           if (chrome.runtime.lastError) {
                             console.error('Error updating maxConnections in storage:', chrome.runtime.lastError);
+                          } else {
+                            // Notify popup UI of the change
+                            chrome.runtime.sendMessage({
+                              type: "maxConnectionsUpdated",
+                              maxConnections: maxConnections
+                            });
                           }
                         });
                       }
