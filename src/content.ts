@@ -566,8 +566,11 @@ const processSearchResults = async (): Promise<void> => {
     return;
   }
 
+  // Scroll to bottom to ensure pagination controls are visible
+  await scrollToBottom();
+
   // Check if there's a next page
-  const nextPageButton = document.querySelector("button[aria-label='Next']") as HTMLButtonElement | null;
+  const nextPageButton = document.querySelector("button[data-testid='pagination-controls-next-button-visible']") as HTMLButtonElement | null;
   if (nextPageButton && !nextPageButton.disabled) {
     console.log("Moving to next page...");
     nextPageButton.dispatchEvent(new Event('click', { bubbles: true }));
