@@ -15,7 +15,7 @@ chrome.runtime.onMessage.addListener(
     request: AutomationMessage,
     sender: chrome.runtime.MessageSender,
     sendResponse: (response: MessageResponse) => void
-  ): boolean | undefined => {
+  ): boolean | void => {
     if (request.action === "automationCompleted") {
       console.log("Automation completed message received from content script");
 
