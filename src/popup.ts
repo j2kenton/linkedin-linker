@@ -581,7 +581,8 @@ document.addEventListener('DOMContentLoaded', function(): void {
       // First check if content script is ready by sending a ping
       console.log('Checking if content script is ready...');
 
-      // Try to ping the content script first
+      } catch (pingError) {
+        console.error('Error pinging content script:', pingError);
       let pingResponse: AutomationResponse | null = null;
       try {
         pingResponse = await chrome.tabs.sendMessage(tab.id!, {
