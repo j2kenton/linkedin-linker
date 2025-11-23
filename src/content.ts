@@ -214,28 +214,9 @@ const connectToProspectAtIndex = async (): Promise<void> => {
               const message = buildNote(firstName, messageSettings);
 
               // Try to use Trusted Types if available
-              if (window.trustedTypes && window.trustedTypes.createPolicy) {
-                try {
-                  // Create a policy with an allowed name from CSP
-                  const policy = window.trustedTypes.createPolicy('jSecure', {
-                    createHTML: (string: string) => string,
-                    createScript: (string: string) => string,
-                    createScriptURL: (string: string) => string,
-                  });
-
-                  // Use the policy to create trusted content
-                  noteTextArea.value = policy.createHTML(message) as unknown as string;
-                  noteTextArea.dispatchEvent(new Event("input", { bubbles: true }));
-                } catch (trustedError) {
-                  console.log("Trusted Types failed:", trustedError);
-                  // Fallback to clipboard approach
-                  await fallbackToClipboard(message, noteTextArea);
-                }
-              } else {
-                // No Trusted Types support, use clipboard
-                await fallbackToClipboard(message, noteTextArea);
-              }
-
+              // Directly assign the message string to textarea value
+              noteTextArea.value = message;
+              noteTextArea.dispatchEvent(new Event("input", { bubbles: true }));
               if (isLiveMode) {
                 const sendButton = modal.querySelector(
                   'button[aria-label^="Send"]'
