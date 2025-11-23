@@ -65,12 +65,23 @@ const generateRandomTimeout = (multiplier: number = 5000): number =>
   Math.floor(Math.random() * multiplier) + 500;
 
 // Fallback function for clipboard-based text insertion
+// Note: document.execCommand('paste') is deprecated and not supported in modern browsers.
+// We attempt to use the Clipboard API's readText() as a best-effort fallback, but this requires user interaction.
 async function fallbackToClipboard(message: string, noteTextArea: HTMLTextAreaElement): Promise<void> {
   try {
     await navigator.clipboard.writeText(message);
     noteTextArea.focus();
     noteTextArea.select();
-    document.execCommand('paste');
+    // Attempt to use Clipboard API's readText as a fallback for paste (requires user gesture in most browsers)
+    try {
+      const clipboardText = await navigator.clipboard.readText();
+      noteTextArea.value = clipboardText;
+      noteTextArea.dispatchEvent(new Event("input", { bubbles: true }));
+    } catch (readError) {
+      // If readText fails (likely due to lack of user gesture), fall back to direct assignment below
+      noteTextArea.value = message;
+      noteTextArea.dispatchEvent(new Event("input", { bubbles: true }));
+    }
   } catch (e) {
     console.log("Clipboard fallback failed:", e);
     // Final fallback to direct assignment
