@@ -210,7 +210,7 @@ const connectToProspectAtIndex = async (): Promise<void> => {
     currentProspectIndex++; // Increment index for next call
     connectButton.dispatchEvent(new Event('click', { bubbles: true }));
     setTimeout(() => {
-      const modal = document.querySelector(".ember-view .send-invite") as HTMLElement | null;
+      const modal = document.querySelector("div[role='dialog'].send-invite") as HTMLElement | null;
       if (modal) {
         const addNoteButton = modal.querySelector('button[aria-label^="Add"]') as HTMLButtonElement | null;
         if (addNoteButton) {
