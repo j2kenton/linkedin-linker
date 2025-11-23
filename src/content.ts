@@ -667,6 +667,6 @@ chrome.runtime.onMessage.addListener(
       startConnectionProcess();
       sendResponse({ status: "started" });
     }
-    return undefined;
+    return true;
   }
 );
