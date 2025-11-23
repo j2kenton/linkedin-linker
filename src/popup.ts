@@ -650,7 +650,7 @@ document.addEventListener('DOMContentLoaded', function(): void {
       statusDiv.textContent = errorMessage;
       statusDiv.style.color = '#d93025';
     }
-  });
+      if (currentTab && currentTab.url && currentTab.url.includes('linkedin.com/search/results/people')) {
 
   // Function to update status based on current tab
   function updateStatusBasedOnTab(): void {
