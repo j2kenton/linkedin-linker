@@ -76,16 +76,9 @@ async function fallbackToClipboard(message: string, noteTextArea: HTMLTextAreaEl
     await navigator.clipboard.writeText(message);
     noteTextArea.focus();
     noteTextArea.select();
-    // Attempt to use Clipboard API's readText as a fallback for paste (requires user gesture in most browsers)
-    try {
-      const clipboardText = await navigator.clipboard.readText();
-      noteTextArea.value = clipboardText;
-      noteTextArea.dispatchEvent(new Event("input", { bubbles: true }));
-    } catch (readError) {
-      // If readText fails (likely due to lack of user gesture), fall back to direct assignment below
-      noteTextArea.value = message;
-      noteTextArea.dispatchEvent(new Event("input", { bubbles: true }));
-    }
+    // Directly use the message parameter instead of reading from clipboard
+    noteTextArea.value = message;
+    noteTextArea.dispatchEvent(new Event("input", { bubbles: true }));
   } catch (e) {
     console.log("Clipboard fallback failed:", e);
     // Final fallback to direct assignment
