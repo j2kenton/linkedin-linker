@@ -641,5 +641,6 @@ chrome.runtime.onMessage.addListener(
       startConnectionProcess();
       sendResponse({ status: "started" });
     }
+    return true;
   }
 );

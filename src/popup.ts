@@ -581,8 +581,7 @@ document.addEventListener('DOMContentLoaded', function(): void {
       // First check if content script is ready by sending a ping
       console.log('Checking if content script is ready...');
 
-      } catch (pingError) {
-        console.error('Error pinging content script:', pingError);
+
       let pingResponse: AutomationResponse | null = null;
       try {
         pingResponse = await chrome.tabs.sendMessage(tab.id!, {
@@ -650,6 +649,7 @@ document.addEventListener('DOMContentLoaded', function(): void {
       statusDiv.textContent = errorMessage;
       statusDiv.style.color = '#d93025';
     }
+  });
 
   // Function to update status based on current tab
   function updateStatusBasedOnTab(): void {
