@@ -23,19 +23,23 @@ interface MessageResponse {
 }
 
 // TrustedTypes interface for CSP compliance
+interface TrustedHTML { readonly __brand: unique symbol; }
+interface TrustedScript { readonly __brand: unique symbol; }
+interface TrustedScriptURL { readonly __brand: unique symbol; }
+
 interface TrustedTypesPolicy {
-  createHTML: (input: string) => string;
-  createScript: (input: string) => string;
-  createScriptURL: (input: string) => string;
+  createHTML: (input: string) => TrustedHTML;
+  createScript: (input: string) => TrustedScript;
+  createScriptURL: (input: string) => TrustedScriptURL;
 }
 
 interface TrustedTypes {
   createPolicy: (
     name: string,
     policy: {
-      createHTML?: (input: string) => string;
-      createScript?: (input: string) => string;
-      createScriptURL?: (input: string) => string;
+      createHTML?: (input: string) => TrustedHTML;
+      createScript?: (input: string) => TrustedScript;
+      createScriptURL?: (input: string) => TrustedScriptURL;
     }
   ) => TrustedTypesPolicy;
 }
