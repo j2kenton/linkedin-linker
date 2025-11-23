@@ -1,6 +1,5 @@
+{
 // LinkedIn Connection Automator Content Script
-
-export {}; // Make this a module
 
 interface MessageSettings {
   greetingPart1: string;
@@ -45,11 +44,13 @@ interface TrustedTypes {
 }
 
 // Extend Window interface to include trustedTypes
+/*
 declare global {
   interface Window {
     trustedTypes?: TrustedTypes;
   }
 }
+*/
 
 const buildNote = (firstName: string, messageSettings: MessageSettings): string => {
   const { greetingPart1, includeFirstName, greetingPart2, messageText } = messageSettings;
@@ -644,3 +645,4 @@ chrome.runtime.onMessage.addListener(
     return true;
   }
 );
+}
