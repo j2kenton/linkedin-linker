@@ -29,7 +29,6 @@ chrome.runtime.onMessage.addListener(
 
       sendResponse({ status: "received" });
     }
-    return undefined;
   }
 );
 
