@@ -563,6 +563,12 @@ document.addEventListener('DOMContentLoaded', function(): void {
   startButton.addEventListener('click', async () => {
     // Get the active tab
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab || !tab.id) {
+      // Handle the error gracefully, e.g., show an error message and abort
+      statusDiv.textContent = 'Error: No active tab found. Please open a tab and try again.';
+      statusDiv.style.color = '#d93025';
+      return;
+    }
 
     // Update button state
     startButton.disabled = true;
