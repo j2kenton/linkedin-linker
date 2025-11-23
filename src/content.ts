@@ -124,6 +124,21 @@ let maxPages: number | null = null; // null means no limit
 let maxConnections: number | null = null; // null means no limit
 let autoAdjust = false; // auto-adjust max connections setting
 
+// Helper to find connect button (handles both <button> and <a> tags)
+const findConnectButton = (container: Element): HTMLElement | null => {
+  // Try original button selector
+  const button = container.querySelector("button[aria-label$='connect']");
+  if (button) return button as HTMLElement;
+
+  // Try new anchor selectors
+  // Look for anchors with "connect" in aria-label or specific href pattern
+  // Using 'i' flag for case-insensitivity if supported, otherwise relying on standard selectors
+  const anchor = container.querySelector("a[href*='search-custom-invite'], a[aria-label*='connect' i], a[aria-label*='Connect' i]");
+  if (anchor) return anchor as HTMLElement;
+
+  return null;
+};
+
 // Function to connect to prospect at current index in the preserved list
 const connectToProspectAtIndex = async (): Promise<void> => {
   return new Promise((resolve) => {
@@ -160,9 +175,7 @@ const connectToProspectAtIndex = async (): Promise<void> => {
     const firstName = extractFirstName(prospectElement.innerText);
 
     // Find the connect button within this specific prospect
-    const connectButton = prospectElement.querySelector(
-      "button[aria-label$='connect']"
-    ) as HTMLButtonElement | null;
+    const connectButton = findConnectButton(prospectElement);
 
     if (!connectButton) {
       console.log(
@@ -316,8 +329,7 @@ const initializeCurrentPageList = (): void => {
 
   // Filter to only include elements that have connect buttons
   currentProspectsList = prospects.filter(element => {
-    const connectButton = element.querySelector("button[aria-label$='connect']");
-    return connectButton !== null;
+    return findConnectButton(element) !== null;
   });
 
   currentProspectIndex = 0; // Reset index for new page
@@ -416,8 +428,7 @@ const checkForNewProspects = (previousCount: number): boolean => {
 
   // Filter to only include elements that have connect buttons
   const newFilteredProspects = newProspects.filter(element => {
-    const connectButton = element.querySelector("button[aria-label$='connect']");
-    return connectButton !== null;
+    return findConnectButton(element) !== null;
   });
 
   const newCount = newFilteredProspects.length;
