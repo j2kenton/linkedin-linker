@@ -70,7 +70,7 @@ const generateRandomTimeout = (multiplier: number = 5000): number =>
 
 // Fallback function for clipboard-based text insertion
 // Note: document.execCommand('paste') is deprecated and not supported in modern browsers.
-// We attempt to use the Clipboard API's readText() as a best-effort fallback, but this requires user interaction.
+// This function writes to clipboard and then directly sets the textarea value.
 async function fallbackToClipboard(message: string, noteTextArea: HTMLTextAreaElement): Promise<void> {
   try {
     await navigator.clipboard.writeText(message);
