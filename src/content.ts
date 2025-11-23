@@ -139,6 +139,21 @@ const findConnectButton = (container: Element): HTMLElement | null => {
   return null;
 };
 
+// Helper to find the modal, handling Shadow DOM if necessary
+const findModal = (): HTMLElement | null => {
+  // Try normal DOM first (fallback)
+  let modal = document.querySelector("div[role='dialog'].send-invite") as HTMLElement | null;
+  if (modal) return modal;
+
+  // Try Shadow DOM
+  const shadowHost = document.querySelector("#interop-outlet");
+  if (shadowHost && shadowHost.shadowRoot) {
+    modal = shadowHost.shadowRoot.querySelector("div[role='dialog'].send-invite") as HTMLElement | null;
+  }
+  
+  return modal;
+};
+
 // Function to connect to prospect at current index in the preserved list
 const connectToProspectAtIndex = async (): Promise<void> => {
   return new Promise((resolve) => {
@@ -210,7 +225,7 @@ const connectToProspectAtIndex = async (): Promise<void> => {
     currentProspectIndex++; // Increment index for next call
     connectButton.dispatchEvent(new Event('click', { bubbles: true }));
     setTimeout(() => {
-      const modal = document.querySelector("div[role='dialog'].send-invite") as HTMLElement | null;
+      const modal = findModal();
       if (modal) {
         const addNoteButton = modal.querySelector('button[aria-label^="Add"]') as HTMLButtonElement | null;
         if (addNoteButton) {
