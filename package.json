@@ -1,0 +1,13 @@
+{
+  "name": "linkedin-linker",
+  "version": "1.0.0",
+  "description": "Automates LinkedIn connection requests with sequential processing and random delays",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.260",
+    "typescript": "^5.3.3"
+  }
+}
