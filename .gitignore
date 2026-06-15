@@ -2,3 +2,4 @@ node_modules/
 dist/
 build_log*.txt
 release/
+src/build-target.ts

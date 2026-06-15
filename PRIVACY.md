@@ -7,8 +7,8 @@ Connection Request Assistant prepares connection invite drafts on LinkedIn peopl
 The extension handles:
 
 - The active tab URL when the user opens the popup or clicks a "Get from current URL" button.
-- User-entered search settings, message draft text, and local session limits.
-- Visible LinkedIn people-search page content needed to identify the next connectable profile and first name for the draft greeting.
+- User-entered search settings and message draft text.
+- Visible LinkedIn people-search page content needed to identify the next connectable profile and the first name for the draft greeting.
 
 ## Storage
 

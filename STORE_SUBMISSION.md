@@ -8,7 +8,7 @@ Connection Request Assistant prepares LinkedIn connection invite drafts for manu
 
 `activeTab`: Used only after the user opens the popup to read the active tab URL, validate that it is a LinkedIn people search results page, and send a message to the content script on that active page.
 
-`storage`: Used to save search filters, message draft text, and the optional max-profiles session limit locally in Chrome.
+`storage`: Used to save search filters and message draft text locally in Chrome.
 
 ## Host Access
 

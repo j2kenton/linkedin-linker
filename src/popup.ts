@@ -1,4 +1,7 @@
 // Popup script for LinkedIn Automator extension
+// BUILD_TARGET is injected at build time via src/build-target.ts
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const _BUILD_TARGET: string = (globalThis as any).BUILD_TARGET ?? "developer";
 
 interface MessageSettings {
   greetingPart1: string;
@@ -682,8 +685,57 @@ document.addEventListener('DOMContentLoaded', function(): void {
       liveModeCheckbox.disabled = false;
       statusDiv.textContent = 'Automation completed! Ready for next run.';
       statusDiv.style.color = '#188038';
+      hideConfirmationPanel();
     }
   });
+
+  // Store build only: listen for pendingConfirmation and show Send/Skip panel
+  if (_BUILD_TARGET === "store") {
+    chrome.runtime.onMessage.addListener((request: { action: string; firstName?: string }) => {
+      if (request.action === "pendingConfirmation") {
+        showConfirmationPanel(request.firstName ?? "");
+      }
+    });
+  }
+
+  function showConfirmationPanel(firstName: string): void {
+    let panel = document.getElementById('confirmPanel');
+    if (!panel) {
+      panel = document.createElement('div');
+      panel.id = 'confirmPanel';
+      panel.style.cssText = 'margin-top:12px;padding:12px;background:#fff3cd;border:1px solid #f0ad4e;border-radius:4px;font-size:13px;';
+      statusDiv.parentNode!.insertBefore(panel, statusDiv.nextSibling);
+    }
+    panel.innerHTML = `
+      <strong>Ready to send to ${firstName ? firstName : 'this person'}?</strong>
+      <div style="margin-top:8px;display:flex;gap:8px;">
+        <button id="confirmSendBtn" style="flex:1;padding:7px;background:#0077b5;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:13px;">Send</button>
+        <button id="skipSendBtn" style="flex:1;padding:7px;background:#e9ecef;color:#333;border:none;border-radius:4px;cursor:pointer;font-size:13px;">Skip</button>
+      </div>
+    `;
+    (document.getElementById('confirmSendBtn') as HTMLButtonElement).addEventListener('click', () => {
+      hideConfirmationPanel();
+      sendConfirmationToTab("confirmSend");
+    });
+    (document.getElementById('skipSendBtn') as HTMLButtonElement).addEventListener('click', () => {
+      hideConfirmationPanel();
+      sendConfirmationToTab("skipSend");
+    });
+  }
+
+  function hideConfirmationPanel(): void {
+    const panel = document.getElementById('confirmPanel');
+    if (panel) panel.remove();
+  }
+
+  function sendConfirmationToTab(action: "confirmSend" | "skipSend"): void {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      const tab = tabs[0];
+      if (tab && tab.id) {
+        chrome.tabs.sendMessage(tab.id, { action });
+      }
+    });
+  }
 });
 
 // Function to check for extension updates

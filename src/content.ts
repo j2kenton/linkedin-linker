@@ -1,5 +1,8 @@
 {
 // LinkedIn Connection Automator Content Script
+// BUILD_TARGET is injected at build time via src/build-target.ts
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const _BUILD_TARGET: string = (globalThis as any).BUILD_TARGET ?? "developer";
 
 interface MessageSettings {
   greetingPart1: string;
@@ -154,6 +157,25 @@ const findModal = (): HTMLElement | null => {
   return modal;
 };
 
+// Called after a connection request is successfully sent (both builds).
+// Handles the auto-adjust decrement and notifies the popup of the new limit.
+const onSentOrSkipped = (): void => {
+  if (autoAdjust && maxConnections !== null && maxConnections > 0) {
+    maxConnections--;
+    console.log(`Auto-adjust: Decreased max connections limit to ${maxConnections}`);
+    chrome.storage.local.set({ maxConnections: maxConnections.toString() }, () => {
+      if (chrome.runtime.lastError) {
+        console.error('Error updating maxConnections in storage:', chrome.runtime.lastError);
+      } else {
+        chrome.runtime.sendMessage({
+          type: "maxConnectionsUpdated",
+          maxConnections: maxConnections
+        });
+      }
+    });
+  }
+};
+
 // Function to connect to prospect at current index in the preserved list
 const connectToProspectAtIndex = async (): Promise<void> => {
   return new Promise((resolve) => {
@@ -244,36 +266,49 @@ const connectToProspectAtIndex = async (): Promise<void> => {
                   'button[aria-label^="Send"]'
                 ) as HTMLButtonElement | null;
                 if (sendButton) {
-                  // Add random delay before clicking send
-                  await new Promise<void>((resolveInner) => {
-                    setTimeout(() => {
-                      sendButton.dispatchEvent(new Event('click', { bubbles: true }));
-                      console.log(
-                        `LIVE: Sent connection request to ${firstName}`
-                      );
+                  if (_BUILD_TARGET === "store") {
+                    // Store build: pause and ask the user to confirm before sending.
+                    // Automation resumes when the popup replies with confirmSend or skipSend.
+                    await new Promise<void>((resolveInner) => {
+                      chrome.runtime.sendMessage({
+                        action: "pendingConfirmation",
+                        firstName: firstName
+                      });
 
-                      // Auto-adjust: decrement max connections limit if enabled
-                      if (autoAdjust && maxConnections !== null && maxConnections > 0) {
-                        maxConnections--;
-                        console.log(`Auto-adjust: Decreased max connections limit to ${maxConnections}`);
+                      const confirmationListener = (msg: { action: string }) => {
+                        if (msg.action === "confirmSend") {
+                          sendButton.dispatchEvent(new Event('click', { bubbles: true }));
+                          console.log(`STORE-LIVE: User confirmed send for ${firstName}`);
+                          onSentOrSkipped();
+                          chrome.runtime.onMessage.removeListener(confirmationListener);
+                          resolveInner();
+                        } else if (msg.action === "skipSend") {
+                          // Close the modal without sending
+                          const cancelButton = modal.querySelector('button[aria-label^="Cancel"]') as HTMLButtonElement | null;
+                          const dismissButton = modal.querySelector('button[aria-label^="Dismiss"]') as HTMLButtonElement | null;
+                          if (cancelButton) cancelButton.dispatchEvent(new Event('click', { bubbles: true }));
+                          else if (dismissButton) dismissButton.dispatchEvent(new Event('click', { bubbles: true }));
+                          console.log(`STORE-LIVE: User skipped ${firstName}`);
+                          chrome.runtime.onMessage.removeListener(confirmationListener);
+                          resolveInner();
+                        }
+                      };
 
-                        // Update the stored value in chrome.storage.local
-                        chrome.storage.local.set({ maxConnections: maxConnections.toString() }, () => {
-                          if (chrome.runtime.lastError) {
-                            console.error('Error updating maxConnections in storage:', chrome.runtime.lastError);
-                          } else {
-                            // Notify popup UI of the change
-                            chrome.runtime.sendMessage({
-                              type: "maxConnectionsUpdated",
-                              maxConnections: maxConnections
-                            });
-                          }
-                        });
-                      }
-
-                      resolveInner();
-                    }, generateRandomTimeout());
-                  });
+                      chrome.runtime.onMessage.addListener(confirmationListener);
+                    });
+                  } else {
+                    // Developer build: auto-send with random delay (original behaviour)
+                    await new Promise<void>((resolveInner) => {
+                      setTimeout(() => {
+                        sendButton.dispatchEvent(new Event('click', { bubbles: true }));
+                        console.log(
+                          `LIVE: Sent connection request to ${firstName}`
+                        );
+                        onSentOrSkipped();
+                        resolveInner();
+                      }, generateRandomTimeout());
+                    });
+                  }
                 } else {
                   console.log(
                     `LIVE: Send button not found for ${firstName}`

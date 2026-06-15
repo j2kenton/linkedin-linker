@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <style>
+    body {
+      width: 300px;
+      padding: 20px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+    .container { text-align: center; }
+    .title { font-size: 18px; font-weight: bold; margin-bottom: 6px; color: #0077b5; }
+    .subtitle { font-size: 12px; color: #666; margin-bottom: 20px; }
+    .button {
+      background-color: #0077b5;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 4px;
+      font-size: 14px;
+      cursor: pointer;
+      width: 100%;
+      transition: background-color 0.2s;
+    }
+    .button:hover { background-color: #005582; }
+    .button:active { background-color: #004269; }
+    .button:disabled { background-color: #ccc; cursor: not-allowed; }
+    .status { margin-top: 15px; font-size: 12px; color: #666; }
+    .settings {
+      text-align: left;
+      margin: 20px 0;
+      padding: 15px;
+      background-color: #f8f9fa;
+      border-radius: 4px;
+      border: 1px solid #e9ecef;
+    }
+    .settings h4 { margin: 0 0 10px 0; color: #0077b5; font-size: 16px; }
+    .field { margin-bottom: 10px; }
+    .field label { display: block; font-size: 13px; margin-bottom: 3px; }
+    .field input, .field textarea, .field select {
+      width: 100%;
+      padding: 5px;
+      box-sizing: border-box;
+      font-family: inherit;
+    }
+    .field textarea { resize: vertical; }
+    .url-btn {
+      margin-top: 4px;
+      padding: 3px 8px;
+      font-size: 11px;
+      background: #f0f0f0;
+      border: 1px solid #ccc;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+    .checkbox-row { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-bottom: 10px; }
+    .preview-box {
+      padding: 8px;
+      background: #fff;
+      border: 1px solid #e9ecef;
+      border-radius: 4px;
+      font-size: 12px;
+      white-space: pre-wrap;
+      min-height: 50px;
+    }
+    .save-btn {
+      padding: 7px 14px;
+      font-size: 12px;
+      background: #f0f0f0;
+      border: 1px solid #ccc;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+    .save-btn:hover { background: #e0e0e0; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="title">Connection Assistant</div>
+    <div class="subtitle">Prepares one invite draft at a time. You review and send it yourself.</div>
+
+    <div class="settings">
+      <h4>Step 1: Search for connections</h4>
+      <div class="field">
+        <label for="companyName">Target company name</label>
+        <input type="text" id="companyName" placeholder="e.g. Microsoft">
+        <button class="url-btn" id="getCompanyNameFromUrlButton">Get from current URL</button>
+      </div>
+      <div class="field">
+        <label for="companiesIds">Current company ID</label>
+        <input type="text" id="companiesIds" placeholder="e.g. 1035">
+        <button class="url-btn" id="getFromUrlButton">Get from current URL</button>
+      </div>
+      <div class="field">
+        <label for="titleOfProspect">Job title of connection</label>
+        <input type="text" id="titleOfProspect" placeholder="e.g. Engineering Manager">
+        <button class="url-btn" id="getTitleFromUrlButton">Get from current URL</button>
+      </div>
+      <div class="field">
+        <label for="locationIds">Location ID</label>
+        <input type="text" id="locationIds" placeholder="e.g. 101620260">
+        <button class="url-btn" id="getLocationFromUrlButton">Get from current URL</button>
+      </div>
+      <div class="field">
+        <label for="connectionDegree">Connection degree</label>
+        <select id="connectionDegree" multiple style="height:70px;">
+          <option value="F">1st</option>
+          <option value="S">2nd</option>
+          <option value="O">3rd+</option>
+        </select>
+        <button class="url-btn" id="getConnectionDegreeFromUrlButton">Get from current URL</button>
+      </div>
+      <div class="field">
+        <label for="startPage">Start page</label>
+        <input type="number" id="startPage" placeholder="1" min="1">
+        <button class="url-btn" id="getStartPageFromUrlButton">Get from current URL</button>
+      </div>
+      <button id="goToSearchButton" class="button" style="margin-top:10px;">Save &amp; open search</button>
+    </div>
+
+    <div class="settings">
+      <h4>Step 2: Compose your message</h4>
+      <div class="field">
+        <label for="greetingPart1">Greeting (part 1)</label>
+        <input type="text" id="greetingPart1" placeholder="e.g. Hi">
+      </div>
+      <div class="checkbox-row">
+        <input type="checkbox" id="includeFirstNameCheckbox">
+        <label for="includeFirstNameCheckbox">Include their first name</label>
+      </div>
+      <div class="field">
+        <label for="greetingPart2">Greeting (part 2)</label>
+        <input type="text" id="greetingPart2" placeholder="e.g. 👋,">
+      </div>
+      <div class="field">
+        <label for="messageText">Message body</label>
+        <textarea id="messageText" rows="6" placeholder="Enter your connection message here..."></textarea>
+      </div>
+      <div class="field">
+        <label>Preview</label>
+        <div id="messagePreview" class="preview-box"></div>
+      </div>
+      <button id="saveSettingsButton" class="save-btn">Save settings</button>
+    </div>
+
+    <div class="settings">
+      <h4>Step 3: Prepare invite</h4>
+      <p style="font-size:12px;color:#555;margin:0 0 10px 0;">
+        Click below to open LinkedIn's invite dialog for the next connectable profile and fill your draft note.
+        You decide whether to send it.
+      </p>
+      <button id="prepareButton" class="button">Prepare next invite</button>
+    </div>
+
+    <div id="status" class="status">Navigate to a LinkedIn people search page to get started.</div>
+  </div>
+
+  <script src="dist/popup.js"></script>
+</body>
+</html>
