@@ -14,6 +14,12 @@ This repository contains two Chrome extension builds from one codebase:
 
 This project is not affiliated with or endorsed by LinkedIn.
 
+## Screenshots
+
+| Search setup | Connect & send |
+| --- | --- |
+| ![Search filters step in the extension popup](assets/screenshots/screenshot-1.png) | ![Auto-adjust and Live Mode connect step in the extension popup](assets/screenshots/screenshot-2.png) |
+
 ## Developer Build
 
 Full automation with Test Mode and Live Mode. Intended for local/developer use only. Users who run this build are responsible for how they use it, including compliance with LinkedIn's terms, Chrome extension policies, and applicable law.
