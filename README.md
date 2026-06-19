@@ -1,5 +1,9 @@
 # LinkedIn Connection Automator
 
+## [Install from the Chrome Web Store](https://chromewebstore.google.com/detail/linkedin-connection-assis/poedmlfffaldgihhpffkbknjegmkpclj)
+
+---
+
 This repository contains two Chrome extension builds from one codebase:
 
 | | Developer build | Store build |
