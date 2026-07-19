@@ -66,6 +66,9 @@
       border-radius: 4px;
       border: 1px solid #e9ecef;
     }
+    .career-tools { text-align: left; margin: 20px 0; padding: 15px; border: 1px solid #b9d7ee; border-radius: 4px; background: #f4faff; }
+    .career-tools textarea, .career-tools input { box-sizing: border-box; width: 100%; margin: 4px 0 10px; padding: 6px; }
+    .career-tools small { display:block; color:#555; margin-bottom:8px; }
     .checkbox-label {
       display: flex;
       align-items: center;
@@ -140,6 +143,38 @@
       <button id="goToSearchButton" class="button" style="margin-top: 10px;">🔍 Save & search</button>
     </div>
 
+    <section id="careerTools" class="career-tools" hidden>
+      <h4 style="margin:0 0 8px;color:#0077b5">Career Tools</h4>
+      <small>Profile and resume content is sent to Anthropic only after you review the transmission preview and choose an action.</small>
+      <label>Anthropic API key <input id="careerApiKey" type="password" autocomplete="off" placeholder="sk-ant-…"></label>
+      <label>Model ID <input id="careerModel" value="claude-opus-4-8"></label>
+      <small id="careerModelWarning" hidden>Unknown model ID: web research may not be supported.</small>
+      <label><input id="careerConsent" type="checkbox"> I consent to sending the displayed inputs to Anthropic for this run.</label>
+      <button id="careerTestButton" type="button">Review &amp; test connection</button>
+      <details id="careerPreview" hidden><summary>Transmission preview</summary><pre id="careerPreviewText" style="white-space:pre-wrap;max-height:180px;overflow:auto"></pre><button id="careerPreviewConfirm" type="button">Send approved data</button></details>
+      <div style="margin:8px 0"><small>Delete saved:</small><button class="career-delete" data-key="careerApiKey">API key</button><button class="career-delete" data-key="careerCv">CV</button><button class="career-delete" data-key="careerJd">JD</button><button class="career-delete" data-key="careerProfile">profile</button><button class="career-delete" data-key="careerCompanyName,careerCompanyUrl,careerJobTitle,careerSeniority,careerLocation,careerJobDescription">job identity</button><button class="career-delete" data-key="careerToolJobs">reports</button></div>
+      <hr>
+      <div id="profileCareerFields" hidden>
+        <label>CV / resume <textarea id="careerCv" rows="5" placeholder="Paste your CV or resume"></textarea></label>
+        <label>Target job description <textarea id="careerJd" rows="5" placeholder="Paste the target job description"></textarea></label>
+        <label>Interviewer profile <textarea id="careerProfile" rows="5" placeholder="Extracted profile or manual fallback"></textarea></label>
+        <button id="extractProfileButton" type="button">Extract LinkedIn profile</button>
+        <button id="interviewButton" type="button">Generate Interview Preparation</button>
+      </div>
+      <div id="jobCareerFields" hidden>
+        <label>Company name <input id="careerCompanyName" type="text"></label>
+        <label>LinkedIn company URL <input id="careerCompanyUrl" type="url" placeholder="https://www.linkedin.com/company/example/"></label>
+        <label>Role title <input id="careerJobTitle" type="text"></label>
+        <label>Seniority / location <input id="careerSeniority" type="text"></label><input id="careerLocation" type="text" placeholder="Location">
+        <label>Job description <textarea id="careerJobDescription" rows="6"></textarea></label>
+        <label><input id="careerResearch" type="checkbox" checked> Research public company facts (requires valid LinkedIn company URL)</label>
+        <small id="careerResearchState"></small>
+        <button id="extractJobButton" type="button">Extract LinkedIn job</button>
+        <button id="companyButton" type="button">Generate Company &amp; Role Intelligence</button>
+      </div>
+      <small id="careerStatus"></small>
+    </section>
+
     <div class="settings">
       <h4 style="margin: 0 0 10px 0; color: #0077b5; font-size: 16px;">💬 Step 2: Customize your message</h4>
       <div style="margin-bottom: 10px;">
@@ -206,7 +241,6 @@
     </div>
   </div>
 
-  <script src="dist/build-target.js"></script>
   <script src="dist/popup.js"></script>
 </body>
 </html>

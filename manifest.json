@@ -11,21 +11,24 @@
     "scripting"
   ],
   "host_permissions": [
-    "<all_urls>"
+    "<all_urls>",
+    "https://api.anthropic.com/*"
   ],
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["dist/build-target.js", "dist/content.js"],
+      "js": ["dist/content.js"],
       "run_at": "document_idle",
       "all_frames": true
     }
   ],
   "background": {
-    "service_worker": "dist/background.js"
+    "service_worker": "dist/background.dev.js",
+    "type": "module"
   },
   "action": {
     "default_popup": "popup.html",
-    "default_title": "LinkedIn Automator"
-  }
+    "default_title": "LinkedIn Career Tools"
+  },
+  "web_accessible_resources": [{"resources": ["report.html"], "matches": ["<all_urls>"]}]
 }

@@ -1,0 +1,13 @@
+{
+  "assets/icons/icon128.png": "3a6d4c86b1d0a6e705332040ffc3f13ad1d8e090ff6e1df341aa4b29ece0aadc",
+  "assets/icons/icon16.png": "1fc982759a49736b07fc6ed75f3aa0c43bce5ec99a16d03798cf202ec163d09c",
+  "assets/icons/icon32.png": "ab395d5d4e26421ffec71986930e28dca06deb4af93fabaf312f917b61c65074",
+  "assets/icons/icon48.png": "9745374d2252e30729076cbea2da5e19d5f5c4952d34edbb6db378a1f92268d3",
+  "assets/screenshots/screenshot-1.png": "cdda522e60d57ff9a4a0407b714e0d5f13cd7be3cf34151c49805c6ccc491327",
+  "assets/screenshots/screenshot-2.png": "96b81b7f423fa3d2bca3622fd1048fe967da8fbed5940793798390fd24f9a6c8",
+  "dist/background.js": "56b686a4587b25fccead9e74e0ccac50f3ef2f546e65117533740f4f955edf8f",
+  "dist/content.js": "0d496ed58d7b1103b25cc1ba261f39debc2286648c05da39387eefe36907b690",
+  "dist/popup.js": "bd457da529a3198e298b61a191cbfb018e67630d7019c8482ecb35db75b38b25",
+  "manifest.json": "b6b8b36b7ad4fc9f9347a2c87d0006f29bbdc755177e4603531bb59050d1ea5e",
+  "popup.store.html": "63eb0f97f599131513b61e24f85e5cb00bf081fa1b21ed127f2801ebf253c1a0"
+}

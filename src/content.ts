@@ -1,8 +1,10 @@
-{
+import { BUILD_TARGET } from "./build-target";
+import { extractJob } from "./extract/job";
+import { extractProfile } from "./extract/profile";
+
 // LinkedIn Connection Automator Content Script
-// BUILD_TARGET is injected at build time via src/build-target.ts
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const _BUILD_TARGET: string = (globalThis as any).BUILD_TARGET ?? "developer";
+// esbuild inlines this generated build target into the developer bundle.
+const _BUILD_TARGET: string = BUILD_TARGET;
 
 interface MessageSettings {
   greetingPart1: string;
@@ -163,16 +165,8 @@ const onSentOrSkipped = (): void => {
   if (autoAdjust && maxConnections !== null && maxConnections > 0) {
     maxConnections--;
     console.log(`Auto-adjust: Decreased max connections limit to ${maxConnections}`);
-    chrome.storage.local.set({ maxConnections: maxConnections.toString() }, () => {
-      if (chrome.runtime.lastError) {
-        console.error('Error updating maxConnections in storage:', chrome.runtime.lastError);
-      } else {
-        chrome.runtime.sendMessage({
-          type: "maxConnectionsUpdated",
-          maxConnections: maxConnections
-        });
-      }
-    });
+    chrome.runtime.sendMessage({ action: "setMaxConnections", maxConnections: maxConnections.toString() }).catch(() => undefined);
+    chrome.runtime.sendMessage({ type: "maxConnectionsUpdated", maxConnections }).catch(() => undefined);
   }
 };
 
@@ -709,4 +703,13 @@ chrome.runtime.onMessage.addListener(
     return true;
   }
 );
-}
+
+// Career Tools read visible LinkedIn text only, and are ignored by subframes.
+// `sender.frameId` describes the sender's frame, not this receiver's — a
+// request from the popup has no tab-frame sender at all, so only this
+// frame's own top-frame identity may gate the response.
+chrome.runtime.onMessage.addListener((request: { action?: string }, _sender, sendResponse) => {
+  if (window.top !== window) return;
+  if (request.action === "EXTRACT_PROFILE") { sendResponse(extractProfile(document)); return; }
+  if (request.action === "EXTRACT_JOB") sendResponse(extractJob(document));
+});

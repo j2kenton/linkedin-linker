@@ -40,6 +40,15 @@ Full automation with Test Mode and Live Mode. Intended for local/developer use o
 - Supports limits for pages and max connection requests with optional auto-decrement.
 - Includes random delays between actions.
 
+### Career Tools (developer build only)
+
+The developer build also provides two consent-gated research tools on LinkedIn:
+
+- On a personal profile (`/in/...`), **Interview Preparation** combines visible public professional content with your pasted CV and target job description. It creates non-diagnostic rapport, communication, leadership-matching, story-selection, and narrative guidance; it does not assess hostility, deception, or adversarial behavior.
+- On a LinkedIn job page, **Company & Role Intelligence** creates a six-part company, architecture, role-expectations, interview, and compensation report. It performs public company research only with a valid LinkedIn company URL; otherwise it clearly generates a Stage-B-only, no-research report with modeled estimates.
+
+Open the popup on the relevant page, enter your Anthropic API key and model ID, review the per-run consent checkbox, and select the action. Resume/CV, job description, and manual fallback fields are local-only trusted extension storage. Set a spend limit on the API key. Company research requires organization-level Anthropic web-search access; CV and full JD text never enter the web-search request, and Anthropic processes search results server-side. Career Tools require a Chrome version that supports trusted-context storage; they remain disabled with an update-Chrome message if it is unavailable. The store build is unchanged.
+
 ### Developer: Installation
 
 1. Clone or download this repository.
@@ -110,7 +119,13 @@ npm install
 npm run build        # developer build → dist/
 npm run build:store  # store build → release/store/
 npm run watch        # developer build in watch mode
+npm run typecheck:watch
+npm test
+npm run verify:clean-checkout
+npm run verify:store-baseline
 ```
+
+`npm run build` uses esbuild for the developer extension and emits every manifest-referenced script. Run `npm run typecheck:watch` in a second terminal when live type errors are useful. `src/build-target.ts` is generated before each documented build, typecheck-watch, and test workflow and is intentionally not committed; use `npm test`, rather than bare Vitest, so its `pretest` bootstrap runs. `npm run verify:clean-checkout` copies exactly the files `git ls-files` reports (tracked plus untracked-but-not-ignored, so `src/build-target.ts` is naturally excluded since it's gitignored) into a temporary directory, then runs `npm ci && npm test` there without modifying your checkout — proving what a fresh `git clone` would build and test, not just what happens to be on disk locally. `npm run verify:store-baseline` checks that the packaged store build still matches the recorded baseline. Anthropic usage, including adaptive-thinking tokens, can affect provider cost.
 
 ## Files
 
