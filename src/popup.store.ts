@@ -1,7 +1,7 @@
 // Popup script for Career Connect — store build
 // This file is the store-only entry point.
 // No auto-send, no Live Mode, no batch processing, no self-update, no runtime script injection.
-import { classifyUrl } from "./pageDetect";
+import { STORE_CONTENT_SCRIPT_HOST, extractableKind as pageDetectExtractableKind } from "./pageDetect";
 
 interface MessageSettings {
   greetingPart1: string;
@@ -322,11 +322,13 @@ document.addEventListener("DOMContentLoaded", function (): void {
 // Career Tools. Available in both builds; consent-gated, requires the
 // user's own Anthropic API key, and never sends data without an explicit
 // per-run action after reviewing a transmission preview.
-type CareerExtraction = Record<string, unknown> & { ready?: boolean; warnings?: { message: string }[] };
+type CareerExtraction = Record<string, unknown> & { ready?: boolean; warnings?: { field?: string; message: string }[] };
 const careerGet = <T>(keys: string[]) => new Promise<T>(resolve => chrome.storage.local.get(keys, resolve as (items: object) => void));
 const careerSet = (items: object) => new Promise<void>((resolve, reject) => chrome.storage.local.set(items, () => chrome.runtime.lastError ? reject(chrome.runtime.lastError) : resolve()));
 const careerElement = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
-function careerPage(url: string): "profile" | "job" | "other" { return classifyUrl(url); }
+const careerSleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
+const extractableKind = (url: string): "profile" | "job" | "other" =>
+  pageDetectExtractableKind(url, STORE_CONTENT_SCRIPT_HOST);
 
 // Shared by the career-tool wiring below and the mode controller, so the
 // chooser's Career Tools entry and the career view itself agree on readiness
@@ -336,33 +338,54 @@ const careerLock: Promise<CareerLock> = chrome.runtime.sendMessage({ action: "CA
   .then((lock: CareerLock | undefined | null) => lock ?? { locked: false, reason: "Career Tools are unavailable." })
   .catch(() => ({ locked: false, reason: "Career Tools service is not ready. Reload the extension." }));
 document.addEventListener("DOMContentLoaded", () => {
-  const tools = careerElement<HTMLElement>("careerTools"); const status = careerElement<HTMLElement>("careerStatus");
+  const tools = careerElement<HTMLElement>("careerTools"); const hint = careerElement<HTMLElement>("careerHint");
   const profileFields = careerElement<HTMLElement>("profileCareerFields"); const jobFields = careerElement<HTMLElement>("jobCareerFields");
   const consent = careerElement<HTMLInputElement>("careerConsent");
   const inputIds = ["careerApiKey", "careerModel", "careerCv", "careerJd", "careerProfile", "careerCompanyName", "careerCompanyUrl", "careerJobTitle", "careerSeniority", "careerLocation", "careerJobDescription"];
   const field = (id: string) => careerElement<HTMLInputElement | HTMLTextAreaElement>(id);
+
+  // Inline, per-control feedback replaces the old single bottom-of-panel
+  // status line: results render next to the action that produced them, and
+  // validation errors render next to the field they're about.
+  const setResult = (id: string, text: string, kind: "success" | "error" | "pending" | "") => {
+    const el = careerElement<HTMLElement>(id);
+    el.hidden = !text; el.textContent = text; el.className = "career-result" + (kind ? ` ${kind}` : "");
+  };
+  const showFieldError = (fieldId: string, errorId: string, message: string) => {
+    field(fieldId).classList.add("invalid");
+    const el = careerElement<HTMLElement>(errorId); el.textContent = message; el.hidden = false;
+  };
+  const clearFieldError = (fieldId: string, errorId: string) => {
+    field(fieldId).classList.remove("invalid");
+    const el = careerElement<HTMLElement>(errorId); el.hidden = true; el.textContent = "";
+  };
+
   // Fields extraction can populate, tracked so the job snapshot and consent
   // preview can label each value as extracted from LinkedIn or manually
   // supplied, per the manual-fallback data contract.
-  const SOURCE_FIELD_IDS = ["careerProfile", "careerCompanyName", "careerCompanyUrl", "careerJobTitle", "careerSeniority", "careerLocation", "careerJobDescription"] as const;
+  const SOURCE_FIELD_IDS = ["careerCv", "careerProfile", "careerCompanyName", "careerCompanyUrl", "careerJobTitle", "careerSeniority", "careerLocation", "careerJobDescription"] as const;
   const sourceStorageKey = (id: string) => `${id}Origin`;
   const fieldSource: Record<string, "manual" | "extracted"> = {};
   let approvedAction: (() => Promise<void>) | undefined;
+  let pendingPreviewLabel = "Working…";
   // The background's response is authoritative for this worker lifetime. Do
   // not allow a hidden button, keyboard activation, or a scripted click to
   // persist Career Tools data before trusted storage is confirmed.
   let careerReady = false;
   const requireCareerReady = (): boolean => {
     if (careerReady) return true;
-    status.textContent = "Career Tools are not ready. Reload the extension and try again.";
+    hint.textContent = "Career Tools are not ready. Reload the extension and try again.";
     return false;
   };
   const preview = careerElement<HTMLDetailsElement>("careerPreview");
   const previewText = careerElement<HTMLPreElement>("careerPreviewText");
-  const showPreview = (label: string, payload: Record<string, unknown>, action: () => Promise<void>) => {
+  const showPreview = (label: string, payload: Record<string, unknown>, action: () => Promise<void>, pendingLabel: string) => {
     if (!requireCareerReady()) return;
-    if (!consent.checked) { status.textContent="Confirm the per-run consent checkbox first."; return; }
-    approvedAction = action; preview.hidden=false; preview.open=true;
+    if (!consent.checked) { showFieldError("careerConsent", "careerConsentError", "Confirm the per-run consent checkbox first."); return; }
+    clearFieldError("careerConsent", "careerConsentError");
+    approvedAction = action; pendingPreviewLabel = pendingLabel;
+    setResult("careerPreviewResult", "", "");
+    preview.hidden=false; preview.open=true;
     const isCompany = payload.kind === "company";
     const researchAvailable = payload.research !== false && /^https:\/\/(www\.)?linkedin\.com\/company\/[^/?#]+\/?$/i.test(String(payload.companyUrl || ""));
     previewText.textContent = isCompany
@@ -371,11 +394,105 @@ document.addEventListener("DOMContentLoaded", () => {
         : `No web research will occur. A valid LinkedIn company URL is required for the research stage.\n\nSynthesis stage (no web access):\n${JSON.stringify({companyName:payload.companyName, companyNameSource:payload.companyNameSource, title:payload.title, titleSource:payload.titleSource, seniority:payload.seniority, senioritySource:payload.senioritySource, location:payload.location, locationSource:payload.locationSource, cv:payload.cv || "", jd:payload.jd || "", jdSource:payload.jdSource}, null, 2)}`
       : `${label} sent to Anthropic (no web access):\n${JSON.stringify(payload, null, 2)}\n\n"profileSource" is "extracted" (read from the LinkedIn page) or "manual" (typed or pasted by you).`;
   };
-  careerElement<HTMLButtonElement>("careerPreviewConfirm").onclick = async () => { if (!approvedAction) return; const action=approvedAction; approvedAction=undefined; preview.hidden=true; await action(); };
-  const run = async (input: Record<string, unknown>) => { if (!requireCareerReady()) return; await careerSet({ careerApiKey:field("careerApiKey").value, careerModel:field("careerModel").value, aiConsentGiven:true }); status.textContent="Starting report…"; const response = await chrome.runtime.sendMessage({ action:"CAREER_RUN", consent:true, previewed:true, input }); if (!response.ok) { status.textContent=response.error; return; } chrome.tabs.create({ url: chrome.runtime.getURL(`report.html?job=${encodeURIComponent(response.jobId)}`) }); };
-  const extract = async (action: "EXTRACT_PROFILE" | "EXTRACT_JOB"): Promise<CareerExtraction | null> => { const [tab] = await chrome.tabs.query({ active:true, currentWindow:true }); if (!tab?.id) return null; for (let attempt=0; attempt<5; attempt++) { try { const result = await chrome.tabs.sendMessage(tab.id, { action }, { frameId:0 }) as CareerExtraction; if (result.ready) return result; } catch { /* LinkedIn may still be loading */ } await new Promise(resolve => setTimeout(resolve, 1000)); } status.textContent="Extraction did not finish. Reload LinkedIn and retry, or use the manual fields."; return null; };
+  careerElement<HTMLButtonElement>("careerPreviewConfirm").onclick = async () => {
+    if (!approvedAction) return;
+    const action = approvedAction; approvedAction = undefined;
+    const button = careerElement<HTMLButtonElement>("careerPreviewConfirm");
+    const originalLabel = button.textContent;
+    button.disabled = true; button.textContent = pendingPreviewLabel;
+    setResult("careerPreviewResult", pendingPreviewLabel, "pending");
+    try { await action(); }
+    finally { button.disabled = false; button.textContent = originalLabel; }
+  };
+  const run = async (input: Record<string, unknown>) => {
+    if (!requireCareerReady()) return;
+    await careerSet({ careerApiKey:field("careerApiKey").value, careerModel:field("careerModel").value, aiConsentGiven:true });
+    const response = await chrome.runtime.sendMessage({ action:"CAREER_RUN", consent:true, previewed:true, input });
+    if (!response.ok) { setResult("careerPreviewResult", response.error, "error"); return; }
+    chrome.tabs.create({ url: chrome.runtime.getURL(`report.html?job=${encodeURIComponent(response.jobId)}`) });
+    // The report streams in its own tab; leave a persistent confirmation here
+    // instead of a stale "Starting report…" once that tab has been opened.
+    setResult("careerPreviewResult", "Report opened in a new tab.", "success");
+  };
+
+  type ExtractOutcome = { ok: true; data: CareerExtraction } | { ok: false; message: string };
+  // Distinguishes not-a-LinkedIn-tab / wrong-page-type / content-script-absent
+  // (needs reload) / still-rendering, instead of a blanket catch{} that
+  // discarded every failure reason and left the user with no explanation.
+  const extract = async (action: "EXTRACT_PROFILE" | "EXTRACT_JOB", expectedKind: "profile" | "job"): Promise<ExtractOutcome> => {
+    const [tab] = await chrome.tabs.query({ active:true, currentWindow:true });
+    if (!tab?.id || !tab.url) return { ok:false, message:"No active LinkedIn tab found." };
+    const kind = extractableKind(tab.url);
+    if (kind === "other") return { ok:false, message:"Open a LinkedIn profile or job page first." };
+    if (kind !== expectedKind) return { ok:false, message: expectedKind === "profile" ? "This tab is a LinkedIn job page, not a profile page." : "This tab is a LinkedIn profile page, not a job page." };
+    let lastReadyFalse: CareerExtraction | null = null;
+    let lastReady: CareerExtraction | null = null;
+    let lastError = "";
+    for (let attempt=0; attempt<5; attempt++) {
+      try {
+        const result = await chrome.tabs.sendMessage(tab.id, { action }, { frameId:0 }) as CareerExtraction;
+        if (result.ready) {
+          lastReady = result;
+          // Experience/education/skills/activity mount lazily as LinkedIn
+          // scrolls sections into view, so a "ready" profile can still be
+          // missing them on an early attempt — keep polling within the
+          // existing retry budget instead of settling on an incomplete
+          // result the moment the core fields are present.
+          const stillMounting = (result.warnings || []).some(w => w.field === "sections");
+          if (!stillMounting) return { ok:true, data:result };
+        } else {
+          lastReadyFalse = result;
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        lastError = msg.includes("Could not establish connection") || msg.includes("Receiving end does not exist")
+          ? "Could not reach the LinkedIn page script. Reload the LinkedIn tab and try again."
+          : `Extraction failed: ${msg}`;
+      }
+      // Skip the wait after the final attempt — nothing will re-check the result.
+      if (attempt < 4) await careerSleep(1000);
+    }
+    if (lastReady) return { ok:true, data:lastReady };
+    if (lastReadyFalse) {
+      const warnings = (lastReadyFalse.warnings || []).map(w => w.message).join(" ");
+      return { ok:false, message: warnings || "The page hasn't finished rendering. Reload LinkedIn and retry." };
+    }
+    return { ok:false, message: lastError || "Could not reach the LinkedIn page script. Reload the LinkedIn tab and try again." };
+  };
+
+  const withPending = async (button: HTMLButtonElement, resultId: string, pendingLabel: string, task: () => Promise<{ text: string; kind: "success" | "error" }>) => {
+    button.disabled = true;
+    const originalLabel = button.textContent;
+    button.textContent = pendingLabel;
+    setResult(resultId, pendingLabel, "pending");
+    try {
+      const { text, kind } = await task();
+      setResult(resultId, text, kind);
+    } finally { button.disabled = false; button.textContent = originalLabel; }
+  };
+
+  // LinkedIn is an SPA, so the page type must be re-evaluated whenever the
+  // active tab's URL changes, not just once when the popup opens.
+  const updateExtractionState = (url: string) => {
+    const kind = extractableKind(url);
+    const extractProfileButton = careerElement<HTMLButtonElement>("extractProfileButton");
+    const extractCvButton = careerElement<HTMLButtonElement>("extractCvButton");
+    const extractJobButton = careerElement<HTMLButtonElement>("extractJobButton");
+    extractProfileButton.disabled = kind !== "profile";
+    extractCvButton.disabled = kind !== "profile";
+    extractJobButton.disabled = kind !== "job";
+    const profileReason = kind === "profile" ? "" : "Open a LinkedIn profile page to use this.";
+    extractProfileButton.title = profileReason; extractCvButton.title = profileReason;
+    extractJobButton.title = kind === "job" ? "" : "Open a LinkedIn job page to use this.";
+    hint.textContent = kind === "profile"
+      ? "This is a LinkedIn profile page — extract the interviewer's details, or your own details into the CV field."
+      : kind === "job"
+        ? "This is a LinkedIn job page — extract the job details below."
+        : "Manual inputs are always available. Open a LinkedIn profile or job page to enable extraction.";
+  };
+
   careerLock.then(async (lock: CareerLock) => {
-    if (!lock.locked) { status.textContent=lock.reason || "Career Tools are unavailable."; return; }
+    if (!lock.locked) { hint.textContent=lock.reason || "Career Tools are unavailable."; return; }
     careerReady=true; tools.hidden=false; const saved = await careerGet<Record<string, string>>(inputIds); inputIds.forEach(id => { if (saved[id] !== undefined) field(id).value=saved[id]; });
     const savedSources = await careerGet<Record<string, string>>(SOURCE_FIELD_IDS.map(sourceStorageKey));
     SOURCE_FIELD_IDS.forEach(id => { fieldSource[id] = savedSources[sourceStorageKey(id)] === "extracted" ? "extracted" : "manual"; });
@@ -384,45 +501,113 @@ document.addEventListener("DOMContentLoaded", () => {
       // A real user edit always means the current value is manually supplied,
       // even if it started from an earlier extraction.
       if ((SOURCE_FIELD_IDS as readonly string[]).includes(id)) { fieldSource[id]="manual"; patch[sourceStorageKey(id)]="manual"; }
-      careerSet(patch).catch(error => status.textContent=String(error));
+      careerSet(patch).catch(error => { hint.textContent = String(error); });
     }));
-    document.querySelectorAll<HTMLButtonElement>(".career-delete").forEach(button => button.onclick = async () => {
-      const keys=(button.dataset.key || "").split(",");
-      const sourceKeys=keys.filter(key => (SOURCE_FIELD_IDS as readonly string[]).includes(key)).map(sourceStorageKey);
-      await new Promise<void>(resolve => chrome.storage.local.remove([...keys, ...sourceKeys], resolve));
-      keys.filter(key => inputIds.includes(key)).forEach(key => { field(key).value=""; if ((SOURCE_FIELD_IDS as readonly string[]).includes(key)) fieldSource[key]="manual"; });
-      status.textContent=`Deleted ${button.textContent || "saved data"}.`;
+    field("careerProfile").addEventListener("input", () => clearFieldError("careerProfile", "careerProfileError"));
+    field("careerCompanyName").addEventListener("input", () => clearFieldError("careerCompanyName", "careerCompanyNameError"));
+    consent.addEventListener("change", () => { if (consent.checked) clearFieldError("careerConsent", "careerConsentError"); });
+
+    document.querySelectorAll<HTMLButtonElement>(".career-clear[data-key]").forEach(button => button.onclick = async () => {
+      const key = button.dataset.key || "";
+      if (!inputIds.includes(key)) return;
+      const sourceKeys = (SOURCE_FIELD_IDS as readonly string[]).includes(key) ? [sourceStorageKey(key)] : [];
+      await new Promise<void>(resolve => chrome.storage.local.remove([key, ...sourceKeys], resolve));
+      // The field visibly emptying is the confirmation — no status message needed.
+      field(key).value=""; if ((SOURCE_FIELD_IDS as readonly string[]).includes(key)) fieldSource[key]="manual";
+      field(key).dispatchEvent(new Event("input"));
+      field(key).focus();
     });
-    const [tab] = await chrome.tabs.query({ active:true, currentWindow:true }); const page = careerPage(tab?.url || "");
+    careerElement<HTMLButtonElement>("clearReportsButton").onclick = async () => {
+      await new Promise<void>(resolve => chrome.storage.local.remove(["careerToolJobs"], resolve));
+      setResult("clearReportsResult", "Saved reports cleared.", "success");
+    };
+
+    const [tab] = await chrome.tabs.query({ active:true, currentWindow:true });
     // Manual fallback is first-class: keep both groups usable on any page.
     profileFields.hidden=false; jobFields.hidden=false;
-    if (page === "other") status.textContent="Manual inputs are available. Open LinkedIn to use extraction.";
+    updateExtractionState(tab?.url || "");
+    if (tab && tab.id !== undefined) {
+      const watchedTabId = tab.id;
+      chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+        if (tabId !== watchedTabId || !changeInfo.url) return;
+        updateExtractionState(changeInfo.url);
+      });
+    }
     const updateResearchState = () => { const valid=/^https:\/\/(www\.)?linkedin\.com\/company\/[^/?#]+\/?$/i.test(field("careerCompanyUrl").value); const state=careerElement<HTMLElement>("careerResearchState"); state.textContent=valid ? "Web research available." : "Web research unavailable — supply the company's LinkedIn URL to enable it. You can still run a no-research report."; };
     field("careerCompanyUrl").addEventListener("input", updateResearchState); updateResearchState();
     const known=["claude-opus-4-8", "claude-sonnet-4-5"]; const modelWarning=careerElement<HTMLElement>("careerModelWarning"); const updateModelWarning=()=>modelWarning.hidden=known.includes(field("careerModel").value.trim()); field("careerModel").addEventListener("input",updateModelWarning); updateModelWarning();
-  }).catch(() => { status.textContent="Career Tools service is not ready. Reload the extension."; });
-  careerElement<HTMLButtonElement>("careerTestButton").onclick = () => { if (!requireCareerReady()) return; showPreview("Test connection", { model:field("careerModel").value, prompt:"OK", max_tokens:16 }, async () => { await careerSet({ careerApiKey:field("careerApiKey").value, careerModel:field("careerModel").value, aiConsentGiven:true }); const result=await chrome.runtime.sendMessage({ action:"CAREER_TEST", consent:true, previewed:true }); status.textContent=result.ok ? "Connection authenticated." : result.error; }); };
-  careerElement<HTMLButtonElement>("extractProfileButton").onclick = async () => { if (!requireCareerReady()) return; const result = await extract("EXTRACT_PROFILE"); if (result) { field("careerProfile").value=JSON.stringify(result, null, 2); fieldSource.careerProfile="extracted"; await careerSet({ careerProfile:field("careerProfile").value, [sourceStorageKey("careerProfile")]:"extracted" }); status.textContent=(result.warnings || []).map(w => w.message).join(" ") || "Profile extracted."; } };
+  }).catch(() => { hint.textContent="Career Tools service is not ready. Reload the extension."; });
+  careerElement<HTMLButtonElement>("careerTestButton").onclick = () => {
+    if (!requireCareerReady()) return;
+    showPreview("Test connection", { model:field("careerModel").value, prompt:"OK", max_tokens:16 }, async () => {
+      await careerSet({ careerApiKey:field("careerApiKey").value, careerModel:field("careerModel").value, aiConsentGiven:true });
+      const result = await chrome.runtime.sendMessage({ action:"CAREER_TEST", consent:true, previewed:true });
+      setResult("careerPreviewResult", result.ok ? "Connection authenticated." : result.error, result.ok ? "success" : "error");
+    }, "Testing connection…");
+  };
+  careerElement<HTMLButtonElement>("extractProfileButton").onclick = async () => {
+    if (!requireCareerReady()) return;
+    const button = careerElement<HTMLButtonElement>("extractProfileButton");
+    await withPending(button, "extractProfileResult", "Extracting…", async () => {
+      const outcome = await extract("EXTRACT_PROFILE", "profile");
+      if (!outcome.ok) return { text: outcome.message, kind: "error" };
+      field("careerProfile").value=JSON.stringify(outcome.data, null, 2);
+      fieldSource.careerProfile="extracted";
+      await careerSet({ careerProfile:field("careerProfile").value, [sourceStorageKey("careerProfile")]:"extracted" });
+      clearFieldError("careerProfile", "careerProfileError");
+      const warnings = (outcome.data.warnings || []).map(w => w.message).join(" ");
+      return { text: warnings || "Profile extracted.", kind: "success" };
+    });
+  };
+  careerElement<HTMLButtonElement>("extractCvButton").onclick = async () => {
+    if (!requireCareerReady()) return;
+    const button = careerElement<HTMLButtonElement>("extractCvButton");
+    await withPending(button, "extractCvResult", "Extracting…", async () => {
+      const outcome = await extract("EXTRACT_PROFILE", "profile");
+      if (!outcome.ok) return { text: outcome.message, kind: "error" };
+      field("careerCv").value=JSON.stringify(outcome.data, null, 2);
+      fieldSource.careerCv="extracted";
+      await careerSet({ careerCv:field("careerCv").value, [sourceStorageKey("careerCv")]:"extracted" });
+      const warnings = (outcome.data.warnings || []).map(w => w.message).join(" ");
+      return { text: warnings ? `${warnings} Extracted into the CV field.` : "Your details were extracted into the CV field.", kind: "success" };
+    });
+  };
   careerElement<HTMLButtonElement>("extractJobButton").onclick = async () => {
     if (!requireCareerReady()) return;
-    const result = await extract("EXTRACT_JOB");
-    if (!result) return;
-    const map: Record<string,string> = { careerCompanyName:"companyName", careerCompanyUrl:"companyUrl", careerJobTitle:"title", careerSeniority:"seniority", careerLocation:"location", careerJobDescription:"description" };
-    Object.entries(map).forEach(([target, source]) => { field(target).value=String(result[source] || ""); fieldSource[target]="extracted"; });
-    // salary, benefits, and workplaceType have no dedicated fields; fold them
-    // into the JD text so the synthesis stage still sees them, rather than
-    // silently dropping extracted content.
-    const extras = [
-      result.workplaceType ? `Workplace type: ${result.workplaceType}` : "",
-      result.salary ? `Salary: ${result.salary}` : "",
-      result.benefits ? `Benefits: ${result.benefits}` : "",
-    ].filter(Boolean).join("\n");
-    if (extras) field("careerJobDescription").value = [field("careerJobDescription").value, extras].filter(Boolean).join("\n\n");
-    await careerSet({ ...Object.fromEntries(Object.keys(map).map(id => [id, field(id).value])), ...Object.fromEntries(Object.keys(map).map(id => [sourceStorageKey(id), "extracted"])) });
-    status.textContent=(result.warnings || []).map(w=>w.message).join(" ") || "Job extracted.";
+    const button = careerElement<HTMLButtonElement>("extractJobButton");
+    await withPending(button, "extractJobResult", "Extracting…", async () => {
+      const outcome = await extract("EXTRACT_JOB", "job");
+      if (!outcome.ok) return { text: outcome.message, kind: "error" };
+      const result = outcome.data;
+      const map: Record<string,string> = { careerCompanyName:"companyName", careerCompanyUrl:"companyUrl", careerJobTitle:"title", careerSeniority:"seniority", careerLocation:"location", careerJobDescription:"description" };
+      Object.entries(map).forEach(([target, source]) => { field(target).value=String(result[source] || ""); fieldSource[target]="extracted"; });
+      // salary, benefits, and workplaceType have no dedicated fields; fold them
+      // into the JD text so the synthesis stage still sees them, rather than
+      // silently dropping extracted content.
+      const extras = [
+        result.workplaceType ? `Workplace type: ${result.workplaceType}` : "",
+        result.salary ? `Salary: ${result.salary}` : "",
+        result.benefits ? `Benefits: ${result.benefits}` : "",
+      ].filter(Boolean).join("\n");
+      if (extras) field("careerJobDescription").value = [field("careerJobDescription").value, extras].filter(Boolean).join("\n\n");
+      await careerSet({ ...Object.fromEntries(Object.keys(map).map(id => [id, field(id).value])), ...Object.fromEntries(Object.keys(map).map(id => [sourceStorageKey(id), "extracted"])) });
+      clearFieldError("careerCompanyName", "careerCompanyNameError");
+      const warnings = (result.warnings || []).map(w=>w.message).join(" ");
+      return { text: warnings || "Job extracted.", kind: "success" };
+    });
   };
-  careerElement<HTMLButtonElement>("interviewButton").onclick = () => { const input={ kind:"interview", profile:field("careerProfile").value, cv:field("careerCv").value, jd:field("careerJd").value, profileSource:fieldSource.careerProfile || "manual" }; if (!input.profile.trim()) { status.textContent="Extract or paste an interviewer profile first."; return; } showPreview("Interview preparation",input,()=>run(input)); };
-  careerElement<HTMLButtonElement>("companyButton").onclick = () => { const input={ kind:"company", companyName:field("careerCompanyName").value, companyUrl:field("careerCompanyUrl").value, title:field("careerJobTitle").value, seniority:field("careerSeniority").value, location:field("careerLocation").value, jd:field("careerJobDescription").value, cv:field("careerCv").value, research:careerElement<HTMLInputElement>("careerResearch").checked, companyNameSource:fieldSource.careerCompanyName || "manual", companyUrlSource:fieldSource.careerCompanyUrl || "manual", titleSource:fieldSource.careerJobTitle || "manual", senioritySource:fieldSource.careerSeniority || "manual", locationSource:fieldSource.careerLocation || "manual", jdSource:fieldSource.careerJobDescription || "manual" }; if (!input.companyName.trim()) { status.textContent="Enter a company name first."; return; } showPreview("Company & Role Intelligence",input,()=>run(input)); };
+  careerElement<HTMLButtonElement>("interviewButton").onclick = () => {
+    const input={ kind:"interview", profile:field("careerProfile").value, cv:field("careerCv").value, jd:field("careerJd").value, profileSource:fieldSource.careerProfile || "manual" };
+    if (!input.profile.trim()) { showFieldError("careerProfile", "careerProfileError", "Extract or paste an interviewer profile first."); return; }
+    clearFieldError("careerProfile", "careerProfileError");
+    showPreview("Interview preparation",input,()=>run(input),"Starting report…");
+  };
+  careerElement<HTMLButtonElement>("companyButton").onclick = () => {
+    const input={ kind:"company", companyName:field("careerCompanyName").value, companyUrl:field("careerCompanyUrl").value, title:field("careerJobTitle").value, seniority:field("careerSeniority").value, location:field("careerLocation").value, jd:field("careerJobDescription").value, cv:field("careerCv").value, research:careerElement<HTMLInputElement>("careerResearch").checked, companyNameSource:fieldSource.careerCompanyName || "manual", companyUrlSource:fieldSource.careerCompanyUrl || "manual", titleSource:fieldSource.careerJobTitle || "manual", senioritySource:fieldSource.careerSeniority || "manual", locationSource:fieldSource.careerLocation || "manual", jdSource:fieldSource.careerJobDescription || "manual" };
+    if (!input.companyName.trim()) { showFieldError("careerCompanyName", "careerCompanyNameError", "Enter a company name first."); return; }
+    clearFieldError("careerCompanyName", "careerCompanyNameError");
+    showPreview("Company & Role Intelligence",input,()=>run(input),"Starting report…");
+  };
 });
 
 // Mode controller — the popup always opens on the chooser; picking a tool

@@ -73,8 +73,21 @@
     }
     .save-btn:hover { background: #e0e0e0; }
     .career-tools { text-align: left; margin: 20px 0; padding: 15px; border: 1px solid #b9d7ee; border-radius: 4px; background: #f4faff; }
-    .career-tools textarea, .career-tools input { box-sizing: border-box; width: 100%; margin: 4px 0 10px; padding: 6px; }
+    .career-tools textarea, .career-tools input:not([type=checkbox]) { box-sizing: border-box; width: 100%; margin: 4px 0 4px; padding: 6px; }
     .career-tools small { display:block; color:#555; margin-bottom:8px; }
+    .career-hint { color:#0077b5; }
+    .career-field { margin-bottom: 10px; }
+    .career-field label { display:block; font-size:13px; margin-bottom:3px; }
+    .career-field-row { display:flex; gap:6px; align-items:flex-start; }
+    .career-field-row input, .career-field-row textarea { flex:1 1 auto; width:auto; margin:0; }
+    .career-clear { flex:none; margin-top:4px; padding:5px 8px; font-size:11px; background:#f0f0f0; border:1px solid #ccc; border-radius:3px; cursor:pointer; white-space:nowrap; }
+    .career-clear:hover { background:#e0e0e0; }
+    .field-error { color:#d93025; font-size:11px; margin:2px 0 8px; }
+    .career-tools input.invalid, .career-tools textarea.invalid { border-color:#d93025; }
+    .career-result { font-size:12px; margin:4px 0 10px; }
+    .career-result.success { color:#188038; }
+    .career-result.error { color:#d93025; }
+    .career-result.pending { color:#666; }
     [hidden] { display: none !important; }
     .chooser-btn { margin-bottom: 10px; }
     .link-btn {
@@ -188,33 +201,122 @@
 
     <section id="careerTools" class="career-tools" hidden>
       <small>Profile and resume content is sent to Anthropic only after you review the transmission preview and choose an action.</small>
-      <label>Anthropic API key <input id="careerApiKey" type="password" autocomplete="off" placeholder="sk-ant-…"></label>
+      <small id="careerHint" class="career-hint" role="status" aria-live="polite"></small>
+
+      <div class="career-field">
+        <label for="careerApiKey">Anthropic API key</label>
+        <div class="career-field-row">
+          <input id="careerApiKey" type="password" autocomplete="off" placeholder="sk-ant-…">
+          <button type="button" class="career-clear" data-key="careerApiKey">Clear</button>
+        </div>
+      </div>
       <label>Model ID <input id="careerModel" value="claude-opus-4-8"></label>
       <small id="careerModelWarning" hidden>Unknown model ID: web research may not be supported.</small>
-      <label><input id="careerConsent" type="checkbox"> I consent to sending the displayed inputs to Anthropic for this run.</label>
+
+      <div class="checkbox-row">
+        <input id="careerConsent" type="checkbox">
+        <label for="careerConsent">I consent to sending the displayed inputs to Anthropic for this run.</label>
+      </div>
+      <small id="careerConsentError" class="field-error" role="alert" hidden></small>
+
       <button id="careerTestButton" type="button">Review &amp; test connection</button>
-      <details id="careerPreview" hidden><summary>Transmission preview</summary><pre id="careerPreviewText" style="white-space:pre-wrap;max-height:180px;overflow:auto"></pre><button id="careerPreviewConfirm" type="button">Send approved data</button></details>
-      <div style="margin:8px 0"><small>Delete saved:</small><button class="career-delete" data-key="careerApiKey">API key</button><button class="career-delete" data-key="careerCv">CV</button><button class="career-delete" data-key="careerJd">JD</button><button class="career-delete" data-key="careerProfile">profile</button><button class="career-delete" data-key="careerCompanyName,careerCompanyUrl,careerJobTitle,careerSeniority,careerLocation,careerJobDescription">job identity</button><button class="career-delete" data-key="careerToolJobs">reports</button></div>
+      <details id="careerPreview" hidden>
+        <summary>Transmission preview</summary>
+        <pre id="careerPreviewText" style="white-space:pre-wrap;max-height:180px;overflow:auto"></pre>
+        <button id="careerPreviewConfirm" type="button">Send approved data</button>
+        <small id="careerPreviewResult" class="career-result" role="status" aria-live="polite" hidden></small>
+      </details>
       <hr>
       <div id="profileCareerFields" hidden>
-        <label>CV / resume <textarea id="careerCv" rows="5" placeholder="Paste your CV or resume"></textarea></label>
-        <label>Target job description <textarea id="careerJd" rows="5" placeholder="Paste the target job description"></textarea></label>
-        <label>Interviewer profile <textarea id="careerProfile" rows="5" placeholder="Extracted profile or manual fallback"></textarea></label>
+        <div class="career-field">
+          <label for="careerCv">CV / resume</label>
+          <div class="career-field-row">
+            <textarea id="careerCv" rows="5" placeholder="Paste your CV or resume"></textarea>
+            <button type="button" class="career-clear" data-key="careerCv">Clear</button>
+          </div>
+        </div>
+        <button id="extractCvButton" type="button">Extract my details from this profile</button>
+        <small id="extractCvResult" class="career-result" role="status" aria-live="polite" hidden></small>
+
+        <div class="career-field">
+          <label for="careerJd">Target job description</label>
+          <div class="career-field-row">
+            <textarea id="careerJd" rows="5" placeholder="Paste the target job description"></textarea>
+            <button type="button" class="career-clear" data-key="careerJd">Clear</button>
+          </div>
+        </div>
+
+        <div class="career-field">
+          <label for="careerProfile">Interviewer profile</label>
+          <div class="career-field-row">
+            <textarea id="careerProfile" rows="5" placeholder="Extracted profile or manual fallback"></textarea>
+            <button type="button" class="career-clear" data-key="careerProfile">Clear</button>
+          </div>
+          <small id="careerProfileError" class="field-error" role="alert" hidden></small>
+        </div>
         <button id="extractProfileButton" type="button">Extract LinkedIn profile</button>
+        <small id="extractProfileResult" class="career-result" role="status" aria-live="polite" hidden></small>
         <button id="interviewButton" type="button">Generate Interview Preparation</button>
       </div>
       <div id="jobCareerFields" hidden>
-        <label>Company name <input id="careerCompanyName" type="text"></label>
-        <label>LinkedIn company URL <input id="careerCompanyUrl" type="url" placeholder="https://www.linkedin.com/company/example/"></label>
-        <label>Role title <input id="careerJobTitle" type="text"></label>
-        <label>Seniority / location <input id="careerSeniority" type="text"></label><input id="careerLocation" type="text" placeholder="Location">
-        <label>Job description <textarea id="careerJobDescription" rows="6"></textarea></label>
-        <label><input id="careerResearch" type="checkbox" checked> Research public company facts (requires valid LinkedIn company URL)</label>
+        <div class="career-field">
+          <label for="careerCompanyName">Company name</label>
+          <div class="career-field-row">
+            <input id="careerCompanyName" type="text">
+            <button type="button" class="career-clear" data-key="careerCompanyName">Clear</button>
+          </div>
+          <small id="careerCompanyNameError" class="field-error" role="alert" hidden></small>
+        </div>
+        <div class="career-field">
+          <label for="careerCompanyUrl">LinkedIn company URL</label>
+          <div class="career-field-row">
+            <input id="careerCompanyUrl" type="url" placeholder="https://www.linkedin.com/company/example/">
+            <button type="button" class="career-clear" data-key="careerCompanyUrl">Clear</button>
+          </div>
+        </div>
+        <div class="career-field">
+          <label for="careerJobTitle">Role title</label>
+          <div class="career-field-row">
+            <input id="careerJobTitle" type="text">
+            <button type="button" class="career-clear" data-key="careerJobTitle">Clear</button>
+          </div>
+        </div>
+        <div class="career-field">
+          <label for="careerSeniority">Seniority</label>
+          <div class="career-field-row">
+            <input id="careerSeniority" type="text">
+            <button type="button" class="career-clear" data-key="careerSeniority">Clear</button>
+          </div>
+        </div>
+        <div class="career-field">
+          <label for="careerLocation">Location</label>
+          <div class="career-field-row">
+            <input id="careerLocation" type="text" placeholder="Location">
+            <button type="button" class="career-clear" data-key="careerLocation">Clear</button>
+          </div>
+        </div>
+        <div class="career-field">
+          <label for="careerJobDescription">Job description</label>
+          <div class="career-field-row">
+            <textarea id="careerJobDescription" rows="6"></textarea>
+            <button type="button" class="career-clear" data-key="careerJobDescription">Clear</button>
+          </div>
+        </div>
+        <div class="checkbox-row">
+          <input id="careerResearch" type="checkbox" checked>
+          <label for="careerResearch">Research public company facts (requires valid LinkedIn company URL)</label>
+        </div>
         <small id="careerResearchState"></small>
         <button id="extractJobButton" type="button">Extract LinkedIn job</button>
+        <small id="extractJobResult" class="career-result" role="status" aria-live="polite" hidden></small>
         <button id="companyButton" type="button">Generate Company &amp; Role Intelligence</button>
       </div>
-      <small id="careerStatus"></small>
+
+      <div class="career-field">
+        <span>Saved reports</span>
+        <button type="button" id="clearReportsButton" class="career-clear">Clear saved reports</button>
+        <small id="clearReportsResult" class="career-result" role="status" aria-live="polite" hidden></small>
+      </div>
     </section>
     </div>
   </div>

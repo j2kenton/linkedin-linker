@@ -6,13 +6,17 @@ const REQUIRED_FIELDS: (keyof Pick<ProfileExtraction, "name" | "headline" | "abo
 
 export function extractProfile(document: Document): ProfileExtraction {
   const warnings: ExtractWarning[] = [];
-  // A bare <main> renders on nearly every LinkedIn route, including job
-  // pages, so readiness must key off a profile-specific container. Falling
-  // back to any <main> let EXTRACT_PROFILE report ready:true with empty
-  // fields on a non-profile page.
-  const profileRoot = document.querySelector("main.scaffold-layout__main, .pv-top-card, [data-view-name='profile-card']");
+  // A bare <main> (or LinkedIn's generic app shell, main.scaffold-layout__main)
+  // renders on nearly every LinkedIn route, including job and feed pages, so
+  // readiness must key off a container that only exists on a profile page.
+  // Falling back to any <main> let EXTRACT_PROFILE report ready:true with
+  // empty fields on a non-profile page.
+  const profileRoot = document.querySelector(".pv-top-card, [data-view-name='profile-card']");
   if (!profileRoot) return { ready: false, name: "", headline: "", about: "", experience: "", education: "", skills: "", activity: "", warnings: [{ field: "page", message: "This does not look like a rendered LinkedIn profile page yet." }] };
-  const main = document.body;
+  // h1/headline lookups must be scoped to the profile card, not document.body —
+  // the global nav and promo rails also contain h1/.text-body-medium elements
+  // that would otherwise win the match on a profile page.
+  const main = profileRoot;
   const section = (id: string) => document.querySelector(`#${id}`)?.closest("section") || document.querySelector(`section[data-section="${id}"]`);
   const collect = (node: Element | null) => node ? Array.from(node.querySelectorAll("li")).map(item => (item.textContent || "").replace(/\s+/g, " ").trim()).filter(Boolean).join("\n") : "";
   const result: ProfileExtraction = {
@@ -24,6 +28,12 @@ export function extractProfile(document: Document): ProfileExtraction {
   };
   for (const field of REQUIRED_FIELDS) {
     if (!result[field]) warnings.push({ field, message: `${field} was not found on the page.` });
+  }
+  // Experience/education/skills/activity mount lazily as the user scrolls, so
+  // a page that loaded fine (name/headline present) can still report an
+  // otherwise-successful extraction with every lower section empty.
+  if (result.name && result.headline && !result.experience && !result.education && !result.skills && !result.activity) {
+    warnings.push({ field: "sections", message: "Experience, education, skills, and activity may not have loaded yet — scroll the profile into view and retry." });
   }
   const fields: (keyof Pick<ProfileExtraction, "name" | "headline" | "about" | "experience" | "education" | "skills" | "activity">)[] = ["name", "headline", "about", "experience", "education", "skills", "activity"];
   fields.forEach(key => { result[key] = cap(result[key], 6000, String(key), warnings); });

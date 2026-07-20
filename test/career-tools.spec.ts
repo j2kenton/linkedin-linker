@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from "vitest";
-import { classifyUrl } from "../src/pageDetect";
+import { classifyUrl, extractableKind, STORE_CONTENT_SCRIPT_HOST } from "../src/pageDetect";
 import { StreamAssembler } from "../src/aiClient/streamAssembler";
 import { appendResearchContinuation, acceptsJobWrite, buildRequestBody, classifyProviderError, handleCareerMessage, initializeCareerTools, jobNeedsResume, normalizeResearchIdentity, publishCareerJob, retainJobsForStorage, runResearchContinuation, startFreshReportStream, subscribeCareerJob } from "../src/aiClient";
 import { sourceTable } from "../src/aiClient/research";
@@ -28,6 +28,21 @@ describe("LinkedIn page detection", () => {
   it("recognizes profile sub-pages, not just the bare /in/<slug> root", () => {
     expect(classifyUrl("https://www.linkedin.com/in/alex/details/experience/")).toBe("profile");
     expect(classifyUrl("https://www.linkedin.com/in/alex/recent-activity/all/")).toBe("profile");
+  });
+
+  it("narrows classifyUrl to only the hosts a build's content script can actually reach", () => {
+    // The store build's content script matches https://www.linkedin.com/*
+    // only (manifest.store.json), so a bare-domain or locale-subdomain URL
+    // that classifyUrl alone would call a profile/job page must be treated
+    // as unusable there — offering that button would just fail.
+    expect(extractableKind("https://www.linkedin.com/in/alex/", STORE_CONTENT_SCRIPT_HOST)).toBe("profile");
+    expect(extractableKind("https://www.linkedin.com/jobs/view/1234/", STORE_CONTENT_SCRIPT_HOST)).toBe("job");
+    expect(extractableKind("https://linkedin.com/in/alex/", STORE_CONTENT_SCRIPT_HOST)).toBe("other");
+    expect(extractableKind("https://de.linkedin.com/in/alex/", STORE_CONTENT_SCRIPT_HOST)).toBe("other");
+    expect(extractableKind("http://www.linkedin.com/in/alex/", STORE_CONTENT_SCRIPT_HOST)).toBe("other");
+    // The dev build's content script matches <all_urls> (manifest.json), so
+    // it passes no host restriction and defers entirely to classifyUrl.
+    expect(extractableKind("https://linkedin.com/jobs/view/1234/", null)).toBe("job");
   });
 });
 
@@ -154,7 +169,7 @@ describe("extraction and safe rendering", () => {
   });
 
   it("reports sparse-profile fields and extraction truncation warnings", () => {
-    document.body.innerHTML=`<main class="scaffold-layout__main"><h1>Sparse Person</h1><section id="about"><div class="inline-show-more-text">${"x".repeat(6001)}</div></section></main>`;
+    document.body.innerHTML=`<main class="scaffold-layout__main"><section class="pv-top-card"><h1>Sparse Person</h1></section><section id="about"><div class="inline-show-more-text">${"x".repeat(6001)}</div></section></main>`;
     const profile=extractProfile(document);
     expect(profile).toMatchObject({ready:true,name:"Sparse Person",experience:"",education:""});
     expect(profile.warnings).toEqual(expect.arrayContaining([{field:"about",message:"Truncated to 6000 characters."}]));
@@ -171,8 +186,28 @@ describe("extraction and safe rendering", () => {
     expect(extractProfile(document).ready).toBe(false);
   });
 
+  it("scopes name/headline lookups to the profile card, ignoring global-nav and promo-rail h1/.text-body-medium matches", () => {
+    // Regression for the earlier body-wide h1/.text-body-medium lookup, which
+    // matched LinkedIn's global nav or "People you may know" rail instead of
+    // the actual profile card whenever those rendered first in DOM order.
+    document.body.innerHTML=`<nav><h1>LinkedIn</h1><div class="text-body-medium">Search</div></nav><main class="scaffold-layout__main"><section class="pv-top-card"><h1>Ada Lovelace</h1><div class="text-body-medium">Engineering Manager</div></section></main>`;
+    expect(extractProfile(document)).toMatchObject({ready:true,name:"Ada Lovelace",headline:"Engineering Manager"});
+  });
+
+  it("scopes the company link to the job detail pane, ignoring /jobs/search sidebar recommendation cards", () => {
+    document.body.innerHTML=`<aside><a href="https://www.linkedin.com/company/decoy-corp/">Decoy Corp</a></aside><main class="jobs-details__main-content"><h1>Staff Engineer</h1><a href="https://www.linkedin.com/company/acme/">Acme</a></main>`;
+    expect(extractJob(document)).toMatchObject({ready:true,companyName:"Acme",companyUrl:"https://www.linkedin.com/company/acme/"});
+  });
+
+  it("warns when a profile loaded but experience/education/skills/activity are still lazy-mounted", () => {
+    document.body.innerHTML=`<main class="scaffold-layout__main"><section class="pv-top-card"><h1>Ada Lovelace</h1><div class="text-body-medium">Engineering Manager</div></section></main>`;
+    const profile=extractProfile(document);
+    expect(profile.ready).toBe(true);
+    expect(profile.warnings).toEqual(expect.arrayContaining([{field:"sections",message:"Experience, education, skills, and activity may not have loaded yet — scroll the profile into view and retry."}]));
+  });
+
   it("flags missing required job fields instead of silently omitting them", () => {
-    document.body.innerHTML=`<main class="jobs-details"><h1></h1></main>`;
+    document.body.innerHTML=`<main class="jobs-details__main-content"><h1></h1></main>`;
     const job=extractJob(document);
     expect(job.ready).toBe(true);
     expect(job.warnings).toEqual(expect.arrayContaining([
@@ -520,6 +555,109 @@ describe("store popup mode separation", () => {
     expect((byId("chooseCareer") as HTMLButtonElement).disabled).toBe(true);
 
     expect(byId("connectionView").contains(byId("status"))).toBe(true);
-    expect(byId("careerView").contains(byId("careerStatus"))).toBe(true);
+    expect(byId("careerView").contains(byId("careerHint"))).toBe(true);
+  });
+});
+
+describe("career tools panel — inline feedback, per-field clear, page-aware extraction", () => {
+  const popupStoreHtml = readFileSync(fileURLToPath(new NodeUrl("../popup.store.html", import.meta.url)), "utf8");
+  const popupHtml = readFileSync(fileURLToPath(new NodeUrl("../popup.html", import.meta.url)), "utf8");
+  const popupStoreSource = readFileSync(fileURLToPath(new NodeUrl("../src/popup.store.ts", import.meta.url)), "utf8");
+  const popupSource = readFileSync(fileURLToPath(new NodeUrl("../src/popup.ts", import.meta.url)), "utf8");
+
+  const CLEARABLE_FIELDS = ["careerApiKey", "careerCv", "careerJd", "careerProfile", "careerCompanyName", "careerCompanyUrl", "careerJobTitle", "careerSeniority", "careerLocation", "careerJobDescription"];
+
+  it("gives every clearable field its own Clear button instead of one combined delete-saved row", () => {
+    for (const html of [popupStoreHtml, popupHtml]) {
+      document.body.innerHTML = html;
+      expect(document.querySelectorAll(".career-delete")).toHaveLength(0);
+      for (const id of CLEARABLE_FIELDS) {
+        expect(document.querySelector(`.career-clear[data-key="${id}"]`)).not.toBeNull();
+      }
+      expect(document.getElementById("clearReportsButton")).not.toBeNull();
+    }
+  });
+
+  it("renders the consent and research checkboxes inside .checkbox-row, on the same line as their label", () => {
+    for (const html of [popupStoreHtml, popupHtml]) {
+      document.body.innerHTML = html;
+      const consentRow = document.getElementById("careerConsent")!.closest(".checkbox-row");
+      expect(consentRow).not.toBeNull();
+      expect(consentRow!.querySelector("label[for='careerConsent']")).not.toBeNull();
+      const researchRow = document.getElementById("careerResearch")!.closest(".checkbox-row");
+      expect(researchRow).not.toBeNull();
+      expect(researchRow!.querySelector("label[for='careerResearch']")).not.toBeNull();
+    }
+  });
+
+  it("gives consent, company-name, and interviewer-profile validation errors their own field-level element instead of one bottom status line", () => {
+    for (const html of [popupStoreHtml, popupHtml]) {
+      document.body.innerHTML = html;
+      expect(document.getElementById("careerStatus")).toBeNull();
+      for (const id of ["careerConsentError", "careerCompanyNameError", "careerProfileError"]) {
+        const el = document.getElementById(id)!;
+        expect(el).not.toBeNull();
+        expect(el.getAttribute("role")).toBe("alert");
+        expect(el.hidden).toBe(true);
+      }
+    }
+  });
+
+  it("gives Send-approved-data, both extract buttons, and the new own-profile CV extraction their own live result region", () => {
+    for (const html of [popupStoreHtml, popupHtml]) {
+      document.body.innerHTML = html;
+      expect(document.getElementById("extractCvButton")).not.toBeNull();
+      for (const id of ["careerPreviewResult", "extractProfileResult", "extractJobResult", "extractCvResult"]) {
+        const el = document.getElementById(id)!;
+        expect(el).not.toBeNull();
+        expect(el.getAttribute("aria-live")).toBe("polite");
+      }
+    }
+  });
+
+  it("distinguishes not-a-LinkedIn-tab, wrong-page-type, and content-script-absent extraction failures instead of one blanket catch{}", () => {
+    for (const source of [popupStoreSource, popupSource]) {
+      expect(source).toContain("Open a LinkedIn profile or job page first.");
+      expect(source).toContain("not a profile page.");
+      expect(source).toContain("not a job page.");
+      expect(source).toContain("Could not reach the LinkedIn page script. Reload the LinkedIn tab and try again.");
+      // The ready:false path must surface the extractor's own warnings rather
+      // than discard them behind a generic timeout message.
+      expect(source).toMatch(/lastReadyFalse\.warnings/);
+    }
+  });
+
+  it("tracks the extracted-vs-manual origin of the CV field, not just the job/profile fields", () => {
+    for (const source of [popupStoreSource, popupSource]) {
+      const sourceIds = source.match(/const SOURCE_FIELD_IDS = \[[^\]]+\]/)?.[0] ?? "";
+      expect(sourceIds).toContain("careerCv");
+    }
+  });
+
+  it("aligns the store build's extractable-page check to its own content script's host match (www.linkedin.com only)", () => {
+    const pageDetectSource = readFileSync(fileURLToPath(new NodeUrl("../src/pageDetect.ts", import.meta.url)), "utf8");
+    expect(pageDetectSource).toContain("www\\.linkedin\\.com");
+    expect(popupStoreSource).toContain("STORE_CONTENT_SCRIPT_HOST");
+    // The dev build's content script matches <all_urls>, so it must pass no
+    // host restriction rather than reusing the store's www-only pattern.
+    expect(popupSource).not.toContain("STORE_CONTENT_SCRIPT_HOST");
+    expect(popupSource).toMatch(/pageDetectExtractableKind\(url,\s*null\)/);
+  });
+
+  it("re-evaluates the active tab's page type on SPA navigation, not just once at popup open", () => {
+    for (const source of [popupStoreSource, popupSource]) {
+      expect(source).toContain("chrome.tabs.onUpdated.addListener");
+      expect(source).toContain("updateExtractionState");
+    }
+  });
+
+  it("keeps polling within the retry budget when a profile is ready but sections are still lazy-mounting, instead of settling on the first incomplete result", () => {
+    for (const source of [popupStoreSource, popupSource]) {
+      expect(source).toMatch(/stillMounting\s*=\s*\(result\.warnings\s*\|\|\s*\[\]\)\.some\(w\s*=>\s*w\.field\s*===\s*"sections"\)/);
+      expect(source).toContain("if (!stillMounting) return { ok:true, data:result };");
+      // Exhausting the retry budget must still return the best ready result
+      // seen, rather than only ever returning the ready:false/error branches.
+      expect(source).toContain("if (lastReady) return { ok:true, data:lastReady };");
+    }
   });
 });
