@@ -1,6 +1,6 @@
 # Privacy Policy
 
-Connection Request Assistant prepares connection invite drafts on LinkedIn people search results pages. It also includes two optional, opt-in AI research tools — Interview Preparation and Company & Role Intelligence — described in "Career Tools" below. It is not affiliated with or endorsed by LinkedIn.
+Career Connect prepares connection invite drafts on LinkedIn people search results pages. It also includes two optional, opt-in AI research tools — Interview Preparation and Company & Role Intelligence — described in "Career Tools" below. It is not affiliated with or endorsed by LinkedIn.
 
 ## Data Handled
 

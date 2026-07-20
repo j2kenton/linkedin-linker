@@ -1,4 +1,4 @@
-// LinkedIn Connection Automator Background Script (Service Worker)
+// Career Connect Background Script (Service Worker)
 
 interface AutomationMessage {
   action: string;
@@ -34,10 +34,10 @@ chrome.runtime.onMessage.addListener(
 
 // Handle extension installation
 chrome.runtime.onInstalled.addListener((): void => {
-  console.log("LinkedIn Connection Automator installed");
+  console.log("Career Connect installed");
 });
 
 // Handle extension startup
 chrome.runtime.onStartup.addListener((): void => {
-  console.log("LinkedIn Connection Automator started");
+  console.log("Career Connect started");
 });

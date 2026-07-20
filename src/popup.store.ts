@@ -1,4 +1,4 @@
-// Popup script for LinkedIn Connection Assistant — store build
+// Popup script for Career Connect — store build
 // This file is the store-only entry point.
 // No auto-send, no Live Mode, no batch processing, no self-update, no runtime script injection.
 import { classifyUrl } from "./pageDetect";

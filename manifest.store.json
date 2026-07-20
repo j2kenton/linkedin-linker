@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "LinkedIn Connection Assistant",
+  "name": "Career Connect",
   "version": "1.1.1",
   "description": "Prepare LinkedIn invite drafts, plus optional AI interview prep and company research using your own Anthropic API key.",
   "permissions": [
@@ -29,7 +29,7 @@
   },
   "action": {
     "default_popup": "popup.store.html",
-    "default_title": "Connection Assistant",
+    "default_title": "Career Connect",
     "default_icon": {
       "16": "assets/icons/icon16.png",
       "32": "assets/icons/icon32.png",

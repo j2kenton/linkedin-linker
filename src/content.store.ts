@@ -2,7 +2,7 @@ import { extractJob } from "./extract/job";
 import { extractProfile } from "./extract/profile";
 
 {
-// LinkedIn Connection Assistant Content Script — store build
+// Career Connect Content Script — store build
 // Behaviour: find the next unvisited connectable profile on the current page,
 // open LinkedIn's invite dialog, fill the note, then STOP.
 // The extension never clicks Send. The user reviews and decides.

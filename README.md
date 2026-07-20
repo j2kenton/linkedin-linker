@@ -1,4 +1,4 @@
-# LinkedIn Connection Automator
+# Career Connect
 
 ## [Install from the Chrome Web Store](https://chromewebstore.google.com/detail/linkedin-connection-assis/poedmlfffaldgihhpffkbknjegmkpclj)
 

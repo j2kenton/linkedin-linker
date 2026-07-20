@@ -2,7 +2,7 @@
 
 ## Single Purpose
 
-Connection Request Assistant is a LinkedIn relationship-and-career-research assistant. It helps a user act on LinkedIn page content they are already viewing by preparing something for their manual review: a personalized connection-invite draft, an AI-generated interview-preparation briefing, or an AI-generated company/role research report. In every case the extension prepares a draft or report for the user to read and act on — it never submits anything on the user's behalf. The invite-drafting feature works out of the box with only local browser permissions. The two Career Tools features (Interview Preparation and Company & Role Intelligence) are optional, off by default, and only activate when the user supplies their own Anthropic API key and gives explicit, per-run consent to send specific page content to Anthropic's API.
+Career Connect is a LinkedIn relationship-and-career-research assistant. It helps a user act on LinkedIn page content they are already viewing by preparing something for their manual review: a personalized connection-invite draft, an AI-generated interview-preparation briefing, or an AI-generated company/role research report. In every case the extension prepares a draft or report for the user to read and act on — it never submits anything on the user's behalf. The invite-drafting feature works out of the box with only local browser permissions. The two Career Tools features (Interview Preparation and Company & Role Intelligence) are optional, off by default, and only activate when the user supplies their own Anthropic API key and gives explicit, per-run consent to send specific page content to Anthropic's API.
 
 ## Permission Justifications
 
@@ -72,7 +72,7 @@ Prepare LinkedIn invite drafts, plus optional AI interview prep and company rese
 
 Detailed description:
 
-Connection Request Assistant helps prepare connection invite drafts from LinkedIn people search results. It saves your search filters and message draft locally, opens LinkedIn's invite dialog for the next visible connectable profile, and fills the note for review. The extension does not click Send; you review the recipient and message in LinkedIn and decide whether to send, edit, or close the invite.
+Career Connect helps prepare connection invite drafts from LinkedIn people search results. It saves your search filters and message draft locally, opens LinkedIn's invite dialog for the next visible connectable profile, and fills the note for review. The extension does not click Send; you review the recipient and message in LinkedIn and decide whether to send, edit, or close the invite.
 
 Career Tools add two optional, opt-in AI research features on LinkedIn profile and job pages. Interview Preparation reads a LinkedIn profile plus your own pasted CV/resume and target job description to produce interview-prep guidance. Company & Role Intelligence reads a LinkedIn job page, researches the company, and produces a role and compensation report. Both features are off by default, require your own Anthropic API key, and only run after you review exactly what will be sent and give per-run consent.
 

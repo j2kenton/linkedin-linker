@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "LinkedIn Connection Automator",
+  "name": "Career Connect",
   "version": "1.1.1",
   "description": "Automates LinkedIn connection requests with sequential processing and random delays",
   "permissions": [
@@ -28,7 +28,7 @@
   },
   "action": {
     "default_popup": "popup.html",
-    "default_title": "LinkedIn Career Tools"
+    "default_title": "Career Connect"
   },
   "web_accessible_resources": [{"resources": ["report.html"], "matches": ["<all_urls>"]}]
 }

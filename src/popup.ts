@@ -1,4 +1,4 @@
-// Popup script for LinkedIn Automator extension
+// Popup script for Career Connect
 import { BUILD_TARGET } from "./build-target";
 import { classifyUrl } from "./pageDetect";
 const _BUILD_TARGET: string = BUILD_TARGET;
@@ -774,7 +774,7 @@ function showUpdateNotification(): void {
   statusDiv.innerHTML = `
     <div style="color: #f57c00; border: 1px solid #f57c00; padding: 10px; border-radius: 4px; margin: 10px 0; background-color: #fff3cd;">
       <strong>Update Available!</strong><br>
-      <small>New version of LinkedIn Automator is ready.</small><br>
+      <small>New version of Career Connect is ready.</small><br>
       <button id="updateBtn" style="margin-top: 8px; padding: 6px 12px; background: #0077b5; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 12px;">Update Now</button>
     </div>
   `;

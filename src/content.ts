@@ -2,7 +2,7 @@ import { BUILD_TARGET } from "./build-target";
 import { extractJob } from "./extract/job";
 import { extractProfile } from "./extract/profile";
 
-// LinkedIn Connection Automator Content Script
+// Career Connect Content Script
 // esbuild inlines this generated build target into the developer bundle.
 const _BUILD_TARGET: string = BUILD_TARGET;
 
