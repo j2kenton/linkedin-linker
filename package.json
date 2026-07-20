@@ -8,7 +8,7 @@
     "release": "npm run build:store && node scripts/package-release.js",
     "webstore:upload": "npm run release && node scripts/run-webstore-cli.js upload --source release/store.zip --extension-id poedmlfffaldgihhpffkbknjegmkpclj",
     "webstore:publish": "node scripts/run-webstore-cli.js publish --extension-id poedmlfffaldgihhpffkbknjegmkpclj",
-    "ensemble:release": "npm run webstore:upload && npm run webstore:publish",
+    "ensemble:release": "npm run release",
     "watch": "node scripts/set-build-target.js developer && node scripts/build-dev.js --watch",
     "typecheck:watch": "node scripts/set-build-target.js developer && tsc --noEmit --watch",
     "check-types": "node scripts/set-build-target.js developer && tsc --noEmit",
