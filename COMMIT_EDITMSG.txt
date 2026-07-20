@@ -1,0 +1,2 @@
+refactor: rename release script to package and update its usage in webstore:upload
+chore: modify publish-live.js to clarify usage instructions and remove local-only build commands

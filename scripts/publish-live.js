@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 // Full live-release pipeline: verify clean tree, bump version, run checks, build,
 // upload + publish to the Chrome Web Store, then commit and tag the version bump.
-// Usage: node scripts/publish-live.js [patch|minor|major]   (prompts if omitted)
+// Usage: node scripts/publish-live.js [patch|minor|major]   (prompts if omitted and a TTY is attached)
 //
-// This is deliberately NOT wired into `release` or `ensemble:release` — those stay
-// a safe, local-only build. A human runs this script directly, on purpose, each time.
+// This IS what `npm run release` / `npm run ensemble:release` run. There is no
+// build-only, side-effect-free release command in this project anymore.
 
 const { execSync, spawnSync } = require('child_process');
 const fs = require('fs');
@@ -44,6 +44,11 @@ function promptBumpType() {
 
 async function main() {
   const argType = process.argv[2];
+  if (!['patch', 'minor', 'major'].includes(argType) && !process.stdin.isTTY) {
+    console.error('No bump type given and no interactive terminal is attached — refusing to hang waiting for input.');
+    console.error('Re-run with an explicit type: npm run release -- patch   (or minor / major)');
+    process.exit(1);
+  }
   const bumpType = ['patch', 'minor', 'major'].includes(argType) ? argType : await promptBumpType();
 
   // Guard: working tree must be clean, so the version-bump commit only contains the bump.
