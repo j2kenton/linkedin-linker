@@ -7,6 +7,8 @@
     "build:store": "node scripts/set-build-target.js store && tsc -p tsconfig.store.json && node scripts/package-store.js",
     "watch": "node scripts/set-build-target.js developer && node scripts/build-dev.js --watch",
     "typecheck:watch": "node scripts/set-build-target.js developer && tsc --noEmit --watch",
+    "check-types": "node scripts/set-build-target.js developer && tsc --noEmit",
+    "lint": "npm run check-types",
     "pretest": "node scripts/set-build-target.js developer",
     "test": "vitest run",
     "generate:store-baseline": "node scripts/generate-store-baseline.js",

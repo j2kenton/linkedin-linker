@@ -24,7 +24,7 @@ export function sourceTable(blocks: Record<string, unknown>[]): CareerSource[] {
     try { url = new URL(raw); } catch { continue; }
     if (url.protocol !== "http:" && url.protocol !== "https:") continue;
     const key = url.toString();
-    if (!seen.has(key)) seen.set(key, { id:`S${seen.size + 1}`, url:key, title:typeof item.title === "string" ? item.title : undefined, citedText:typeof item.cited_text === "string" ? item.cited_text : undefined });
+    if (!seen.has(key)) seen.set(key, { id:`S${seen.size + 1}`, url:raw, title:typeof item.title === "string" ? item.title : undefined, citedText:typeof item.cited_text === "string" ? item.cited_text : undefined });
   }
   return [...seen.values()];
 }
