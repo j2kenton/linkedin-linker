@@ -1,3 +1,6 @@
+import { extractJob } from "./extract/job";
+import { extractProfile } from "./extract/profile";
+
 {
 // LinkedIn Connection Assistant Content Script — store build
 // Behaviour: find the next unvisited connectable profile on the current page,
@@ -183,4 +186,14 @@ chrome.runtime.onMessage.addListener(
     return true;
   }
 );
+
+// Career Tools read visible LinkedIn text only, and are ignored by subframes.
+// `sender.frameId` describes the sender's frame, not this receiver's — a
+// request from the popup has no tab-frame sender at all, so only this
+// frame's own top-frame identity may gate the response.
+chrome.runtime.onMessage.addListener((request: { action?: string }, _sender, sendResponse) => {
+  if (window.top !== window) return;
+  if (request.action === "EXTRACT_PROFILE") { sendResponse(extractProfile(document)); return; }
+  if (request.action === "EXTRACT_JOB") sendResponse(extractJob(document));
+});
 }

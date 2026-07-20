@@ -4,7 +4,7 @@
   "description": "Automates LinkedIn connection requests with sequential processing and random delays",
   "scripts": {
     "build": "node scripts/set-build-target.js developer && tsc --noEmit && node scripts/build-dev.js",
-    "build:store": "node scripts/set-build-target.js store && tsc -p tsconfig.store.json && node scripts/package-store.js",
+    "build:store": "node scripts/set-build-target.js store && tsc -p tsconfig.store.json && node scripts/build-store.js && node scripts/package-store.js",
     "package": "npm run build:store && node scripts/package-release.js",
     "webstore:upload": "npm run package && node scripts/run-webstore-cli.js upload --source release/store.zip --extension-id poedmlfffaldgihhpffkbknjegmkpclj",
     "webstore:publish": "node scripts/run-webstore-cli.js publish --extension-id poedmlfffaldgihhpffkbknjegmkpclj",

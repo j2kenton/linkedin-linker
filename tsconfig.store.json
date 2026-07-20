@@ -1,9 +1,8 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "outDir": "./dist/store",
-    "noEmit": false
+    "noEmit": true
   },
-  "include": ["src/background.ts", "src/popup.store.ts", "src/content.store.ts"],
+  "include": ["src/background.store.ts", "src/popup.store.ts", "src/content.store.ts", "src/report.ts"],
   "exclude": ["node_modules", "dist"]
 }

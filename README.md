@@ -11,6 +11,7 @@ This repository contains two Chrome extension builds from one codebase:
 | **Purpose** | Full automation for local/developer use | One-at-a-time invite assistant for Chrome Web Store |
 | **Send behavior** | Clicks LinkedIn's Send button automatically (Live Mode) | Never clicks Send — you review and send each invite yourself |
 | **Batch processing** | Yes — processes all profiles across pages | No — prepares one invite per button click |
+| **Career Tools** | Optional AI interview prep & company research — requires your own Anthropic API key | Optional AI interview prep & company research — requires your own Anthropic API key |
 | **Limits** | Pages and connection count limits | None needed (single-step flow) |
 | **Install method** | Load unpacked via `chrome://extensions` | Load unpacked or install from Chrome Web Store |
 | **Build command** | `npm run build` | `npm run build:store` |
@@ -40,14 +41,16 @@ Full automation with Test Mode and Live Mode. Intended for local/developer use o
 - Supports limits for pages and max connection requests with optional auto-decrement.
 - Includes random delays between actions.
 
-### Career Tools (developer build only)
+### Career Tools
 
-The developer build also provides two consent-gated research tools on LinkedIn:
+Both builds provide two optional, consent-gated research tools on LinkedIn:
 
 - On a personal profile (`/in/...`), **Interview Preparation** combines visible public professional content with your pasted CV and target job description. It creates non-diagnostic rapport, communication, leadership-matching, story-selection, and narrative guidance; it does not assess hostility, deception, or adversarial behavior.
 - On a LinkedIn job page, **Company & Role Intelligence** creates a six-part company, architecture, role-expectations, interview, and compensation report. It performs public company research only with a valid LinkedIn company URL; otherwise it clearly generates a Stage-B-only, no-research report with modeled estimates.
 
-Open the popup on the relevant page, enter your Anthropic API key and model ID, review the per-run consent checkbox, and select the action. Resume/CV, job description, and manual fallback fields are local-only trusted extension storage. Set a spend limit on the API key. Company research requires organization-level Anthropic web-search access; CV and full JD text never enter the web-search request, and Anthropic processes search results server-side. Career Tools require a Chrome version that supports trusted-context storage; they remain disabled with an update-Chrome message if it is unavailable. The store build is unchanged.
+Open the popup on the relevant page, enter your Anthropic API key and model ID, review the per-run consent checkbox, and select the action. Resume/CV, job description, and manual fallback fields are local-only trusted extension storage. Set a spend limit on the API key. Company research requires organization-level Anthropic web-search access; CV and full JD text never enter the web-search request, and Anthropic processes search results server-side. Career Tools require a Chrome version that supports trusted-context storage; they remain disabled with an update-Chrome message if it is unavailable.
+
+Career Tools are entirely optional in both builds: off by default, disabled until you supply your own Anthropic API key, and never sent to Anthropic without per-run consent and a preview of exactly what will be sent. The core connection-request features in both builds work with no API key and no network calls beyond LinkedIn itself.
 
 ### Developer: Installation
 
@@ -137,7 +140,10 @@ npm run verify:store-baseline
 | `src/content.store.ts` | Store build content script (single-step, no Send) |
 | `src/popup.ts` | Developer build popup logic |
 | `src/popup.store.ts` | Store build popup logic |
-| `src/background.ts` | Shared background service worker |
+| `src/background.ts` | Shared automation-completed relay, used by both builds |
+| `src/background.dev.ts` | Developer build service worker entry point |
+| `src/background.store.ts` | Store build service worker entry point |
+| `src/careerBackground.ts` | Career Tools message/port wiring, shared by both background entry points |
 | `popup.html` | Developer build popup UI |
 | `popup.store.html` | Store build popup UI |
 | `scripts/set-build-target.js` | Injects `BUILD_TARGET` constant before `tsc` |

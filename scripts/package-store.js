@@ -22,12 +22,16 @@ fs.copyFileSync(
 // popup — store build uses its own HTML (no Live Mode UI)
 fs.copyFileSync(path.join(root, 'popup.store.html'), path.join(outDir, 'popup.store.html'));
 
+// report.html — Career Tools report tab (opened via chrome.tabs.create)
+fs.copyFileSync(path.join(root, 'report.html'), path.join(outDir, 'report.html'));
+
 // compiled JS — store build outputs to dist/store/ to avoid clobbering dist/
-// popup.store.ts compiles to popup.store.js; rename it to popup.js in the release package.
+// esbuild's entryPoints keys already name these content.js/popup.js/background.js/report.js.
 const jsCopies = [
-  ['content.store.js', 'content.js'],
+  ['content.js', 'content.js'],
   ['background.js', 'background.js'],
-  ['popup.store.js', 'popup.js'],
+  ['popup.js', 'popup.js'],
+  ['report.js', 'report.js'],
 ];
 const missing = [];
 for (const [src, dest] of jsCopies) {

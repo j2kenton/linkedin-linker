@@ -2,17 +2,18 @@
   "manifest_version": 3,
   "name": "LinkedIn Connection Assistant",
   "version": "1.1.1",
-  "description": "Prepare LinkedIn connection invite drafts one at a time, then review and send them yourself.",
+  "description": "Prepare LinkedIn invite drafts, plus optional AI interview prep and company research using your own Anthropic API key.",
   "permissions": [
     "activeTab",
     "storage"
   ],
   "host_permissions": [
-    "https://www.linkedin.com/search/results/people/*"
+    "https://www.linkedin.com/*",
+    "https://api.anthropic.com/*"
   ],
   "content_scripts": [
     {
-      "matches": ["https://www.linkedin.com/search/results/people/*"],
+      "matches": ["https://www.linkedin.com/*"],
       "js": ["dist/content.js"],
       "run_at": "document_idle"
     }
@@ -35,5 +36,8 @@
       "48": "assets/icons/icon48.png",
       "128": "assets/icons/icon128.png"
     }
-  }
+  },
+  "web_accessible_resources": [
+    {"resources": ["report.html"], "matches": ["<all_urls>"]}
+  ]
 }
