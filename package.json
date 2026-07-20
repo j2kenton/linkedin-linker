@@ -5,10 +5,10 @@
   "scripts": {
     "build": "node scripts/set-build-target.js developer && tsc --noEmit && node scripts/build-dev.js",
     "build:store": "node scripts/set-build-target.js store && tsc -p tsconfig.store.json && node scripts/package-store.js",
-    "release": "npm run build:store && node scripts/package-release.js",
+    "release": "npm run webstore:upload && npm run webstore:publish",
+    "webstore:upload": "npm run release && chrome-webstore-upload upload --source release/store.zip --extension-id poedmlfffaldgihhpffkbknjegmkpclj",
+    "webstore:publish": "chrome-webstore-upload publish --extension-id poedmlfffaldgihhpffkbknjegmkpclj",
     "ensemble:release": "npm run release",
-    "webstore:upload": "npm run release && chrome-webstore-upload-cli upload --source release/store.zip --extension-id poedmlfffaldgihhpffkbknjegmkpclj",
-    "webstore:publish": "chrome-webstore-upload-cli publish --extension-id poedmlfffaldgihhpffkbknjegmkpclj",
     "watch": "node scripts/set-build-target.js developer && node scripts/build-dev.js --watch",
     "typecheck:watch": "node scripts/set-build-target.js developer && tsc --noEmit --watch",
     "check-types": "node scripts/set-build-target.js developer && tsc --noEmit",

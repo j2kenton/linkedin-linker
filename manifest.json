@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "LinkedIn Connection Automator",
-  "version": "1.0",
+  "version": "1.1",
   "description": "Automates LinkedIn connection requests with sequential processing and random delays",
   "permissions": [
     "activeTab",

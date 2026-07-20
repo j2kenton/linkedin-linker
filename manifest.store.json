@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "LinkedIn Connection Assistant",
-  "version": "1.0",
+  "version": "1.1",
   "description": "Prepare LinkedIn connection invite drafts one at a time, then review and send them yourself.",
   "permissions": [
     "activeTab",
