@@ -106,7 +106,7 @@ The store build is assembled into `release/store/`. Load it in Chrome via `chrom
 
 ### Store: Usage
 
-1. Open the extension popup.
+1. Open the extension popup and choose **Connection Assistant**.
 2. Fill in search filters and click **Save & open search** to navigate to LinkedIn.
 3. Compose your message draft and click **Save settings**.
 4. Click **Prepare next invite** — the extension opens LinkedIn's invite dialog and fills your note.

@@ -47,7 +47,7 @@ Outside of these two opt-in, consent-gated Career Tools runs, the extension does
 
 1. Install the extension.
 2. Open a LinkedIn people search results page.
-3. Open the extension popup.
+3. Open the extension popup and choose "Connection Assistant".
 4. Enter a short message draft and click "Save settings".
 5. Click "Prepare next invite".
 6. Verify that the extension opens LinkedIn's invite dialog and fills the note.
@@ -56,7 +56,7 @@ Outside of these two opt-in, consent-gated Career Tools runs, the extension does
 Career Tools (optional AI features) — testing requires an Anthropic API key (create one at <https://console.anthropic.com/>); if none is available, this list still demonstrates the consent gating without completing a run:
 
 1. Career Tools appear only on LinkedIn personal profile pages (`/in/...`) and LinkedIn job pages (`/jobs/...`).
-2. Open a LinkedIn profile page and open the extension popup. Verify the Interview Preparation controls are disabled/inactive until an Anthropic API key is entered.
+2. Open a LinkedIn profile page, open the extension popup, and choose "Career Tools". Verify the Interview Preparation controls are disabled/inactive until an Anthropic API key is entered.
 3. Enter an Anthropic API key, tick the per-run consent checkbox, and click "Review & test connection". Verify the extension displays the exact data it is about to send before anything is transmitted.
 4. Click "Generate". Verify the extension opens a new report tab and streams the AI-generated report only after that explicit click.
 5. Repeat on a LinkedIn job page (`/jobs/view/...`) for Company & Role Intelligence. Verify the same API-key-plus-consent gating and preview step.

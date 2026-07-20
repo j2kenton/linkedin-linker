@@ -327,6 +327,14 @@ const careerGet = <T>(keys: string[]) => new Promise<T>(resolve => chrome.storag
 const careerSet = (items: object) => new Promise<void>((resolve, reject) => chrome.storage.local.set(items, () => chrome.runtime.lastError ? reject(chrome.runtime.lastError) : resolve()));
 const careerElement = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 function careerPage(url: string): "profile" | "job" | "other" { return classifyUrl(url); }
+
+// Shared by the career-tool wiring below and the mode controller, so the
+// chooser's Career Tools entry and the career view itself agree on readiness
+// without sending CAREER_TOOLS_STATUS twice.
+type CareerLock = { locked: boolean; reason?: string };
+const careerLock: Promise<CareerLock> = chrome.runtime.sendMessage({ action: "CAREER_TOOLS_STATUS" })
+  .then((lock: CareerLock | undefined | null) => lock ?? { locked: false, reason: "Career Tools are unavailable." })
+  .catch(() => ({ locked: false, reason: "Career Tools service is not ready. Reload the extension." }));
 document.addEventListener("DOMContentLoaded", () => {
   const tools = careerElement<HTMLElement>("careerTools"); const status = careerElement<HTMLElement>("careerStatus");
   const profileFields = careerElement<HTMLElement>("profileCareerFields"); const jobFields = careerElement<HTMLElement>("jobCareerFields");
@@ -366,7 +374,7 @@ document.addEventListener("DOMContentLoaded", () => {
   careerElement<HTMLButtonElement>("careerPreviewConfirm").onclick = async () => { if (!approvedAction) return; const action=approvedAction; approvedAction=undefined; preview.hidden=true; await action(); };
   const run = async (input: Record<string, unknown>) => { if (!requireCareerReady()) return; await careerSet({ careerApiKey:field("careerApiKey").value, careerModel:field("careerModel").value, aiConsentGiven:true }); status.textContent="Starting report…"; const response = await chrome.runtime.sendMessage({ action:"CAREER_RUN", consent:true, previewed:true, input }); if (!response.ok) { status.textContent=response.error; return; } chrome.tabs.create({ url: chrome.runtime.getURL(`report.html?job=${encodeURIComponent(response.jobId)}`) }); };
   const extract = async (action: "EXTRACT_PROFILE" | "EXTRACT_JOB"): Promise<CareerExtraction | null> => { const [tab] = await chrome.tabs.query({ active:true, currentWindow:true }); if (!tab?.id) return null; for (let attempt=0; attempt<5; attempt++) { try { const result = await chrome.tabs.sendMessage(tab.id, { action }, { frameId:0 }) as CareerExtraction; if (result.ready) return result; } catch { /* LinkedIn may still be loading */ } await new Promise(resolve => setTimeout(resolve, 1000)); } status.textContent="Extraction did not finish. Reload LinkedIn and retry, or use the manual fields."; return null; };
-  chrome.runtime.sendMessage({ action:"CAREER_TOOLS_STATUS" }).then(async (lock: { locked:boolean; reason?:string }) => {
+  careerLock.then(async (lock: CareerLock) => {
     if (!lock.locked) { status.textContent=lock.reason || "Career Tools are unavailable."; return; }
     careerReady=true; tools.hidden=false; const saved = await careerGet<Record<string, string>>(inputIds); inputIds.forEach(id => { if (saved[id] !== undefined) field(id).value=saved[id]; });
     const savedSources = await careerGet<Record<string, string>>(SOURCE_FIELD_IDS.map(sourceStorageKey));
@@ -415,4 +423,36 @@ document.addEventListener("DOMContentLoaded", () => {
   };
   careerElement<HTMLButtonElement>("interviewButton").onclick = () => { const input={ kind:"interview", profile:field("careerProfile").value, cv:field("careerCv").value, jd:field("careerJd").value, profileSource:fieldSource.careerProfile || "manual" }; if (!input.profile.trim()) { status.textContent="Extract or paste an interviewer profile first."; return; } showPreview("Interview preparation",input,()=>run(input)); };
   careerElement<HTMLButtonElement>("companyButton").onclick = () => { const input={ kind:"company", companyName:field("careerCompanyName").value, companyUrl:field("careerCompanyUrl").value, title:field("careerJobTitle").value, seniority:field("careerSeniority").value, location:field("careerLocation").value, jd:field("careerJobDescription").value, cv:field("careerCv").value, research:careerElement<HTMLInputElement>("careerResearch").checked, companyNameSource:fieldSource.careerCompanyName || "manual", companyUrlSource:fieldSource.careerCompanyUrl || "manual", titleSource:fieldSource.careerJobTitle || "manual", senioritySource:fieldSource.careerSeniority || "manual", locationSource:fieldSource.careerLocation || "manual", jdSource:fieldSource.careerJobDescription || "manual" }; if (!input.companyName.trim()) { status.textContent="Enter a company name first."; return; } showPreview("Company & Role Intelligence",input,()=>run(input)); };
+});
+
+// Mode controller — the popup always opens on the chooser; picking a tool
+// shows only that view so Connection Assistant and Career Tools can no
+// longer show contradictory status at the same time.
+type PopupMode = "chooser" | "connection" | "career";
+document.addEventListener("DOMContentLoaded", () => {
+  const chooser = careerElement<HTMLElement>("modeChooser");
+  const connectionView = careerElement<HTMLElement>("connectionView");
+  const careerView = careerElement<HTMLElement>("careerView");
+  const backButton = careerElement<HTMLButtonElement>("backButton");
+  const chooseConnection = careerElement<HTMLButtonElement>("chooseConnection");
+  const chooseCareer = careerElement<HTMLButtonElement>("chooseCareer");
+  const modeNote = careerElement<HTMLElement>("modeNote");
+
+  const show = (mode: PopupMode): void => {
+    chooser.hidden = mode !== "chooser";
+    connectionView.hidden = mode !== "connection";
+    careerView.hidden = mode !== "career";
+    backButton.hidden = mode === "chooser";
+  };
+
+  chooseConnection.onclick = () => show("connection");
+  chooseCareer.onclick = () => show("career");
+  backButton.onclick = () => show("chooser");
+
+  careerLock.then((lock: CareerLock) => {
+    chooseCareer.disabled = !lock.locked;
+    if (!lock.locked) modeNote.textContent = lock.reason || "Career Tools are unavailable.";
+  });
+
+  show("chooser");
 });

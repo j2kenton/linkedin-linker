@@ -7,9 +7,9 @@
   "assets/screenshots/screenshot-2.png": "96b81b7f423fa3d2bca3622fd1048fe967da8fbed5940793798390fd24f9a6c8",
   "dist/background.js": "3c6a97d7c12d88b1150ae9b58e1fe602adfe15de2a54d359784ec8dbbc516b56",
   "dist/content.js": "1bfb958c32d9d6ae49a3eac9966ab5ba60736b5e2575f1c90eaa5896c0205fe2",
-  "dist/popup.js": "bae629d3fb32065665da91afb06b6e2f2756b898231adfd0b70858682a5edc69",
+  "dist/popup.js": "1c56e879abffa72f2e9f81778e83a5a00baa4778d9c1b93826a0f335a6efad9a",
   "dist/report.js": "4aa87bf72d8bf5c1efe537b91d6268d269f373409331f776f36e5474118cf328",
   "manifest.json": "5ef98d3df8c570d1e436569ab267c87bd9805cbacc20c12bbcc8a80673fbcb78",
-  "popup.store.html": "5f432a78a24cd764f5391f636cdadb2a69ce6da169a5a4d9a78199c10d7562e8",
+  "popup.store.html": "a82ee3689874c8d669e4c0dc599ac7321fa95c9717b547a1275125bb0bc1ac33",
   "report.html": "f7dd008552ceb0eefbb4706f582ae510ff881f373fe689ae65005c46ea7bff71"
 }

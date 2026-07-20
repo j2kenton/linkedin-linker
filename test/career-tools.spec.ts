@@ -507,3 +507,19 @@ describe("durable company-job orchestration", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("store popup mode separation", () => {
+  it("opens on the chooser with both tool views hidden and Career Tools disabled until unlocked", () => {
+    document.body.innerHTML = readFileSync(fileURLToPath(new NodeUrl("../popup.store.html", import.meta.url)), "utf8");
+    const byId = (id: string) => document.getElementById(id) as HTMLElement;
+
+    expect(byId("modeChooser").hidden).toBe(false);
+    expect(byId("connectionView").hidden).toBe(true);
+    expect(byId("careerView").hidden).toBe(true);
+    expect(byId("backButton").hidden).toBe(true);
+    expect((byId("chooseCareer") as HTMLButtonElement).disabled).toBe(true);
+
+    expect(byId("connectionView").contains(byId("status"))).toBe(true);
+    expect(byId("careerView").contains(byId("careerStatus"))).toBe(true);
+  });
+});
