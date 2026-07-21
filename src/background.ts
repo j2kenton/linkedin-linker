@@ -1,4 +1,5 @@
 // Career Connect Background Script (Service Worker)
+import { wireCareerTools } from "./careerBackground";
 
 interface AutomationMessage {
   action: string;
@@ -41,3 +42,5 @@ chrome.runtime.onInstalled.addListener((): void => {
 chrome.runtime.onStartup.addListener((): void => {
   console.log("Career Connect started");
 });
+
+wireCareerTools();

@@ -1,18 +1,12 @@
 import { extractJob } from "./extract/job";
 import { extractProfile } from "./extract/profile";
+import { buildNote, generateRandomTimeout, extractFirstName, findConnectButton, findModal, type MessageSettings } from "./content-shared";
 
 {
 // Career Connect Content Script — store build
 // Behaviour: find the next unvisited connectable profile on the current page,
 // open LinkedIn's invite dialog, fill the note, then STOP.
 // The extension never clicks Send. The user reviews and decides.
-
-interface MessageSettings {
-  greetingPart1: string;
-  includeFirstName: boolean;
-  greetingPart2: string;
-  messageText: string;
-}
 
 interface PrepareRequest {
   action: "prepareNextInvite" | "ping";
@@ -24,48 +18,6 @@ interface MessageResponse {
   firstName?: string;
   error?: string;
 }
-
-const buildNote = (firstName: string, settings: MessageSettings): string => {
-  let message = settings.greetingPart1;
-  if (settings.includeFirstName && firstName) {
-    message += ` ${firstName}`;
-  }
-  message += ` ${settings.greetingPart2}\n${settings.messageText}`;
-  return message;
-};
-
-const generateRandomTimeout = (multiplier: number = 3000): number =>
-  Math.floor(Math.random() * multiplier) + 500;
-
-const extractFirstName = (prospectText: string): string => {
-  if (!prospectText) return "";
-  const match = prospectText.match(/[\p{L}\p{N}]+/u);
-  if (match) {
-    const name = match[0];
-    return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
-  }
-  return "";
-};
-
-const findConnectButton = (container: Element): HTMLElement | null => {
-  const button = container.querySelector("button[aria-label$='connect']");
-  if (button) return button as HTMLElement;
-  const anchor = container.querySelector(
-    "a[href*='search-custom-invite'], a[aria-label*='connect' i], a[aria-label*='Connect' i]"
-  );
-  if (anchor) return anchor as HTMLElement;
-  return null;
-};
-
-const findModal = (): HTMLElement | null => {
-  let modal = document.querySelector("div[role='dialog'].send-invite") as HTMLElement | null;
-  if (modal) return modal;
-  const shadowHost = document.querySelector("#interop-outlet");
-  if (shadowHost && shadowHost.shadowRoot) {
-    modal = shadowHost.shadowRoot.querySelector("div[role='dialog'].send-invite") as HTMLElement | null;
-  }
-  return modal;
-};
 
 // Track which profile URLs have already had an invite prepared this session,
 // so repeated "Prepare next invite" clicks advance through the page without revisiting.
@@ -161,8 +113,8 @@ const prepareNextInvite = (messageSettings: MessageSettings): Promise<string> =>
 
         console.log(`[Connection Assistant] Invite prepared for ${firstName || "profile"}. Review and send it yourself.`);
         resolve(firstName);
-      }, generateRandomTimeout());
-    }, generateRandomTimeout());
+      }, generateRandomTimeout(3000));
+    }, generateRandomTimeout(3000));
   });
 };
 

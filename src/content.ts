@@ -1,17 +1,11 @@
 import { BUILD_TARGET } from "./build-target";
 import { extractJob } from "./extract/job";
 import { extractProfile } from "./extract/profile";
+import { buildNote, generateRandomTimeout, extractFirstName, findConnectButton, findModal, type MessageSettings } from "./content-shared";
 
 // Career Connect Content Script
 // esbuild inlines this generated build target into the developer bundle.
 const _BUILD_TARGET: string = BUILD_TARGET;
-
-interface MessageSettings {
-  greetingPart1: string;
-  includeFirstName: boolean;
-  greetingPart2: string;
-  messageText: string;
-}
 
 interface StartAutomationRequest {
   action: "startAutomation" | "ping";
@@ -57,23 +51,6 @@ declare global {
 }
 */
 
-const buildNote = (firstName: string, messageSettings: MessageSettings): string => {
-  const { greetingPart1, includeFirstName, greetingPart2, messageText } = messageSettings;
-
-  let message = greetingPart1;
-
-  if (includeFirstName && firstName) {
-    message += ` ${firstName}`;
-  }
-
-  message += ` ${greetingPart2}\n${messageText}`;
-
-  return message;
-};
-
-const generateRandomTimeout = (multiplier: number = 5000): number =>
-  Math.floor(Math.random() * multiplier) + 500;
-
 // Fallback function for clipboard-based text insertion
 // Note: document.execCommand('paste') is deprecated and not supported in modern browsers.
 // This function writes to clipboard and then directly sets the textarea value.
@@ -97,22 +74,6 @@ async function fallbackToClipboard(message: string, noteTextArea: HTMLTextAreaEl
   }
 }
 
-// Function to extract first name with regional accent support
-const extractFirstName = (prospectText: string): string => {
-  if (!prospectText) return "";
-
-  // Get first sequence of alphanumeric chars (including accented letters)
-  const match = prospectText.match(/[\p{L}\p{N}]+/u);
-
-  if (match) {
-    const firstName = match[0];
-    // Capitalize first letter and make rest lowercase
-    return firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase();
-  }
-
-  return "";
-};
-
 let prospectsProcessed = 0;
 let currentPage = 1;
 let pagesProcessed = 0;
@@ -128,36 +89,6 @@ let messageSettings: MessageSettings = {
 let maxPages: number | null = null; // null means no limit
 let maxConnections: number | null = null; // null means no limit
 let autoAdjust = false; // auto-adjust max connections setting
-
-// Helper to find connect button (handles both <button> and <a> tags)
-const findConnectButton = (container: Element): HTMLElement | null => {
-  // Try original button selector
-  const button = container.querySelector("button[aria-label$='connect']");
-  if (button) return button as HTMLElement;
-
-  // Try new anchor selectors
-  // Look for anchors with "connect" in aria-label or specific href pattern
-  // Using 'i' flag for case-insensitivity if supported, otherwise relying on standard selectors
-  const anchor = container.querySelector("a[href*='search-custom-invite'], a[aria-label*='connect' i], a[aria-label*='Connect' i]");
-  if (anchor) return anchor as HTMLElement;
-
-  return null;
-};
-
-// Helper to find the modal, handling Shadow DOM if necessary
-const findModal = (): HTMLElement | null => {
-  // Try normal DOM first (fallback)
-  let modal = document.querySelector("div[role='dialog'].send-invite") as HTMLElement | null;
-  if (modal) return modal;
-
-  // Try Shadow DOM
-  const shadowHost = document.querySelector("#interop-outlet");
-  if (shadowHost && shadowHost.shadowRoot) {
-    modal = shadowHost.shadowRoot.querySelector("div[role='dialog'].send-invite") as HTMLElement | null;
-  }
-  
-  return modal;
-};
 
 // Called after a connection request is successfully sent (both builds).
 // Handles the auto-adjust decrement and notifies the popup of the new limit.
@@ -300,7 +231,7 @@ const connectToProspectAtIndex = async (): Promise<void> => {
                         );
                         onSentOrSkipped();
                         resolveInner();
-                      }, generateRandomTimeout());
+                      }, generateRandomTimeout(5000));
                     });
                   }
                 } else {
@@ -318,7 +249,7 @@ const connectToProspectAtIndex = async (): Promise<void> => {
                     setTimeout(() => {
                       cancelButton.dispatchEvent(new Event('click', { bubbles: true }));
                       resolveInner();
-                    }, generateRandomTimeout());
+                    }, generateRandomTimeout(5000));
                   });
 
                   // Wait a bit then dismiss the modal
@@ -331,13 +262,13 @@ const connectToProspectAtIndex = async (): Promise<void> => {
                         dismissButton.dispatchEvent(new Event('click', { bubbles: true }));
                       }
                       resolveInner();
-                    }, generateRandomTimeout());
+                    }, generateRandomTimeout(5000));
                   });
                 }
               }
             }
             resolve();
-          }, generateRandomTimeout());
+          }, generateRandomTimeout(5000));
         } else {
           resolve();
         }
@@ -350,7 +281,7 @@ const connectToProspectAtIndex = async (): Promise<void> => {
         resolve();
         return;
       }
-    }, generateRandomTimeout());
+    }, generateRandomTimeout(5000));
   });
 };
 
@@ -517,7 +448,7 @@ const processCurrentPage = async (): Promise<void> => {
 
     // Add delay between prospects
     await new Promise<void>((resolve) =>
-      setTimeout(resolve, generateRandomTimeout())
+      setTimeout(resolve, generateRandomTimeout(5000))
     );
 
     // If we've processed all current prospects, try to scroll for more
@@ -567,7 +498,7 @@ const processCurrentPage = async (): Promise<void> => {
 // Function to start the connection process
 const processSearchResults = async (): Promise<void> => {
   // Add a small delay after navigation to ensure everything is ready
-  await new Promise<void>((resolve) => setTimeout(resolve, generateRandomTimeout()));
+  await new Promise<void>((resolve) => setTimeout(resolve, generateRandomTimeout(5000)));
 
   // Process all prospects on the current page
   await processCurrentPage();
@@ -609,13 +540,13 @@ const processSearchResults = async (): Promise<void> => {
 
     // Wait for the next page to load
     await new Promise<void>((resolve) =>
-      setTimeout(resolve, generateRandomTimeout())
+      setTimeout(resolve, generateRandomTimeout(5000))
     );
 
     // Continue processing the next page
     setTimeout(() => {
       processSearchResults();
-    }, generateRandomTimeout());
+    }, generateRandomTimeout(5000));
   } else {
     console.log("No more pages to process or next page button is disabled.");
     console.log("Connection process completed.");
@@ -642,7 +573,7 @@ const startConnectionProcess = async (): Promise<void> => {
   console.log(`Starting on page ${currentPage}`);
 
   // Add a small delay to ensure everything is ready
-  await new Promise<void>((resolve) => setTimeout(resolve, generateRandomTimeout()));
+  await new Promise<void>((resolve) => setTimeout(resolve, generateRandomTimeout(5000)));
 
   // Start processing prospects
   await processSearchResults();

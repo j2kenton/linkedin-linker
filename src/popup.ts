@@ -1,6 +1,9 @@
 // Popup script for Career Connect
 import { BUILD_TARGET } from "./build-target";
 import { extractableKind as pageDetectExtractableKind } from "./pageDetect";
+import { careerElement, initCareerTools } from "./popup-career-shared";
+import { attachUrlExtractionHandlers, generateLinkedInURL } from "./popup-search-shared";
+import type { SearchStrings } from "./popup-search-shared";
 const _BUILD_TARGET: string = BUILD_TARGET;
 
 interface MessageSettings {
@@ -160,295 +163,38 @@ document.addEventListener('DOMContentLoaded', function(): void {
     });
   });
 
-  // Handle "Get from current URL" button (Company)
-  getFromUrlButton.addEventListener('click', () => {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      const currentTab = tabs[0];
-      if (!currentTab || !currentTab.url) {
-        statusDiv.textContent = 'Unable to get current tab URL';
-        statusDiv.style.color = '#d93025';
-        return;
-      }
+  const devSearchStrings: SearchStrings = {
+    noTabUrl: "Unable to get current tab URL",
+    notSearchPage: "Please navigate to a LinkedIn search results page first",
+    noCompany: "No company information found in current search URL",
+    invalidCompany: "Invalid company data in URL",
+    companyExtracted: (ids) => `Company ID(s) extracted: ${ids}`,
+    parseCompanyFailed: "Failed to parse company data from URL",
+    noLocation: "No location information found in current search URL",
+    invalidLocation: "Invalid location data in URL",
+    locationExtracted: (ids) => `Location ID(s) extracted: ${ids}`,
+    parseLocationFailed: "Failed to parse location data from URL",
+    noCompanyName: "No company name found in current search URL",
+    companyNameExtracted: (name) => `Company name extracted: ${name}`,
+    parseCompanyNameFailed: "Failed to parse company name from URL",
+    noTitle: "No job title found in current search URL",
+    titleExtracted: (title) => `Job title extracted: ${title}`,
+    parseTitleFailed: "Failed to parse job title from URL",
+    noConnectionDegree: "No connection degree found in current search URL",
+    invalidConnectionDegree: "Invalid connection degree data in URL",
+    connectionDegreeExtracted: (degrees) => `Connection degrees extracted: ${degrees}`,
+    parseConnectionDegreeFailed: "Failed to parse connection degrees from URL",
+    noPage: "No page number found in current search URL",
+    invalidPage: "Invalid page number in URL",
+    pageExtracted: (page) => `Start page extracted: ${page}`,
+    parsePageFailed: "Failed to parse page number from URL",
+  };
 
-      if (!currentTab.url.includes('linkedin.com/search/results/people')) {
-        statusDiv.textContent = 'Please navigate to a LinkedIn search results page first';
-        statusDiv.style.color = '#d93025';
-        return;
-      }
-
-      // Extract currentCompany parameter from URL
-      const url = new URL(currentTab.url);
-      const currentCompanyParam = url.searchParams.get('currentCompany');
-
-      if (!currentCompanyParam) {
-        statusDiv.textContent = 'No company information found in current search URL';
-        statusDiv.style.color = '#d93025';
-        return;
-      }
-
-      try {
-        // Decode and parse the JSON array
-        const decodedParam = decodeURIComponent(currentCompanyParam);
-        const companyIdsArray = JSON.parse(decodedParam) as string[];
-
-        if (!Array.isArray(companyIdsArray) || companyIdsArray.length === 0) {
-          statusDiv.textContent = 'Invalid company data in URL';
-          statusDiv.style.color = '#d93025';
-          return;
-        }
-
-        // Join with comma and set to field
-        const companyIdsString = companyIdsArray.join(',');
-        companiesIdsInput.value = companyIdsString;
-
-        statusDiv.textContent = `Company ID(s) extracted: ${companyIdsString}`;
-        statusDiv.style.color = '#188038';
-      } catch (error) {
-        console.error('Error parsing company data:', error);
-        statusDiv.textContent = 'Failed to parse company data from URL';
-        statusDiv.style.color = '#d93025';
-      }
-    });
-  });
-
-  // Handle "Get from current URL" button (Location)
-  getLocationFromUrlButton.addEventListener('click', () => {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      const currentTab = tabs[0];
-      if (!currentTab || !currentTab.url) {
-        statusDiv.textContent = 'Unable to get current tab URL';
-        statusDiv.style.color = '#d93025';
-        return;
-      }
-
-      if (!currentTab.url.includes('linkedin.com/search/results/people')) {
-        statusDiv.textContent = 'Please navigate to a LinkedIn search results page first';
-        statusDiv.style.color = '#d93025';
-        return;
-      }
-
-      // Extract geoUrn parameter from URL
-      const url = new URL(currentTab.url);
-      const geoUrnParam = url.searchParams.get('geoUrn');
-
-      if (!geoUrnParam) {
-        statusDiv.textContent = 'No location information found in current search URL';
-        statusDiv.style.color = '#d93025';
-        return;
-      }
-
-      try {
-        // Decode and parse the JSON array
-        const decodedParam = decodeURIComponent(geoUrnParam);
-        const locationIdsArray = JSON.parse(decodedParam) as string[];
-
-        if (!Array.isArray(locationIdsArray) || locationIdsArray.length === 0) {
-          statusDiv.textContent = 'Invalid location data in URL';
-          statusDiv.style.color = '#d93025';
-          return;
-        }
-
-        // Join with comma and set to field
-        const locationIdsString = locationIdsArray.join(',');
-        locationIdsInput.value = locationIdsString;
-
-        statusDiv.textContent = `Location ID(s) extracted: ${locationIdsString}`;
-        statusDiv.style.color = '#188038';
-      } catch (error) {
-        console.error('Error parsing location data:', error);
-        statusDiv.textContent = 'Failed to parse location data from URL';
-        statusDiv.style.color = '#d93025';
-      }
-    });
-  });
-
-  // Handle "Get from current URL" button (Company Name)
-  getCompanyNameFromUrlButton.addEventListener('click', () => {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      const currentTab = tabs[0];
-      if (!currentTab || !currentTab.url) {
-        statusDiv.textContent = 'Unable to get current tab URL';
-        statusDiv.style.color = '#d93025';
-        return;
-      }
-
-      if (!currentTab.url.includes('linkedin.com/search/results/people')) {
-        statusDiv.textContent = 'Please navigate to a LinkedIn search results page first';
-        statusDiv.style.color = '#d93025';
-        return;
-      }
-
-      // Extract company parameter from URL
-      const url = new URL(currentTab.url);
-      const companyParam = url.searchParams.get('company');
-
-      if (!companyParam) {
-        statusDiv.textContent = 'No company name found in current search URL';
-        statusDiv.style.color = '#d93025';
-        return;
-      }
-
-      try {
-        // Decode the company name
-        const companyName = decodeURIComponent(companyParam);
-        companyNameInput.value = companyName;
-
-        statusDiv.textContent = `Company name extracted: ${companyName}`;
-        statusDiv.style.color = '#188038';
-      } catch (error) {
-        console.error('Error parsing company name:', error);
-        statusDiv.textContent = 'Failed to parse company name from URL';
-        statusDiv.style.color = '#d93025';
-      }
-    });
-  });
-
-  // Handle "Get from current URL" button (Title)
-  getTitleFromUrlButton.addEventListener('click', () => {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      const currentTab = tabs[0];
-      if (!currentTab || !currentTab.url) {
-        statusDiv.textContent = 'Unable to get current tab URL';
-        statusDiv.style.color = '#d93025';
-        return;
-      }
-
-      if (!currentTab.url.includes('linkedin.com/search/results/people')) {
-        statusDiv.textContent = 'Please navigate to a LinkedIn search results page first';
-        statusDiv.style.color = '#d93025';
-        return;
-      }
-
-      // Extract titleFreeText parameter from URL
-      const url = new URL(currentTab.url);
-      const titleParam = url.searchParams.get('titleFreeText');
-
-      if (!titleParam) {
-        statusDiv.textContent = 'No job title found in current search URL';
-        statusDiv.style.color = '#d93025';
-        return;
-      }
-
-      try {
-        // Decode the job title
-        const jobTitle = decodeURIComponent(titleParam);
-        titleOfProspectInput.value = jobTitle;
-
-        statusDiv.textContent = `Job title extracted: ${jobTitle}`;
-        statusDiv.style.color = '#188038';
-      } catch (error) {
-        console.error('Error parsing job title:', error);
-        statusDiv.textContent = 'Failed to parse job title from URL';
-        statusDiv.style.color = '#d93025';
-      }
-    });
-  });
-
-  // Handle "Get from current URL" button (Connection Degree)
-  getConnectionDegreeFromUrlButton.addEventListener('click', () => {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      const currentTab = tabs[0];
-      if (!currentTab || !currentTab.url) {
-        statusDiv.textContent = 'Unable to get current tab URL';
-        statusDiv.style.color = '#d93025';
-        return;
-      }
-
-      if (!currentTab.url.includes('linkedin.com/search/results/people')) {
-        statusDiv.textContent = 'Please navigate to a LinkedIn search results page first';
-        statusDiv.style.color = '#d93025';
-        return;
-      }
-
-      // Extract network parameter from URL
-      const url = new URL(currentTab.url);
-      const networkParam = url.searchParams.get('network');
-
-      if (!networkParam) {
-        statusDiv.textContent = 'No connection degree found in current search URL';
-        statusDiv.style.color = '#d93025';
-        return;
-      }
-
-      try {
-        // Decode and parse the JSON array
-        const decodedParam = decodeURIComponent(networkParam);
-        const connectionDegrees = JSON.parse(decodedParam) as string[];
-
-        if (!Array.isArray(connectionDegrees) || connectionDegrees.length === 0) {
-          statusDiv.textContent = 'Invalid connection degree data in URL';
-          statusDiv.style.color = '#d93025';
-          return;
-        }
-
-        // Clear existing selections
-        Array.from(connectionDegreeInput.options).forEach(option => {
-          option.selected = false;
-        });
-
-        // Select the matching options
-        connectionDegrees.forEach(degree => {
-          const option = Array.from(connectionDegreeInput.options).find(opt => opt.value === degree);
-          if (option) {
-            option.selected = true;
-          }
-        });
-
-        statusDiv.textContent = `Connection degrees extracted: ${connectionDegrees.join(', ')}`;
-        statusDiv.style.color = '#188038';
-      } catch (error) {
-        console.error('Error parsing connection degrees:', error);
-        statusDiv.textContent = 'Failed to parse connection degrees from URL';
-        statusDiv.style.color = '#d93025';
-      }
-    });
-  });
-
-  // Handle "Get from current URL" button (Start Page)
-  getStartPageFromUrlButton.addEventListener('click', () => {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      const currentTab = tabs[0];
-      if (!currentTab || !currentTab.url) {
-        statusDiv.textContent = 'Unable to get current tab URL';
-        statusDiv.style.color = '#d93025';
-        return;
-      }
-
-      if (!currentTab.url.includes('linkedin.com/search/results/people')) {
-        statusDiv.textContent = 'Please navigate to a LinkedIn search results page first';
-        statusDiv.style.color = '#d93025';
-        return;
-      }
-
-      // Extract page parameter from URL
-      const url = new URL(currentTab.url);
-      const pageParam = url.searchParams.get('page');
-
-      if (!pageParam) {
-        statusDiv.textContent = 'No page number found in current search URL';
-        statusDiv.style.color = '#d93025';
-        return;
-      }
-
-      try {
-        // Parse the page number
-        const pageNumber = parseInt(pageParam);
-        if (isNaN(pageNumber) || pageNumber < 1) {
-          statusDiv.textContent = 'Invalid page number in URL';
-          statusDiv.style.color = '#d93025';
-          return;
-        }
-
-        startPageInput.value = String(pageNumber);
-        statusDiv.textContent = `Start page extracted: ${pageNumber}`;
-        statusDiv.style.color = '#188038';
-      } catch (error) {
-        console.error('Error parsing page number:', error);
-        statusDiv.textContent = 'Failed to parse page number from URL';
-        statusDiv.style.color = '#d93025';
-      }
-    });
-  });
+  attachUrlExtractionHandlers(
+    { companyNameInput, companiesIdsInput, titleOfProspectInput, locationIdsInput, connectionDegreeInput, startPageInput },
+    { statusDiv, getFromUrlButton, getLocationFromUrlButton, getCompanyNameFromUrlButton, getTitleFromUrlButton, getConnectionDegreeFromUrlButton, getStartPageFromUrlButton },
+    devSearchStrings
+  );
 
   // Handle live mode checkbox changes
   liveModeCheckbox.addEventListener('change', () => {
@@ -472,20 +218,27 @@ document.addEventListener('DOMContentLoaded', function(): void {
 
   // Handle "Take me to search results" button
   goToSearchButton.addEventListener('click', () => {
-    const selectedDegrees = Array.from(connectionDegreeInput.selectedOptions).map(option => option.value).join(',');
+    const selectedDegrees = Array.from(connectionDegreeInput.selectedOptions).map(option => option.value);
     const params = {
       companyName: companyNameInput.value,
       companiesIds: companiesIdsInput.value,
       titleOfProspect: titleOfProspectInput.value,
       locationIds: locationIdsInput.value,
-      connectionDegree: selectedDegrees,
+      connectionDegree: selectedDegrees.join(','),
       startPage: parseInt(startPageInput.value) || 1,
-      stopPage: stopPageInput.value ? parseInt(stopPageInput.value) : ''
+      stopPage: stopPageInput.value ? parseInt(stopPageInput.value) : '',
+      maxConnections: maxConnectionsInput.value,
     };
 
     chrome.storage.local.set(params, () => {
-      // Generate URL and open in new tab
-      const url = generateLinkedInURL();
+      const url = generateLinkedInURL({
+        companyName: companyNameInput.value,
+        companiesIds: companiesIdsInput.value,
+        titleOfProspect: titleOfProspectInput.value,
+        locationIds: locationIdsInput.value,
+        connectionDegree: selectedDegrees,
+        startPage: parseInt(startPageInput.value) || 1,
+      });
       chrome.tabs.create({ url: url });
 
       // Update status
@@ -498,70 +251,6 @@ document.addEventListener('DOMContentLoaded', function(): void {
       }, 1000);
     });
   });
-
-  // Function to generate LinkedIn search URL
-  function generateLinkedInURL(): string {
-    let url = 'https://www.linkedin.com/search/results/people/?origin=FACETED_SEARCH';
-    const params: string[] = [];
-
-    // Company Name
-    const companyName = companyNameInput.value.trim();
-    if (companyName) {
-      params.push(`company=${encodeURIComponent(companyName)}`);
-    }
-
-    // Keywords: combine title and companyName if present
-    let keywords = '';
-    const titleOfProspect = titleOfProspectInput.value.trim();
-    if (titleOfProspect) {
-      keywords = encodeURIComponent(titleOfProspect);
-    }
-    if (companyName) {
-      keywords += (keywords ? '%20' : '') + encodeURIComponent(companyName);
-    }
-    if (keywords) {
-      params.push(`keywords=${keywords}`);
-    }
-
-    // Companies IDs
-    const companiesIds = companiesIdsInput.value.split(',').map(id => id.trim()).filter(id => id);
-    if (companiesIds.length > 0) {
-      const companiesIdsString = JSON.stringify(companiesIds);
-      params.push(`currentCompany=${encodeURIComponent(companiesIdsString)}`);
-    }
-
-    // Location IDs
-    const locationIds = locationIdsInput.value.split(',').map(id => id.trim()).filter(id => id);
-    if (locationIds.length > 0) {
-      const locationIdsString = JSON.stringify(locationIds);
-      params.push(`geoUrn=${encodeURIComponent(locationIdsString)}`);
-    }
-
-    // Connection Degree
-    const connectionDegree = Array.from(connectionDegreeInput.selectedOptions).map(option => option.value);
-    if (connectionDegree.length > 0) {
-      const connectionDegreeString = JSON.stringify(connectionDegree);
-      params.push(`network=${encodeURIComponent(connectionDegreeString)}`);
-    }
-
-    // Start Page
-    const startPage = parseInt(startPageInput.value) || 1;
-    params.push(`page=${startPage}`);
-
-    // Title Free Text
-    if (titleOfProspect) {
-      params.push(`titleFreeText=${encodeURIComponent(titleOfProspect)}`);
-    }
-
-    // Add sid
-    params.push('sid=BpI');
-
-    if (params.length > 0) {
-      url += '&' + params.join('&');
-    }
-
-    return url;
-  }
 
   startButton.addEventListener('click', async () => {
     // Get the active tab
@@ -814,310 +503,5 @@ function runUpdateScript(): void {
   }, 2000);
 }
 
-// Developer-only Career Tools.  The automation popup remains available unchanged.
-type CareerExtraction = Record<string, unknown> & { ready?: boolean; warnings?: { field?: string; message: string }[] };
-const careerGet = <T>(keys: string[]) => new Promise<T>(resolve => chrome.storage.local.get(keys, resolve as (items: object) => void));
-const careerSet = (items: object) => new Promise<void>((resolve, reject) => chrome.storage.local.set(items, () => chrome.runtime.lastError ? reject(chrome.runtime.lastError) : resolve()));
-const careerElement = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
-const careerSleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
-// The dev build's content script matches <all_urls> (manifest.json), so any
-// host classifyUrl accepts is actually reachable — no extra host check needed.
-const extractableKind = (url: string): "profile" | "job" | "other" => pageDetectExtractableKind(url, null);
-document.addEventListener("DOMContentLoaded", () => {
-  const tools = careerElement<HTMLElement>("careerTools"); const hint = careerElement<HTMLElement>("careerHint");
-  const profileFields = careerElement<HTMLElement>("profileCareerFields"); const jobFields = careerElement<HTMLElement>("jobCareerFields");
-  const consent = careerElement<HTMLInputElement>("careerConsent");
-  const inputIds = ["careerProvider", "careerApiKey", "careerModel", "careerOpenAiApiKey", "careerOpenAiModel", "careerCv", "careerJd", "careerProfile", "careerCompanyName", "careerCompanyUrl", "careerJobTitle", "careerSeniority", "careerLocation", "careerJobDescription"];
-  const field = (id: string) => careerElement<HTMLInputElement | HTMLTextAreaElement>(id);
-
-  // Both providers' keys/models are stored under separate keys (per-provider
-  // DEFAULT_MODEL in src/aiClient/provider.ts) so switching providers never
-  // wipes the other one's saved credentials — the popup just swaps which
-  // field pair is visible.
-  const providerSelect = careerElement<HTMLSelectElement>("careerProvider");
-  const currentProvider = (): "anthropic" | "openai" => providerSelect.value === "openai" ? "openai" : "anthropic";
-  const providerLabel = (provider: "anthropic" | "openai") => provider === "openai" ? "OpenAI" : "Anthropic";
-  const currentProviderModel = () => currentProvider() === "openai" ? field("careerOpenAiModel").value : field("careerModel").value;
-  const updateProviderUI = () => {
-    const provider = currentProvider();
-    careerElement<HTMLElement>("anthropicProviderFields").hidden = provider !== "anthropic";
-    careerElement<HTMLElement>("openaiProviderFields").hidden = provider !== "openai";
-    careerElement<HTMLElement>("careerConsentProvider").textContent = providerLabel(provider);
-    careerElement<HTMLElement>("careerProviderIntro").textContent = `Profile and resume content is sent to ${providerLabel(provider)} only after you review the transmission preview and choose an action.`;
-  };
-
-  // Inline, per-control feedback replaces the old single bottom-of-panel
-  // status line: results render next to the action that produced them, and
-  // validation errors render next to the field they're about.
-  const setResult = (id: string, text: string, kind: "success" | "error" | "pending" | "") => {
-    const el = careerElement<HTMLElement>(id);
-    el.hidden = !text; el.textContent = text; el.className = "career-result" + (kind ? ` ${kind}` : "");
-  };
-  const showFieldError = (fieldId: string, errorId: string, message: string) => {
-    field(fieldId).classList.add("invalid");
-    const el = careerElement<HTMLElement>(errorId); el.textContent = message; el.hidden = false;
-  };
-  const clearFieldError = (fieldId: string, errorId: string) => {
-    field(fieldId).classList.remove("invalid");
-    const el = careerElement<HTMLElement>(errorId); el.hidden = true; el.textContent = "";
-  };
-
-  // Fields extraction can populate, tracked so the job snapshot and consent
-  // preview can label each value as extracted from LinkedIn or manually
-  // supplied, per the manual-fallback data contract.
-  const SOURCE_FIELD_IDS = ["careerCv", "careerProfile", "careerCompanyName", "careerCompanyUrl", "careerJobTitle", "careerSeniority", "careerLocation", "careerJobDescription"] as const;
-  const sourceStorageKey = (id: string) => `${id}Origin`;
-  const fieldSource: Record<string, "manual" | "extracted"> = {};
-  let approvedAction: (() => Promise<void>) | undefined;
-  let pendingPreviewLabel = "Working…";
-  // The background's response is authoritative for this worker lifetime. Do
-  // not allow a hidden button, keyboard activation, or a scripted click to
-  // persist Career Tools data before trusted storage is confirmed.
-  let careerReady = false;
-  const requireCareerReady = (): boolean => {
-    if (careerReady) return true;
-    hint.textContent = "Career Tools are not ready. Reload the extension and try again.";
-    return false;
-  };
-  const preview = careerElement<HTMLDetailsElement>("careerPreview");
-  const previewText = careerElement<HTMLPreElement>("careerPreviewText");
-  const showPreview = (label: string, payload: Record<string, unknown>, action: () => Promise<void>, pendingLabel: string) => {
-    if (!requireCareerReady()) return;
-    if (!consent.checked) { showFieldError("careerConsent", "careerConsentError", "Confirm the per-run consent checkbox first."); return; }
-    clearFieldError("careerConsent", "careerConsentError");
-    approvedAction = action; pendingPreviewLabel = pendingLabel;
-    setResult("careerPreviewResult", "", "");
-    preview.hidden=false; preview.open=true;
-    const isCompany = payload.kind === "company";
-    const researchAvailable = payload.research !== false && /^https:\/\/(www\.)?linkedin\.com\/company\/[^/?#]+\/?$/i.test(String(payload.companyUrl || ""));
-    const provider = providerLabel(currentProvider());
-    previewText.textContent = isCompany
-      ? researchAvailable
-        ? `Research stage (web search; no CV or JD):\n${JSON.stringify({companyName:payload.companyName, companyNameSource:payload.companyNameSource, companyUrl:payload.companyUrl, companyUrlSource:payload.companyUrlSource, title:payload.title, titleSource:payload.titleSource, seniority:payload.seniority, senioritySource:payload.senioritySource, location:payload.location, locationSource:payload.locationSource}, null, 2)}\n\nSynthesis stage (no web access):\n${JSON.stringify({cv:payload.cv || "", jd:payload.jd || "", jdSource:payload.jdSource, research: "research findings"}, null, 2)}\n\nWeb-search results are processed server-side by ${provider}. Each field above is labeled by its "…Source" value as either "extracted" (read from the LinkedIn page) or "manual" (typed or pasted by you).`
-        : `No web research will occur. A valid LinkedIn company URL is required for the research stage.\n\nSynthesis stage (no web access):\n${JSON.stringify({companyName:payload.companyName, companyNameSource:payload.companyNameSource, title:payload.title, titleSource:payload.titleSource, seniority:payload.seniority, senioritySource:payload.senioritySource, location:payload.location, locationSource:payload.locationSource, cv:payload.cv || "", jd:payload.jd || "", jdSource:payload.jdSource}, null, 2)}`
-      : `${label} sent to ${provider} (no web access):\n${JSON.stringify(payload, null, 2)}\n\n"profileSource" is "extracted" (read from the LinkedIn page) or "manual" (typed or pasted by you).`;
-  };
-  careerElement<HTMLButtonElement>("careerPreviewConfirm").onclick = async () => {
-    if (!approvedAction) return;
-    const action = approvedAction; approvedAction = undefined;
-    const button = careerElement<HTMLButtonElement>("careerPreviewConfirm");
-    const originalLabel = button.textContent;
-    button.disabled = true; button.textContent = pendingPreviewLabel;
-    setResult("careerPreviewResult", pendingPreviewLabel, "pending");
-    try { await action(); }
-    finally { button.disabled = false; button.textContent = originalLabel; }
-  };
-  const run = async (input: Record<string, unknown>) => {
-    if (!requireCareerReady()) return;
-    const provider = currentProvider();
-    await careerSet(provider === "openai"
-      ? { careerProvider:provider, careerOpenAiApiKey:field("careerOpenAiApiKey").value, careerOpenAiModel:field("careerOpenAiModel").value, aiConsentGiven:true }
-      : { careerProvider:provider, careerApiKey:field("careerApiKey").value, careerModel:field("careerModel").value, aiConsentGiven:true });
-    const response = await chrome.runtime.sendMessage({ action:"CAREER_RUN", consent:true, previewed:true, input });
-    if (!response.ok) { setResult("careerPreviewResult", response.error, "error"); return; }
-    chrome.tabs.create({ url: chrome.runtime.getURL(`report.html?job=${encodeURIComponent(response.jobId)}`) });
-    // The report streams in its own tab; leave a persistent confirmation here
-    // instead of a stale "Starting report…" once that tab has been opened.
-    setResult("careerPreviewResult", "Report opened in a new tab.", "success");
-  };
-
-  type ExtractOutcome = { ok: true; data: CareerExtraction } | { ok: false; message: string };
-  // Distinguishes not-a-LinkedIn-tab / wrong-page-type / content-script-absent
-  // (needs reload) / still-rendering, instead of a blanket catch{} that
-  // discarded every failure reason and left the user with no explanation.
-  const extract = async (action: "EXTRACT_PROFILE" | "EXTRACT_JOB", expectedKind: "profile" | "job"): Promise<ExtractOutcome> => {
-    const [tab] = await chrome.tabs.query({ active:true, currentWindow:true });
-    if (!tab?.id || !tab.url) return { ok:false, message:"No active LinkedIn tab found." };
-    const kind = extractableKind(tab.url);
-    if (kind === "other") return { ok:false, message:"Open a LinkedIn profile or job page first." };
-    if (kind !== expectedKind) return { ok:false, message: expectedKind === "profile" ? "This tab is a LinkedIn job page, not a profile page." : "This tab is a LinkedIn profile page, not a job page." };
-    let lastReadyFalse: CareerExtraction | null = null;
-    let lastReady: CareerExtraction | null = null;
-    let lastError = "";
-    for (let attempt=0; attempt<5; attempt++) {
-      try {
-        const result = await chrome.tabs.sendMessage(tab.id, { action }, { frameId:0 }) as CareerExtraction;
-        if (result.ready) {
-          lastReady = result;
-          // Experience/education/skills/activity mount lazily as LinkedIn
-          // scrolls sections into view, so a "ready" profile can still be
-          // missing them on an early attempt — keep polling within the
-          // existing retry budget instead of settling on an incomplete
-          // result the moment the core fields are present.
-          const stillMounting = (result.warnings || []).some(w => w.field === "sections");
-          if (!stillMounting) return { ok:true, data:result };
-        } else {
-          lastReadyFalse = result;
-        }
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        lastError = msg.includes("Could not establish connection") || msg.includes("Receiving end does not exist")
-          ? "Could not reach the LinkedIn page script. Reload the LinkedIn tab and try again."
-          : `Extraction failed: ${msg}`;
-      }
-      // Skip the wait after the final attempt — nothing will re-check the result.
-      if (attempt < 4) await careerSleep(1000);
-    }
-    if (lastReady) return { ok:true, data:lastReady };
-    if (lastReadyFalse) {
-      const warnings = (lastReadyFalse.warnings || []).map(w => w.message).join(" ");
-      return { ok:false, message: warnings || "The page hasn't finished rendering. Reload LinkedIn and retry." };
-    }
-    return { ok:false, message: lastError || "Could not reach the LinkedIn page script. Reload the LinkedIn tab and try again." };
-  };
-
-  const withPending = async (button: HTMLButtonElement, resultId: string, pendingLabel: string, task: () => Promise<{ text: string; kind: "success" | "error" }>) => {
-    button.disabled = true;
-    const originalLabel = button.textContent;
-    button.textContent = pendingLabel;
-    setResult(resultId, pendingLabel, "pending");
-    try {
-      const { text, kind } = await task();
-      setResult(resultId, text, kind);
-    } finally { button.disabled = false; button.textContent = originalLabel; }
-  };
-
-  // LinkedIn is an SPA, so the page type must be re-evaluated whenever the
-  // active tab's URL changes, not just once when the popup opens.
-  const updateExtractionState = (url: string) => {
-    const kind = extractableKind(url);
-    const extractProfileButton = careerElement<HTMLButtonElement>("extractProfileButton");
-    const extractCvButton = careerElement<HTMLButtonElement>("extractCvButton");
-    const extractJobButton = careerElement<HTMLButtonElement>("extractJobButton");
-    extractProfileButton.disabled = kind !== "profile";
-    extractCvButton.disabled = kind !== "profile";
-    extractJobButton.disabled = kind !== "job";
-    const profileReason = kind === "profile" ? "" : "Open a LinkedIn profile page to use this.";
-    extractProfileButton.title = profileReason; extractCvButton.title = profileReason;
-    extractJobButton.title = kind === "job" ? "" : "Open a LinkedIn job page to use this.";
-    hint.textContent = kind === "profile"
-      ? "This is a LinkedIn profile page — extract the interviewer's details, or your own details into the CV field."
-      : kind === "job"
-        ? "This is a LinkedIn job page — extract the job details below."
-        : "Manual inputs are always available. Open a LinkedIn profile or job page to enable extraction.";
-  };
-
-  chrome.runtime.sendMessage({ action:"CAREER_TOOLS_STATUS" }).then(async (lock: { locked:boolean; reason?:string }) => {
-    if (!lock.locked) { hint.textContent=lock.reason || "Career Tools are unavailable."; return; }
-    careerReady=true; tools.hidden=false; const saved = await careerGet<Record<string, string>>(inputIds); inputIds.forEach(id => { if (saved[id] !== undefined) field(id).value=saved[id]; });
-    const savedSources = await careerGet<Record<string, string>>(SOURCE_FIELD_IDS.map(sourceStorageKey));
-    SOURCE_FIELD_IDS.forEach(id => { fieldSource[id] = savedSources[sourceStorageKey(id)] === "extracted" ? "extracted" : "manual"; });
-    inputIds.forEach(id => field(id).addEventListener("change", () => {
-      const patch: Record<string, unknown> = { [id]:field(id).value };
-      // A real user edit always means the current value is manually supplied,
-      // even if it started from an earlier extraction.
-      if ((SOURCE_FIELD_IDS as readonly string[]).includes(id)) { fieldSource[id]="manual"; patch[sourceStorageKey(id)]="manual"; }
-      careerSet(patch).catch(error => { hint.textContent = String(error); });
-    }));
-    field("careerProfile").addEventListener("input", () => clearFieldError("careerProfile", "careerProfileError"));
-    field("careerCompanyName").addEventListener("input", () => clearFieldError("careerCompanyName", "careerCompanyNameError"));
-    consent.addEventListener("change", () => { if (consent.checked) clearFieldError("careerConsent", "careerConsentError"); });
-
-    document.querySelectorAll<HTMLButtonElement>(".career-clear[data-key]").forEach(button => button.onclick = async () => {
-      const key = button.dataset.key || "";
-      if (!inputIds.includes(key)) return;
-      const sourceKeys = (SOURCE_FIELD_IDS as readonly string[]).includes(key) ? [sourceStorageKey(key)] : [];
-      await new Promise<void>(resolve => chrome.storage.local.remove([key, ...sourceKeys], resolve));
-      // The field visibly emptying is the confirmation — no status message needed.
-      field(key).value=""; if ((SOURCE_FIELD_IDS as readonly string[]).includes(key)) fieldSource[key]="manual";
-      field(key).dispatchEvent(new Event("input"));
-      field(key).focus();
-    });
-    careerElement<HTMLButtonElement>("clearReportsButton").onclick = async () => {
-      await new Promise<void>(resolve => chrome.storage.local.remove(["careerToolJobs"], resolve));
-      setResult("clearReportsResult", "Saved reports cleared.", "success");
-    };
-
-    const [tab] = await chrome.tabs.query({ active:true, currentWindow:true });
-    // Manual fallback is first-class: keep both groups usable on any page.
-    profileFields.hidden=false; jobFields.hidden=false;
-    updateExtractionState(tab?.url || "");
-    if (tab && tab.id !== undefined) {
-      const watchedTabId = tab.id;
-      chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
-        if (tabId !== watchedTabId || !changeInfo.url) return;
-        updateExtractionState(changeInfo.url);
-      });
-    }
-    const updateResearchState = () => { const valid=/^https:\/\/(www\.)?linkedin\.com\/company\/[^/?#]+\/?$/i.test(field("careerCompanyUrl").value); const state=careerElement<HTMLElement>("careerResearchState"); state.textContent=valid ? "Web research available." : "Web research unavailable — supply the company's LinkedIn URL to enable it. You can still run a no-research report."; };
-    field("careerCompanyUrl").addEventListener("input", updateResearchState); updateResearchState();
-    const known=["claude-opus-4-8", "claude-sonnet-4-5"]; const modelWarning=careerElement<HTMLElement>("careerModelWarning"); const updateModelWarning=()=>modelWarning.hidden=known.includes(field("careerModel").value.trim()); field("careerModel").addEventListener("input",updateModelWarning); updateModelWarning();
-    const knownOpenAi=["gpt-5.6", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna"]; const openAiModelWarning=careerElement<HTMLElement>("careerOpenAiModelWarning"); const updateOpenAiModelWarning=()=>openAiModelWarning.hidden=knownOpenAi.includes(field("careerOpenAiModel").value.trim()); field("careerOpenAiModel").addEventListener("input",updateOpenAiModelWarning); updateOpenAiModelWarning();
-    updateProviderUI();
-    providerSelect.addEventListener("change", updateProviderUI);
-  }).catch(() => { hint.textContent="Career Tools service is not ready. Reload the extension."; });
-  careerElement<HTMLButtonElement>("careerTestButton").onclick = () => {
-    if (!requireCareerReady()) return;
-    const provider = currentProvider();
-    showPreview("Test connection", { model:currentProviderModel(), prompt:"OK", max_tokens:16 }, async () => {
-      await careerSet(provider === "openai"
-        ? { careerProvider:provider, careerOpenAiApiKey:field("careerOpenAiApiKey").value, careerOpenAiModel:field("careerOpenAiModel").value, aiConsentGiven:true }
-        : { careerProvider:provider, careerApiKey:field("careerApiKey").value, careerModel:field("careerModel").value, aiConsentGiven:true });
-      const result = await chrome.runtime.sendMessage({ action:"CAREER_TEST", consent:true, previewed:true });
-      setResult("careerPreviewResult", result.ok ? "Connection authenticated." : result.error, result.ok ? "success" : "error");
-    }, "Testing connection…");
-  };
-  careerElement<HTMLButtonElement>("extractProfileButton").onclick = async () => {
-    if (!requireCareerReady()) return;
-    const button = careerElement<HTMLButtonElement>("extractProfileButton");
-    await withPending(button, "extractProfileResult", "Extracting…", async () => {
-      const outcome = await extract("EXTRACT_PROFILE", "profile");
-      if (!outcome.ok) return { text: outcome.message, kind: "error" };
-      field("careerProfile").value=JSON.stringify(outcome.data, null, 2);
-      fieldSource.careerProfile="extracted";
-      await careerSet({ careerProfile:field("careerProfile").value, [sourceStorageKey("careerProfile")]:"extracted" });
-      clearFieldError("careerProfile", "careerProfileError");
-      const warnings = (outcome.data.warnings || []).map(w => w.message).join(" ");
-      return { text: warnings || "Profile extracted.", kind: "success" };
-    });
-  };
-  careerElement<HTMLButtonElement>("extractCvButton").onclick = async () => {
-    if (!requireCareerReady()) return;
-    const button = careerElement<HTMLButtonElement>("extractCvButton");
-    await withPending(button, "extractCvResult", "Extracting…", async () => {
-      const outcome = await extract("EXTRACT_PROFILE", "profile");
-      if (!outcome.ok) return { text: outcome.message, kind: "error" };
-      field("careerCv").value=JSON.stringify(outcome.data, null, 2);
-      fieldSource.careerCv="extracted";
-      await careerSet({ careerCv:field("careerCv").value, [sourceStorageKey("careerCv")]:"extracted" });
-      const warnings = (outcome.data.warnings || []).map(w => w.message).join(" ");
-      return { text: warnings ? `${warnings} Extracted into the CV field.` : "Your details were extracted into the CV field.", kind: "success" };
-    });
-  };
-  careerElement<HTMLButtonElement>("extractJobButton").onclick = async () => {
-    if (!requireCareerReady()) return;
-    const button = careerElement<HTMLButtonElement>("extractJobButton");
-    await withPending(button, "extractJobResult", "Extracting…", async () => {
-      const outcome = await extract("EXTRACT_JOB", "job");
-      if (!outcome.ok) return { text: outcome.message, kind: "error" };
-      const result = outcome.data;
-      const map: Record<string,string> = { careerCompanyName:"companyName", careerCompanyUrl:"companyUrl", careerJobTitle:"title", careerSeniority:"seniority", careerLocation:"location", careerJobDescription:"description" };
-      Object.entries(map).forEach(([target, source]) => { field(target).value=String(result[source] || ""); fieldSource[target]="extracted"; });
-      // salary, benefits, and workplaceType have no dedicated fields; fold them
-      // into the JD text so the synthesis stage still sees them, rather than
-      // silently dropping extracted content.
-      const extras = [
-        result.workplaceType ? `Workplace type: ${result.workplaceType}` : "",
-        result.salary ? `Salary: ${result.salary}` : "",
-        result.benefits ? `Benefits: ${result.benefits}` : "",
-      ].filter(Boolean).join("\n");
-      if (extras) field("careerJobDescription").value = [field("careerJobDescription").value, extras].filter(Boolean).join("\n\n");
-      await careerSet({ ...Object.fromEntries(Object.keys(map).map(id => [id, field(id).value])), ...Object.fromEntries(Object.keys(map).map(id => [sourceStorageKey(id), "extracted"])) });
-      clearFieldError("careerCompanyName", "careerCompanyNameError");
-      const warnings = (result.warnings || []).map(w=>w.message).join(" ");
-      return { text: warnings || "Job extracted.", kind: "success" };
-    });
-  };
-  careerElement<HTMLButtonElement>("interviewButton").onclick = () => {
-    const input={ kind:"interview", profile:field("careerProfile").value, cv:field("careerCv").value, jd:field("careerJd").value, profileSource:fieldSource.careerProfile || "manual" };
-    if (!input.profile.trim()) { showFieldError("careerProfile", "careerProfileError", "Extract or paste an interviewer profile first."); return; }
-    clearFieldError("careerProfile", "careerProfileError");
-    showPreview("Interview preparation",input,()=>run(input),"Starting report…");
-  };
-  careerElement<HTMLButtonElement>("companyButton").onclick = () => {
-    const input={ kind:"company", companyName:field("careerCompanyName").value, companyUrl:field("careerCompanyUrl").value, title:field("careerJobTitle").value, seniority:field("careerSeniority").value, location:field("careerLocation").value, jd:field("careerJobDescription").value, cv:field("careerCv").value, research:careerElement<HTMLInputElement>("careerResearch").checked, companyNameSource:fieldSource.careerCompanyName || "manual", companyUrlSource:fieldSource.careerCompanyUrl || "manual", titleSource:fieldSource.careerJobTitle || "manual", senioritySource:fieldSource.careerSeniority || "manual", locationSource:fieldSource.careerLocation || "manual", jdSource:fieldSource.careerJobDescription || "manual" };
-    if (!input.companyName.trim()) { showFieldError("careerCompanyName", "careerCompanyNameError", "Enter a company name first."); return; }
-    clearFieldError("careerCompanyName", "careerCompanyNameError");
-    showPreview("Company & Role Intelligence",input,()=>run(input),"Starting report…");
-  };
-});
+const _extractableKind = (url: string): "profile" | "job" | "other" => pageDetectExtractableKind(url, null);
+initCareerTools(_extractableKind);

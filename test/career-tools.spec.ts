@@ -218,8 +218,8 @@ describe("trusted-storage gate", () => {
     // on the content script's default (all-frames) delivery — it has to
     // pin frameId:0 on every EXTRACT_PROFILE/EXTRACT_JOB send, or the
     // request can land in a LinkedIn subframe that never responds.
-    const popupSource=readFileSync(fileURLToPath(new NodeUrl("../src/popup.ts", import.meta.url)), "utf8");
-    const extractCall=popupSource.match(/chrome\.tabs\.sendMessage\(tab\.id,\s*\{\s*action\s*\},\s*\{\s*frameId\s*:\s*0\s*\}\)/);
+    const careerSharedSource=readFileSync(fileURLToPath(new NodeUrl("../src/popup-career-shared.ts", import.meta.url)), "utf8");
+    const extractCall=careerSharedSource.match(/chrome\.tabs\.sendMessage\(tab\.id,\s*\{\s*action\s*\},\s*\{\s*frameId\s*:\s*0\s*\}\)/);
     expect(extractCall).not.toBeNull();
   });
 
@@ -861,6 +861,7 @@ describe("career tools panel — inline feedback, per-field clear, page-aware ex
   const popupHtml = readFileSync(fileURLToPath(new NodeUrl("../popup.html", import.meta.url)), "utf8");
   const popupStoreSource = readFileSync(fileURLToPath(new NodeUrl("../src/popup.store.ts", import.meta.url)), "utf8");
   const popupSource = readFileSync(fileURLToPath(new NodeUrl("../src/popup.ts", import.meta.url)), "utf8");
+  const popupCareerSharedSource = readFileSync(fileURLToPath(new NodeUrl("../src/popup-career-shared.ts", import.meta.url)), "utf8");
 
   const CLEARABLE_FIELDS = ["careerApiKey", "careerOpenAiApiKey", "careerCv", "careerJd", "careerProfile", "careerCompanyName", "careerCompanyUrl", "careerJobTitle", "careerSeniority", "careerLocation", "careerJobDescription"];
 
@@ -890,7 +891,7 @@ describe("career tools panel — inline feedback, per-field clear, page-aware ex
       expect(document.getElementById("careerOpenAiModelWarning")).not.toBeNull();
       expect(document.getElementById("careerConsentProvider")).not.toBeNull();
     }
-    for (const source of [popupStoreSource, popupSource]) {
+    for (const source of [popupCareerSharedSource]) {
       expect(source).toContain("updateProviderUI");
       expect(source).toContain("careerOpenAiApiKey");
       expect(source).toContain("careerOpenAiModel");
@@ -935,7 +936,7 @@ describe("career tools panel — inline feedback, per-field clear, page-aware ex
   });
 
   it("distinguishes not-a-LinkedIn-tab, wrong-page-type, and content-script-absent extraction failures instead of one blanket catch{}", () => {
-    for (const source of [popupStoreSource, popupSource]) {
+    for (const source of [popupCareerSharedSource]) {
       expect(source).toContain("Open a LinkedIn profile or job page first.");
       expect(source).toContain("not a profile page.");
       expect(source).toContain("not a job page.");
@@ -947,7 +948,7 @@ describe("career tools panel — inline feedback, per-field clear, page-aware ex
   });
 
   it("tracks the extracted-vs-manual origin of the CV field, not just the job/profile fields", () => {
-    for (const source of [popupStoreSource, popupSource]) {
+    for (const source of [popupCareerSharedSource]) {
       const sourceIds = source.match(/const SOURCE_FIELD_IDS = \[[^\]]+\]/)?.[0] ?? "";
       expect(sourceIds).toContain("careerCv");
     }
@@ -964,14 +965,14 @@ describe("career tools panel — inline feedback, per-field clear, page-aware ex
   });
 
   it("re-evaluates the active tab's page type on SPA navigation, not just once at popup open", () => {
-    for (const source of [popupStoreSource, popupSource]) {
+    for (const source of [popupCareerSharedSource]) {
       expect(source).toContain("chrome.tabs.onUpdated.addListener");
       expect(source).toContain("updateExtractionState");
     }
   });
 
   it("keeps polling within the retry budget when a profile is ready but sections are still lazy-mounting, instead of settling on the first incomplete result", () => {
-    for (const source of [popupStoreSource, popupSource]) {
+    for (const source of [popupCareerSharedSource]) {
       expect(source).toMatch(/stillMounting\s*=\s*\(result\.warnings\s*\|\|\s*\[\]\)\.some\(w\s*=>\s*w\.field\s*===\s*"sections"\)/);
       expect(source).toContain("if (!stillMounting) return { ok:true, data:result };");
       // Exhausting the retry budget must still return the best ready result
