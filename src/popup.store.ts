@@ -170,7 +170,7 @@ document.addEventListener("DOMContentLoaded", function (): void {
       chrome.tabs.create({ url });
       statusDiv.textContent = "Opening LinkedIn search page...";
       statusDiv.style.color = "#0077b5";
-      setTimeout(() => window.close(), 1000);
+      setTimeout(() => updateStatus(), 1000);
     });
   });
 
@@ -233,6 +233,15 @@ document.addEventListener("DOMContentLoaded", function (): void {
       }
     });
   }
+
+  chrome.tabs.onActivated.addListener(() => {
+    setTimeout(updateStatus, 100);
+  });
+  chrome.tabs.onUpdated.addListener((_tabId, changeInfo) => {
+    if (changeInfo.url || changeInfo.status === "complete") {
+      setTimeout(updateStatus, 100);
+    }
+  });
 });
 
 const _extractableKind = (url: string): "profile" | "job" | "other" =>

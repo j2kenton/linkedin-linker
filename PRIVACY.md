@@ -6,14 +6,14 @@ Career Connect prepares connection invite drafts on LinkedIn people search resul
 
 The extension handles:
 
-- The active tab URL when the user opens the popup or clicks a "Get from current URL" button.
+- The active tab URL when the user opens the side panel or clicks a "Get from current URL" button.
 - User-entered search settings and message draft text.
 - Visible LinkedIn people-search page content needed to identify the next connectable profile and the first name for the draft greeting.
 - Only when the optional Career Tools features described below are enabled and used: visible LinkedIn profile or job-page content, a user-pasted CV/resume, job description text, manually entered company/role identity fields, an Anthropic and/or OpenAI API key (whichever provider is selected), and the resulting reports.
 
 ## Storage
 
-Search settings and message draft settings are stored locally using Chrome extension storage. They are used only to populate the popup and prepare invite drafts.
+Search settings and message draft settings are stored locally using Chrome extension storage. They are used only to populate the side panel and prepare invite drafts.
 
 ## Sharing
 
@@ -25,7 +25,7 @@ Career Tools are optional, off by default, and remain disabled until Chrome conf
 
 For Interview Preparation, the approved request can include visible LinkedIn profile content (or a manual profile), CV/resume, and the target JD. For Company & Role Intelligence, the optional web-research stage sends only normalized company identity, role title, seniority, and location. CV text and the full JD never enter web-search-enabled requests. The selected provider processes web-search results server-side; the later, no-web-access synthesis request sends the returned findings, the full JD, **and the user's CV/resume** to generate the report.
 
-Anthropic and OpenAI API keys are stored under separate keys in trusted extension-local storage, so switching the selected provider never overwrites the other provider's saved key; both are kept alongside CVs, JDs, manual profile/job identity, and reports. Users can remove saved Career Tools data — including either provider's key individually — from the popup, and uninstalling the extension clears extension-local data. The extension does not use this data for advertising, analytics, or sale.
+Anthropic and OpenAI API keys are stored under separate keys in trusted extension-local storage, so switching the selected provider never overwrites the other provider's saved key; both are kept alongside CVs, JDs, manual profile/job identity, and reports. Users can remove saved Career Tools data — including either provider's key individually — from the side panel, and uninstalling the extension clears extension-local data. The extension does not use this data for advertising, analytics, or sale.
 
 ## Network Requests
 

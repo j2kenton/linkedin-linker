@@ -6,9 +6,11 @@ Career Connect is a LinkedIn relationship-and-career-research assistant. It help
 
 ## Permission Justifications
 
-`activeTab`: Used only after the user opens the popup to read the active tab URL and validate that it is a supported LinkedIn page — a people search results page (to prepare an invite draft), a personal profile page (to offer Interview Preparation), or a job page (to offer Company & Role Intelligence) — then send a message to the content script already running on that active page.
+`activeTab`: Used only after the user opens the side panel to read the active tab URL and validate that it is a supported LinkedIn page — a people search results page (to prepare an invite draft), a personal profile page (to offer Interview Preparation), or a job page (to offer Company & Role Intelligence) — then send a message to the content script already running on that active page.
 
 `storage`: Used to save search filters and message draft text locally in Chrome. It is also used, only for the optional Career Tools features, to save the user's own Anthropic and/or OpenAI API key (stored separately per provider), the selected provider, model choice, per-run consent flag, pasted CV/resume and job description text, manually entered company/role identity fields, and generated Career Tools reports — all locally in Chrome extension storage, never on a remote server operated by this extension.
+
+`sidePanel`: Used to display the extension's UI as a persistent side panel alongside the LinkedIn page instead of a toolbar dropdown. The panel stays visible while the user interacts with LinkedIn, making it easier to fill search filters and review invite drafts without losing context.
 
 ## Host Access
 
@@ -41,13 +43,13 @@ The extension handles active-tab URL data, locally saved user settings, message 
 
 Separately, the extension provides two optional, off-by-default Career Tools features: Interview Preparation and Company & Role Intelligence. These remain disabled until the user picks a provider and supplies that provider's own API key, gives explicit per-run consent, and clicks to run a specific analysis after reviewing an exact preview of the data about to be sent. When run, Interview Preparation sends visible LinkedIn profile content, the user's pasted CV/resume, and the target job description to the selected provider's API. Company & Role Intelligence sends normalized company name/URL, role title, seniority, and location to the selected provider's API for a server-side web-search research stage — the CV and full job description are never included in that stage — then sends the resulting findings, the full job description, and the user's CV/resume to the selected provider's API for a second, no-web-access synthesis request that produces the report.
 
-Outside of these two opt-in, consent-gated Career Tools runs, the extension does not send user data to any external server. Career Tools data (both providers' API keys, CV/resume, job description, saved profile/company identity, and generated reports) is stored locally in Chrome extension storage, can be deleted by the user from the popup — including either provider's key individually — and is cleared when the extension is uninstalled. None of this data — from the core feature or from Career Tools — is sold, or used for advertising, analytics, or unrelated third-party sharing.
+Outside of these two opt-in, consent-gated Career Tools runs, the extension does not send user data to any external server. Career Tools data (both providers' API keys, CV/resume, job description, saved profile/company identity, and generated reports) is stored locally in Chrome extension storage, can be deleted by the user from the side panel — including either provider's key individually — and is cleared when the extension is uninstalled. None of this data — from the core feature or from Career Tools — is sold, or used for advertising, analytics, or unrelated third-party sharing.
 
 ## Reviewer Test Instructions
 
 1. Install the extension.
 2. Open a LinkedIn people search results page.
-3. Open the extension popup and choose "Connection Assistant".
+3. Open the extension side panel and choose "Connection Assistant".
 4. Enter a short message draft and click "Save settings".
 5. Click "Prepare next invite".
 6. Verify that the extension opens LinkedIn's invite dialog and fills the note.
@@ -56,7 +58,7 @@ Outside of these two opt-in, consent-gated Career Tools runs, the extension does
 Career Tools (optional AI features) — testing requires an Anthropic API key (create one at <https://console.anthropic.com/>) or an OpenAI API key (create one at <https://platform.openai.com/>); if none is available, this list still demonstrates the consent gating without completing a run:
 
 1. Career Tools appear only on LinkedIn personal profile pages (`/in/...`) and LinkedIn job pages (`/jobs/...`).
-2. Open a LinkedIn profile page, open the extension popup, and choose "Career Tools". Verify the provider selector defaults to Anthropic, and that the Interview Preparation controls are disabled/inactive until an API key is entered for the selected provider.
+2. Open a LinkedIn profile page, open the extension side panel, and choose "Career Tools". Verify the provider selector defaults to Anthropic, and that the Interview Preparation controls are disabled/inactive until an API key is entered for the selected provider.
 3. Enter an API key for the selected provider, tick the per-run consent checkbox, and click "Review & test connection". Verify the extension displays the exact data — and destination provider — it is about to send before anything is transmitted.
 4. Click "Generate". Verify the extension opens a new report tab and streams the AI-generated report only after that explicit click.
 5. Repeat on a LinkedIn job page (`/jobs/view/...`) for Company & Role Intelligence. Verify the same API-key-plus-consent gating and preview step.

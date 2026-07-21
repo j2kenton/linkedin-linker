@@ -23,7 +23,7 @@ This project is not affiliated with or endorsed by LinkedIn.
 
 | Search setup | Connect & send |
 | --- | --- |
-| ![Search filters step in the extension popup](assets/screenshots/screenshot-1.png) | ![Auto-adjust and Live Mode connect step in the extension popup](assets/screenshots/screenshot-2.png) |
+| ![Search filters step in the extension side panel](assets/screenshots/screenshot-1.png) | ![Auto-adjust and Live Mode connect step in the extension side panel](assets/screenshots/screenshot-2.png) |
 
 ## Developer Build
 
@@ -48,7 +48,7 @@ Both builds provide two optional, consent-gated research tools on LinkedIn:
 - On a personal profile (`/in/...`), **Interview Preparation** combines visible public professional content with your pasted CV and target job description. It creates non-diagnostic rapport, communication, leadership-matching, story-selection, and narrative guidance; it does not assess hostility, deception, or adversarial behavior.
 - On a LinkedIn job page, **Company & Role Intelligence** creates a six-part company, architecture, role-expectations, interview, and compensation report. It performs public company research only with a valid LinkedIn company URL; otherwise it clearly generates a Stage-B-only, no-research report with modeled estimates.
 
-Open the popup on the relevant page, choose Anthropic or OpenAI as the provider, enter that provider's API key and model ID, review the per-run consent checkbox, and select the action. Each provider's key and model are stored separately, so switching providers never overwrites the other one's saved key. Resume/CV, job description, and manual fallback fields are local-only trusted extension storage. Set a spend limit on the API key. Company research requires organization-level web-search access from the selected provider; CV and full JD text never enter the web-search request, and the provider processes search results server-side. Career Tools require a Chrome version that supports trusted-context storage; they remain disabled with an update-Chrome message if it is unavailable.
+Open the side panel on the relevant page, choose Anthropic or OpenAI as the provider, enter that provider's API key and model ID, review the per-run consent checkbox, and select the action. Each provider's key and model are stored separately, so switching providers never overwrites the other one's saved key. Resume/CV, job description, and manual fallback fields are local-only trusted extension storage. Set a spend limit on the API key. Company research requires organization-level web-search access from the selected provider; CV and full JD text never enter the web-search request, and the provider processes search results server-side. Career Tools require a Chrome version that supports trusted-context storage; they remain disabled with an update-Chrome message if it is unavailable.
 
 Career Tools are entirely optional in both builds: off by default, disabled until you supply an API key for the selected provider, and never sent anywhere without per-run consent and a preview of exactly what will be sent and to which provider. The core connection-request features in both builds work with no API key and no network calls beyond LinkedIn itself.
 
@@ -75,7 +75,7 @@ If the extension was already loaded, click reload on the extension card after re
 
 ### Developer: Usage
 
-1. Open the extension popup.
+1. Open the extension side panel.
 2. Fill in search filters or extract them from the current LinkedIn search URL.
 3. Click **Save & search** to open a LinkedIn people search page.
 4. Write the connection note and save settings.
@@ -106,7 +106,7 @@ The store build is assembled into `release/store/`. Load it in Chrome via `chrom
 
 ### Store: Usage
 
-1. Open the extension popup and choose **Connection Assistant**.
+1. Open the extension side panel and choose **Connection Assistant**.
 2. Fill in search filters and click **Save & open search** to navigate to LinkedIn.
 3. Compose your message draft and click **Save settings**.
 4. Click **Prepare next invite** — the extension opens LinkedIn's invite dialog and fills your note.
@@ -138,14 +138,14 @@ npm run verify:store-baseline
 | `manifest.store.json` | Store build manifest (used by `build:store`) |
 | `src/content.ts` | Developer build content script (automation) |
 | `src/content.store.ts` | Store build content script (single-step, no Send) |
-| `src/popup.ts` | Developer build popup logic |
-| `src/popup.store.ts` | Store build popup logic |
+| `src/popup.ts` | Developer build side panel logic |
+| `src/popup.store.ts` | Store build side panel logic |
 | `src/background.ts` | Shared automation-completed relay, used by both builds |
 | `src/background.dev.ts` | Developer build service worker entry point |
 | `src/background.store.ts` | Store build service worker entry point |
 | `src/careerBackground.ts` | Career Tools message/port wiring, shared by both background entry points |
-| `popup.html` | Developer build popup UI |
-| `popup.store.html` | Store build popup UI |
+| `popup.html` | Developer build side panel UI |
+| `popup.store.html` | Store build side panel UI |
 | `scripts/set-build-target.js` | Injects `BUILD_TARGET` constant before `tsc` |
 | `scripts/package-store.js` | Assembles `release/store/` from store build output |
 | `tsconfig.json` | Developer TypeScript config |

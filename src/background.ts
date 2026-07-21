@@ -20,12 +20,12 @@ chrome.runtime.onMessage.addListener(
     if (request.action === "automationCompleted") {
       console.log("Automation completed message received from content script");
 
-      // Send notification to popup if it's open
+      // Send notification to side panel if it's open
       chrome.runtime.sendMessage({
         action: "automationCompleted",
         from: "background"
       }).catch(() => {
-        // Popup might not be open, that's okay
+        // Panel might not be open, that's okay
       });
 
       sendResponse({ status: "received" });
@@ -36,11 +36,13 @@ chrome.runtime.onMessage.addListener(
 // Handle extension installation
 chrome.runtime.onInstalled.addListener((): void => {
   console.log("Career Connect installed");
+  chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {});
 });
 
 // Handle extension startup
 chrome.runtime.onStartup.addListener((): void => {
   console.log("Career Connect started");
+  chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {});
 });
 
 wireCareerTools();

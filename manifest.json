@@ -2,13 +2,15 @@
   "manifest_version": 3,
   "name": "Career Connect",
   "version": "1.1.1",
+  "minimum_chrome_version": "114",
   "description": "Automates LinkedIn connection requests with sequential processing and random delays",
   "permissions": [
     "activeTab",
     "storage",
     "tabs",
     "clipboardWrite",
-    "scripting"
+    "scripting",
+    "sidePanel"
   ],
   "host_permissions": [
     "<all_urls>",
@@ -28,8 +30,10 @@
     "type": "module"
   },
   "action": {
-    "default_popup": "popup.html",
     "default_title": "Career Connect"
+  },
+  "side_panel": {
+    "default_path": "popup.html"
   },
   "web_accessible_resources": [{"resources": ["report.html"], "matches": ["<all_urls>"]}]
 }

@@ -245,9 +245,9 @@ document.addEventListener('DOMContentLoaded', function(): void {
       statusDiv.textContent = 'Opening LinkedIn search page...';
       statusDiv.style.color = '#0077b5';
 
-      // Hide the popup after a short delay
+      // Refresh status after tab opens
       setTimeout(() => {
-        window.close();
+        updateStatusBasedOnTab();
       }, 1000);
     });
   });
@@ -364,6 +364,15 @@ document.addEventListener('DOMContentLoaded', function(): void {
 
   // Check current tab on popup open
   updateStatusBasedOnTab();
+
+  chrome.tabs.onActivated.addListener(() => {
+    setTimeout(updateStatusBasedOnTab, 100);
+  });
+  chrome.tabs.onUpdated.addListener((_tabId, changeInfo) => {
+    if (changeInfo.url || changeInfo.status === "complete") {
+      setTimeout(updateStatusBasedOnTab, 100);
+    }
+  });
 
   // Listen for completion message from content script
   chrome.runtime.onMessage.addListener((request: { action: string }, sender, sendResponse) => {
