@@ -197,25 +197,47 @@
 
     <div id="careerView" hidden>
     <div class="title">Career Tools</div>
-    <div class="subtitle">AI interview prep and company research using your own Anthropic API key.</div>
+    <div class="subtitle">AI interview prep and company research using your own Anthropic or OpenAI API key.</div>
 
     <section id="careerTools" class="career-tools" hidden>
-      <small>Profile and resume content is sent to Anthropic only after you review the transmission preview and choose an action.</small>
+      <small id="careerProviderIntro">Profile and resume content is sent to Anthropic only after you review the transmission preview and choose an action.</small>
       <small id="careerHint" class="career-hint" role="status" aria-live="polite"></small>
 
       <div class="career-field">
-        <label for="careerApiKey">Anthropic API key</label>
-        <div class="career-field-row">
-          <input id="careerApiKey" type="password" autocomplete="off" placeholder="sk-ant-…">
-          <button type="button" class="career-clear" data-key="careerApiKey">Clear</button>
-        </div>
+        <label for="careerProvider">AI provider</label>
+        <select id="careerProvider">
+          <option value="anthropic">Anthropic</option>
+          <option value="openai">OpenAI</option>
+        </select>
       </div>
-      <label>Model ID <input id="careerModel" value="claude-opus-4-8"></label>
-      <small id="careerModelWarning" hidden>Unknown model ID: web research may not be supported.</small>
+
+      <div id="anthropicProviderFields">
+        <div class="career-field">
+          <label for="careerApiKey">Anthropic API key</label>
+          <div class="career-field-row">
+            <input id="careerApiKey" type="password" autocomplete="off" placeholder="sk-ant-…">
+            <button type="button" class="career-clear" data-key="careerApiKey">Clear</button>
+          </div>
+        </div>
+        <label>Model ID <input id="careerModel" value="claude-opus-4-8"></label>
+        <small id="careerModelWarning" hidden>Unknown model ID: web research may not be supported.</small>
+      </div>
+
+      <div id="openaiProviderFields" hidden>
+        <div class="career-field">
+          <label for="careerOpenAiApiKey">OpenAI API key</label>
+          <div class="career-field-row">
+            <input id="careerOpenAiApiKey" type="password" autocomplete="off" placeholder="sk-…">
+            <button type="button" class="career-clear" data-key="careerOpenAiApiKey">Clear</button>
+          </div>
+        </div>
+        <label>Model ID <input id="careerOpenAiModel" value="gpt-5.6-terra"></label>
+        <small id="careerOpenAiModelWarning" hidden>Unknown model ID: web research may not be supported.</small>
+      </div>
 
       <div class="checkbox-row">
         <input id="careerConsent" type="checkbox">
-        <label for="careerConsent">I consent to sending the displayed inputs to Anthropic for this run.</label>
+        <label for="careerConsent">I consent to sending the displayed inputs to <span id="careerConsentProvider">Anthropic</span> for this run.</label>
       </div>
       <small id="careerConsentError" class="field-error" role="alert" hidden></small>
 

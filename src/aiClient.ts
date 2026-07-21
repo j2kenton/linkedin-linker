@@ -2,16 +2,18 @@ import { interviewPrepPrompt } from "./prompts/interviewPrep";
 import { companyResearchPrompt } from "./prompts/companyIntelResearch";
 import { companySynthesisPrompt } from "./prompts/companyIntelSynthesis";
 import { validateReport, type Validation } from "./validate/report";
-import { DEFAULT_MODEL, streamProviderRequest } from "./aiClient/provider";
+import { DEFAULT_MODEL, PROVIDER_LABEL, streamProviderRequest, type Provider } from "./aiClient/provider";
 import { runResearchContinuation, type CareerSource, type ResearchLoopState } from "./aiClient/research";
 
-export { buildRequestBody, classifyProviderError } from "./aiClient/provider";
+export { buildRequestBody, buildOpenAIRequestBody, classifyProviderError, DEFAULT_MODEL, PROVIDER_LABEL, type Provider } from "./aiClient/provider";
 export { appendResearchContinuation, runResearchContinuation, type ResearchLoopState } from "./aiClient/research";
 
 export type CareerKind = "interview" | "company";
 export type JobStatus = "queued" | "running" | "complete" | "error" | "cancelled" | "interrupted";
 export interface CareerJob {
   id: string; kind: CareerKind; status: JobStatus; stage: "research" | "synthesis" | "complete";
+  /** Stamped at job creation from the then-current provider setting; resumed/continued runs keep it, so one report never mixes providers. */
+  provider: Provider;
   input: Record<string, string>; reportText: string; findings: string; sources: CareerSource[];
   researchMessages: Record<string, unknown>[]; researchAvailable: boolean; warnings: string[]; generation: number;
   /** Set only after a research response reaches end_turn. */
@@ -94,6 +96,7 @@ export function startFreshReportStream(job: Pick<CareerJob, "reportText" | "warn
   job.warnings = job.warnings.filter(warning => !warning.startsWith("reasoning:"));
 }
 async function runJob(job: CareerJob, key:string, model:string): Promise<void> {
+  const provider = job.provider;
   const controller = new AbortController(); controllers.set(job.id, controller); startHeartbeat(job); let lastPersist=0;
   const persist = () => saveJob(job, true);
   const persistText = (text:string, thinking:string) => {
@@ -110,6 +113,8 @@ async function runJob(job: CareerJob, key:string, model:string): Promise<void> {
       void persist();
     }
   };
+  let synthesisStopReason: string | undefined;
+  let researchTruncated = false;
   try {
     if (job.kind === "interview") {
       // Interview streams cannot be continued after a worker restart. Clear
@@ -117,8 +122,8 @@ async function runJob(job: CareerJob, key:string, model:string): Promise<void> {
       // never displays the old partial followed by a duplicated new stream.
       startFreshReportStream(job);
       await persist();
-      const output = await streamProviderRequest(key,model,[{role:"user",content:interviewPrepPrompt(job.input.profile || "",job.input.cv || "",job.input.jd || "")}],controller.signal,false,persistText);
-      job.reportText = output.accumulatedText; job.usage = output.usage;
+      const output = await streamProviderRequest(provider,key,model,[{role:"user",content:interviewPrepPrompt(job.input.profile || "",job.input.cv || "",job.input.jd || "")}],controller.signal,false,persistText);
+      job.reportText = output.accumulatedText; job.usage = output.usage; synthesisStopReason = output.stopReason;
     } else {
       if (job.researchAvailable && !job.researchComplete) {
         job.stage="research";
@@ -131,7 +136,7 @@ async function runJob(job: CareerJob, key:string, model:string): Promise<void> {
         };
         const completed = await runResearchContinuation(
           initial,
-          messages => streamProviderRequest(key, model, messages, controller.signal, true, () => {}),
+          messages => streamProviderRequest(provider, key, model, messages, controller.signal, true, () => {}),
           {
             signal: controller.signal,
             onTurn: async state => {
@@ -151,20 +156,44 @@ async function runJob(job: CareerJob, key:string, model:string): Promise<void> {
         job.sources = completed.sources;
         job.warnings = completed.warnings;
         job.researchComplete = true;
+        researchTruncated = Boolean(completed.truncated);
         await persist();
       }
       job.stage="synthesis";
       startFreshReportStream(job);
       await persist();
-      const synthesis = await streamProviderRequest(key,model,[{ role:"user", content:companySynthesisPrompt(job.input.jd || "",job.findings,job.researchAvailable,job.input.cv || "",job.sources) }],controller.signal,false,persistText);
-      job.reportText = synthesis.accumulatedText; job.usage=synthesis.usage;
+      const synthesis = await streamProviderRequest(provider,key,model,[{ role:"user", content:companySynthesisPrompt(job.input.jd || "",job.findings,job.researchAvailable,job.input.cv || "",job.sources) }],controller.signal,false,persistText);
+      job.reportText = synthesis.accumulatedText; job.usage=synthesis.usage; synthesisStopReason = synthesis.stopReason;
     }
     job.validation = validateReport(job.reportText, job.kind, job.sources.map(s => s.id), !job.researchAvailable);
+    // The provider truncated a leg before it finished; reuse the existing
+    // "regenerate recommended" schema-finding path rather than adding a new
+    // UI affordance, since a truncated report may still have every heading
+    // present and pass structural validation otherwise.
+    if (researchTruncated) {
+      job.validation.findings = [...job.validation.findings, { kind:"schema", message:"Research reached the provider's token limit before finishing; findings may be incomplete — regenerate for fuller research." }];
+      job.validation.valid = false;
+    }
+    if (synthesisStopReason === "max_tokens") {
+      job.validation.findings = [...job.validation.findings, { kind:"schema", message:"Report was truncated at the provider's output token limit — regenerate for a complete report." }];
+      job.validation.valid = false;
+    }
     job.status="complete"; job.stage="complete";
   } catch (error) { job.status=controller.signal.aborted ? "cancelled" : "error"; job.error=error instanceof Error ? error.message : "Unknown provider error"; }
   finally { controllers.delete(job.id); stopHeartbeat(job.id); job.heartbeat=undefined; await persist(); }
 }
-async function settings() { return get<{ careerApiKey?:string; careerModel?:string; aiConsentGiven?:boolean }>(["careerApiKey","careerModel","aiConsentGiven"]); }
+async function settings() {
+  return get<{ careerProvider?:Provider; careerApiKey?:string; careerModel?:string; careerOpenAiApiKey?:string; careerOpenAiModel?:string; aiConsentGiven?:boolean }>(
+    ["careerProvider","careerApiKey","careerModel","careerOpenAiApiKey","careerOpenAiModel","aiConsentGiven"],
+  );
+}
+type Settings = Awaited<ReturnType<typeof settings>>;
+/** The active provider and its own key/model — never the other provider's. */
+function providerAuth(auth: Settings, provider: Provider): { key?:string; model:string } {
+  return provider === "openai"
+    ? { key:auth.careerOpenAiApiKey, model:auth.careerOpenAiModel || DEFAULT_MODEL.openai }
+    : { key:auth.careerApiKey, model:auth.careerModel || DEFAULT_MODEL.anthropic };
+}
 export async function handleCareerMessage(request: Record<string, unknown>, status:{ locked:boolean }): Promise<unknown> {
   if (!status.locked) return { ok:false, error:"Career Tools are unavailable until trusted storage is enabled." };
   if (request.action === "CAREER_LIST") return { ok:true, jobs:await readJobs() };
@@ -173,6 +202,9 @@ export async function handleCareerMessage(request: Record<string, unknown>, stat
   if (request.action === "ENSURE_JOB") {
     const job=await latest(String(request.id));
     if (!job) return { ok:false, error:"Report not found." };
+    // Jobs persisted before multi-provider support carry no provider field;
+    // they were always Anthropic.
+    job.provider = job.provider || "anthropic";
     if (jobNeedsResume(job, controllers.has(job.id))) {
       // A worker can disappear during a stream. The last complete research
       // assistant message is durable, so resume from it; an incomplete stream
@@ -181,28 +213,36 @@ export async function handleCareerMessage(request: Record<string, unknown>, stat
       job.error="The extension worker was interrupted; resuming from saved progress.";
       await saveJob(job);
       const auth=await settings();
-      if (!auth.careerApiKey) return { ok:true, job };
+      const { key, model } = providerAuth(auth, job.provider);
+      if (!key) return { ok:true, job };
       job.generation += 1;
       job.status="running";
       job.error=undefined;
       job.heartbeat=Date.now();
       await saveJob(job);
-      void runJob(job, auth.careerApiKey, auth.careerModel || DEFAULT_MODEL);
+      void runJob(job, key, model);
     }
     return { ok:true, job };
   }
-  const auth=await settings(); if (!auth.careerApiKey) return { ok:false, error:"Add an Anthropic API key first." };
-  const model=auth.careerModel || DEFAULT_MODEL;
+  const auth=await settings();
+  // Regenerate passes the job's own provider explicitly so a re-run never
+  // silently switches vendors just because the popup's global setting has
+  // since changed; a fresh job from the popup has no provider opinion of its
+  // own and falls through to the current global setting.
+  const requestedProvider = request.action === "CAREER_RUN" && (request.provider === "openai" || request.provider === "anthropic") ? request.provider as Provider : undefined;
+  const provider: Provider = requestedProvider || (auth.careerProvider === "openai" ? "openai" : "anthropic");
+  const { key, model } = providerAuth(auth, provider);
+  if (!key) return { ok:false, error:`Add an ${PROVIDER_LABEL[provider]} API key first.` };
   if (request.action === "CAREER_TEST") {
     if (!request.consent || !request.previewed || !auth.aiConsentGiven) return { ok:false, error:"Review the transmission preview, consent, and explicitly test the connection." };
-    const response=await streamProviderRequest(auth.careerApiKey,model,[{role:"user",content:"OK"}],new AbortController().signal,false,()=>{},true);
+    const response=await streamProviderRequest(provider,key,model,[{role:"user",content:"OK"}],new AbortController().signal,false,()=>{},true);
     return response.authenticated ? { ok:true } : { ok:false,error:"The provider did not establish an authenticated stream." };
   }
   if (request.action !== "CAREER_RUN" || !request.consent || !request.previewed || !auth.aiConsentGiven) return { ok:false, error:"Review the transmission preview and confirm consent before running." };
   const raw=(request.input || {}) as Record<string, unknown>; const kind=raw.kind === "company" ? "company" : "interview";
   const identity=kind === "company" ? normalizeResearchIdentity(raw) : null;
   const input=Object.fromEntries(Object.entries(raw).filter(([key]) => key !== "kind" && key !== "research").map(([key,value]) => [key,cleanText(value)]));
-  const job: CareerJob = { id:crypto.randomUUID(), kind, status:"queued", stage:kind === "company" && identity ? "research" : "synthesis", input, reportText:"", findings:"", sources:[], researchMessages:[], researchAvailable:Boolean(identity && raw.research !== false), warnings:identity || kind === "interview" ? [] : ["No valid LinkedIn company URL: no web research was performed."], generation:1, createdAt:Date.now() };
-  await saveJob(job); job.status="running"; job.heartbeat=Date.now(); await saveJob(job); void runJob(job,auth.careerApiKey,model);
+  const job: CareerJob = { id:crypto.randomUUID(), kind, status:"queued", stage:kind === "company" && identity ? "research" : "synthesis", provider, input, reportText:"", findings:"", sources:[], researchMessages:[], researchAvailable:Boolean(identity && raw.research !== false), warnings:identity || kind === "interview" ? [] : ["No valid LinkedIn company URL: no web research was performed."], generation:1, createdAt:Date.now() };
+  await saveJob(job); job.status="running"; job.heartbeat=Date.now(); await saveJob(job); void runJob(job,key,model);
   return { ok:true, jobId:job.id };
 }

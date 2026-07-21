@@ -2,14 +2,15 @@
   "manifest_version": 3,
   "name": "Career Connect",
   "version": "1.1.1",
-  "description": "Prepare LinkedIn invite drafts, plus optional AI interview prep and company research using your own Anthropic API key.",
+  "description": "Prepare LinkedIn invite drafts, plus optional AI interview prep and company research using your own Anthropic or OpenAI API key.",
   "permissions": [
     "activeTab",
     "storage"
   ],
   "host_permissions": [
     "https://www.linkedin.com/*",
-    "https://api.anthropic.com/*"
+    "https://api.anthropic.com/*",
+    "https://api.openai.com/*"
   ],
   "content_scripts": [
     {

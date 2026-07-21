@@ -12,7 +12,8 @@
   ],
   "host_permissions": [
     "<all_urls>",
-    "https://api.anthropic.com/*"
+    "https://api.anthropic.com/*",
+    "https://api.openai.com/*"
   ],
   "content_scripts": [
     {

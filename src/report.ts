@@ -7,6 +7,7 @@ type Job = {
   kind: "company" | "interview";
   status: string;
   stage: string;
+  provider: "anthropic" | "openai";
   reportText: string;
   error?: string;
   input: Record<string, string>;
@@ -206,8 +207,12 @@ document.querySelector<HTMLButtonElement>("#regenerate")!.onclick = async () => 
   const preview = current.kind === "company"
     ? `Research stage (no CV/JD): ${JSON.stringify({ companyName:current.input.companyName, companyNameSource:current.input.companyNameSource, companyUrl:current.input.companyUrl, companyUrlSource:current.input.companyUrlSource, title:current.input.title, titleSource:current.input.titleSource, seniority:current.input.seniority, senioritySource:current.input.senioritySource, location:current.input.location, locationSource:current.input.locationSource })}\n\nSynthesis stage (no web access): ${JSON.stringify({ cv:current.input.cv || "", jd:current.input.jd || "", jdSource:current.input.jdSource, research:"saved findings" })}`
     : JSON.stringify(current.input);
-  if (!window.confirm(`Transmission preview — regenerate will send the following saved data to Anthropic:\n\n${preview}\n\nContinue?`)) return;
-  const response = await chrome.runtime.sendMessage({ action:"CAREER_RUN", consent:true, previewed:true, input:{ kind:current.kind, ...current.input, research:current.researchAvailable } });
+  // Regenerating deliberately reuses the job's own provider, not whatever is
+  // currently selected in the popup, so a report never silently switches
+  // which vendor its data goes to on re-run.
+  const providerName = current.provider === "openai" ? "OpenAI" : "Anthropic";
+  if (!window.confirm(`Transmission preview — regenerate will send the following saved data to ${providerName} (the provider this report was created with):\n\n${preview}\n\nContinue?`)) return;
+  const response = await chrome.runtime.sendMessage({ action:"CAREER_RUN", consent:true, previewed:true, provider:current.provider, input:{ kind:current.kind, ...current.input, research:current.researchAvailable } });
   if (response.ok) location.replace(`report.html?job=${encodeURIComponent(response.jobId)}`);
   else status.textContent = response.error;
 };

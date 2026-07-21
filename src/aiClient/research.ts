@@ -6,6 +6,8 @@ export interface ResearchLoopState {
   findings: string;
   sources: CareerSource[];
   warnings: string[];
+  /** Set only when the provider's token limit ended research before end_turn; the caller decides how to surface it. */
+  truncated?: boolean;
 }
 
 /** Returns the exact provider-owned assistant turn required after pause_turn. */
@@ -72,7 +74,11 @@ export async function runResearchContinuation(
     };
     await options.onTurn?.(state);
     if (response.stopReason === "end_turn") return state;
-    if (response.stopReason === "max_tokens") throw new Error("Research reached its token limit; regenerate the report.");
+    // A token-limited research turn still has usable partial findings; end the
+    // loop like end_turn rather than failing the whole job, and let the
+    // caller surface the truncation the same way it surfaces a truncated
+    // synthesis leg instead of dead-ending the report.
+    if (response.stopReason === "max_tokens") return { ...state, truncated:true };
     if (response.stopReason !== "pause_turn") throw new Error(`Research stopped unexpectedly (${response.stopReason || "unknown"}).`);
   }
   throw new Error("Research paused too many times; regenerate the report.");

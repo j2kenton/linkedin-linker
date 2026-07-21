@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from "vitest";
 import { classifyUrl, extractableKind, STORE_CONTENT_SCRIPT_HOST } from "../src/pageDetect";
-import { StreamAssembler } from "../src/aiClient/streamAssembler";
-import { appendResearchContinuation, acceptsJobWrite, buildRequestBody, classifyProviderError, handleCareerMessage, initializeCareerTools, jobNeedsResume, normalizeResearchIdentity, publishCareerJob, retainJobsForStorage, runResearchContinuation, startFreshReportStream, subscribeCareerJob } from "../src/aiClient";
-import { sourceTable } from "../src/aiClient/research";
+import { StreamAssembler, OpenAIStreamAssembler } from "../src/aiClient/streamAssembler";
+import { streamProviderRequest } from "../src/aiClient/provider";
+import { appendResearchContinuation, acceptsJobWrite, buildRequestBody, buildOpenAIRequestBody, classifyProviderError, handleCareerMessage, initializeCareerTools, jobNeedsResume, normalizeResearchIdentity, publishCareerJob, retainJobsForStorage, runResearchContinuation, startFreshReportStream, subscribeCareerJob } from "../src/aiClient";
+import { sourceTable, toolResultWarnings } from "../src/aiClient/research";
 import { reconnectDelay } from "../src/report/reconnect";
 import { respondAfterCareerInitialization } from "../src/careerStatus";
 import { COMPANY_HEADINGS, ESTIMATE_TABLE } from "../src/prompts/common";
@@ -68,9 +69,12 @@ describe("Anthropic request and capability contracts", () => {
   });
 
   it("keeps Stage A capability errors distinct and legible", () => {
-    expect(classifyProviderError(400, "web_search tool is not supported by this model", true)).toContain("doesn't support web search");
-    expect(classifyProviderError(403, "permission_error: web search disabled for organization", true)).toContain("disabled for your Anthropic organization");
-    expect(classifyProviderError(400, "unexpected provider explanation", true)).toBe("Research request failed: unexpected provider explanation");
+    expect(classifyProviderError("anthropic", 400, "web_search tool is not supported by this model", true)).toContain("doesn't support web search");
+    expect(classifyProviderError("anthropic", 403, "permission_error: web search disabled for organization", true)).toContain("disabled for your Anthropic organization");
+    expect(classifyProviderError("anthropic", 400, "unexpected provider explanation", true)).toBe("Research request failed: unexpected provider explanation");
+    expect(classifyProviderError("anthropic", 401, "invalid key", false)).toBe("The Anthropic API key was rejected.");
+    expect(classifyProviderError("anthropic", 429, "", false)).toBe("Anthropic is rate-limiting this request; try again shortly.");
+    expect(classifyProviderError("anthropic", 503, "", false)).toBe("Anthropic is temporarily unavailable; try again shortly.");
   });
 
   it("uses exact canonical provider blocks in a pause_turn continuation request", () => {
@@ -79,6 +83,103 @@ describe("Anthropic request and capability contracts", () => {
     const body=buildRequestBody("claude-opus-4-8", continuation, true);
     const messages=body.messages as {role:string;content:unknown}[];
     expect(messages[messages.length - 1]).toEqual({role:"assistant",content:canonical});
+  });
+});
+
+describe("OpenAI request and capability contracts", () => {
+  it("pins Responses-API request bodies, reasoning summaries, and web_search wiring, and isolates the test probe", () => {
+    const report = buildOpenAIRequestBody("gpt-5.6-sol", [{ role:"user", content:"report" }], true);
+    expect(report).toMatchObject({ model:"gpt-5.6-sol", input:[{role:"user",content:"report"}], stream:true, reasoning:{summary:"auto"}, tools:[{type:"web_search",search_context_size:"medium"}], max_output_tokens:24000 });
+    expect(buildOpenAIRequestBody("model", [{role:"user",content:"OK"}], false, true)).toEqual({ model:"model", input:[{role:"user",content:"OK"}], max_output_tokens:16, stream:true, reasoning:{summary:"auto"} });
+  });
+
+  it("omits the reasoning parameter on request when the one-shot retry flag is set", () => {
+    const body = buildOpenAIRequestBody("model", [{role:"user",content:"OK"}], false, false, true);
+    expect(body.reasoning).toBeUndefined();
+  });
+
+  it("flattens a persisted assistant turn's provider-shaped content blocks to plain text for the Responses API", () => {
+    // A crash-resumed OpenAI research job replays its last persisted
+    // messages, which include an appended assistant turn shaped like the
+    // Anthropic pause_turn contract (text/thinking/tool blocks). Those
+    // blocks aren't valid Responses API input items, so the request builder
+    // must flatten them to text rather than resend them verbatim.
+    const canonical=[{type:"thinking",thinking:"reasoned"},{type:"server_tool_use",name:"web_search",input:{query:"Acme"}},{type:"web_search_tool_result",content:{}},{type:"text",text:"Acme facts"}];
+    const body=buildOpenAIRequestBody("model", [{role:"user",content:"research"},{role:"assistant",content:canonical}], true);
+    expect(body.input).toEqual([{role:"user",content:"research"},{role:"assistant",content:"Acme facts"}]);
+  });
+
+  it("keeps Stage A capability errors distinct and legible, naming OpenAI", () => {
+    expect(classifyProviderError("openai", 400, "This model does not support the web_search tool", true)).toContain("doesn't support web search");
+    expect(classifyProviderError("openai", 403, "Your organization must be verified to use web search", true)).toContain("disabled for your OpenAI organization");
+    expect(classifyProviderError("openai", 400, "unexpected provider explanation", true)).toBe("Research request failed: unexpected provider explanation");
+    expect(classifyProviderError("openai", 401, "invalid key", false)).toBe("The OpenAI API key was rejected.");
+    expect(classifyProviderError("openai", 429, "", false)).toBe("OpenAI is rate-limiting this request; try again shortly.");
+    expect(classifyProviderError("openai", 503, "", false)).toBe("OpenAI is temporarily unavailable; try again shortly.");
+  });
+});
+
+describe("OpenAI Responses stream assembly", () => {
+  it("assembles text, citations, and reasoning summaries into the shared AssembledStream shape", () => {
+    const a = new OpenAIStreamAssembler();
+    a.apply({ type:"response.created" });
+    a.apply({ type:"response.output_item.added", output_index:0, item:{ type:"reasoning" } });
+    a.apply({ type:"response.reasoning_summary_text.delta", output_index:0, delta:"thinking it through" });
+    a.apply({ type:"response.output_item.added", output_index:1, item:{ type:"message" } });
+    a.apply({ type:"response.output_text.delta", output_index:1, delta:"Fact" });
+    a.apply({ type:"response.output_text.annotation.added", output_index:1, annotation:{ type:"url_citation", url:"https://example.test/source", title:"Source" } });
+    a.apply({ type:"response.completed", response:{ status:"completed", usage:{ output_tokens:5 } } });
+    const result = a.result();
+    expect(result).toEqual(expect.objectContaining({
+      accumulatedText:"Fact",
+      stopReason:"end_turn",
+      complete:true,
+      usage:{ output_tokens:5 },
+      content:[
+        { type:"thinking", thinking:"thinking it through" },
+        { type:"text", text:"Fact", citations:[{ url:"https://example.test/source", title:"Source", cited_text:undefined }] },
+      ],
+    }));
+    // The mapped citation shape must feed the existing sourceTable contract unmodified.
+    expect(sourceTable(result.content)).toEqual([{ id:"S1", url:"https://example.test/source", title:"Source", citedText:undefined }]);
+  });
+
+  it("derives citedText from the annotation's start/end offsets into the streamed text", () => {
+    const a = new OpenAIStreamAssembler();
+    a.apply({ type:"response.output_item.added", output_index:0, item:{ type:"message" } });
+    a.apply({ type:"response.output_text.delta", output_index:0, delta:"Acme raised $20M in funding." });
+    a.apply({ type:"response.output_text.annotation.added", output_index:0, annotation:{ type:"url_citation", url:"https://example.test/source", title:"Source", start_index:5, end_index:27 } });
+    expect(sourceTable(a.result().content)).toEqual([{ id:"S1", url:"https://example.test/source", title:"Source", citedText:"raised $20M in funding" }]);
+  });
+
+  it("maps response.incomplete/max_output_tokens onto the shared max_tokens stop reason", () => {
+    const a = new OpenAIStreamAssembler();
+    a.apply({ type:"response.output_item.added", output_index:0, item:{ type:"message" } });
+    a.apply({ type:"response.output_text.delta", output_index:0, delta:"partial" });
+    a.apply({ type:"response.incomplete", response:{ status:"incomplete", incomplete_details:{ reason:"max_output_tokens" } } });
+    expect(a.result()).toEqual(expect.objectContaining({ stopReason:"max_tokens", complete:true, accumulatedText:"partial" }));
+  });
+
+  it("emits a web_search_tool_result warning block for a failed OpenAI web search call, reusing the existing warning contract", () => {
+    const a = new OpenAIStreamAssembler();
+    a.apply({ type:"response.output_item.added", output_index:0, item:{ type:"web_search_call" } });
+    a.apply({ type:"response.output_item.done", output_index:0, item:{ type:"web_search_call", status:"failed", error:{ code:"search_unavailable" } } });
+    a.apply({ type:"response.completed", response:{ status:"completed" } });
+    expect(toolResultWarnings(a.result().content)).toEqual(["Web research was partially unavailable: search_unavailable."]);
+  });
+
+  it("fails closed if a delta arrives before its item starts", () => {
+    const a = new OpenAIStreamAssembler();
+    expect(() => a.apply({ type:"response.output_text.delta", output_index:0, delta:"x" })).toThrow("before item start");
+  });
+
+  it("fails closed on an unrecognized delta event instead of silently dropping its content", () => {
+    // Mirrors StreamAssembler's fail-closed handling of unsupported
+    // content-block deltas: a delta event this assembler doesn't know how
+    // to fold into a block must be surfaced, not swallowed as a
+    // forward-compatible no-op.
+    const a = new OpenAIStreamAssembler();
+    expect(() => a.apply({ type:"response.function_call_arguments.delta", output_index:0, delta:"x" })).toThrow("can't safely replay");
   });
 });
 
@@ -332,6 +433,54 @@ describe("report page rendering", () => {
       Object.defineProperty(globalThis, "chrome", { configurable: true, value: originalChrome });
     }
   });
+
+  it("regenerate names and resends the job's own provider, not the current popup setting", async () => {
+    document.body.innerHTML = `<p id="status"></p><p id="reasoning" hidden></p><button id="copy"></button><button id="regenerate"></button><button id="cancel"></button><div id="disclaimer" hidden></div><div id="issues" hidden></div><section id="sectionCopy"></section><article id="report"></article><section id="sources" hidden><div id="sourceList"></div></section>`;
+
+    const originalUrl = location.href;
+    const originalChrome = globalThis.chrome;
+    history.pushState({}, "", "/report.html?job=openai-job");
+    let onMessage: ((message: unknown) => void) | undefined;
+    const port = {
+      onMessage: { addListener: (fn: (message: unknown) => void) => { onMessage = fn; } },
+      onDisconnect: { addListener: vi.fn() },
+      postMessage: vi.fn(),
+    };
+    // Never resolves ok:true here — this test only cares what regenerate asks
+    // for, not the subsequent navigation to the new report.
+    const sendMessage = vi.fn().mockResolvedValue({ ok:false, error:"stopped for the test" });
+    Object.defineProperty(globalThis, "chrome", { configurable: true, value: {
+      runtime: { connect: vi.fn().mockReturnValue(port), sendMessage },
+    }});
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    try {
+      // A fresh module instance is required because this file already
+      // imported "../src/report" once above; reusing that cached instance
+      // would keep pointing at the earlier test's job id and port.
+      vi.resetModules();
+      await import("../src/report");
+      expect(onMessage).toBeDefined();
+
+      onMessage!({ type: "CAREER_JOB", job: {
+        id: "openai-job", kind: "interview", status: "complete", stage: "", provider: "openai",
+        reportText: "report", input: { profile:"p" }, sources: [], researchAvailable: false,
+      } });
+
+      document.querySelector<HTMLButtonElement>("#regenerate")!.click();
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      expect(confirmSpy).toHaveBeenCalledTimes(1);
+      const confirmText = String(confirmSpy.mock.calls[0][0]);
+      expect(confirmText).toContain("OpenAI");
+      expect(confirmText).toContain("the provider this report was created with");
+      expect(sendMessage).toHaveBeenCalledWith(expect.objectContaining({ action:"CAREER_RUN", provider:"openai" }));
+    } finally {
+      history.pushState({}, "", originalUrl);
+      Object.defineProperty(globalThis, "chrome", { configurable: true, value: originalChrome });
+      confirmSpy.mockRestore();
+    }
+  });
 });
 
 describe("durable job lifecycle guards", () => {
@@ -354,9 +503,9 @@ describe("durable job lifecycle guards", () => {
   it("pushes live report updates without making the report page own job execution", () => {
     const received: string[] = [];
     const unsubscribe = subscribeCareerJob("live-job", job => received.push(job.reportText));
-    publishCareerJob({ id:"live-job", kind:"interview", status:"running", stage:"synthesis", input:{}, reportText:"first delta", findings:"", sources:[], researchMessages:[], researchAvailable:false, warnings:[], generation:1, createdAt:1 });
+    publishCareerJob({ id:"live-job", kind:"interview", status:"running", stage:"synthesis", provider:"anthropic", input:{}, reportText:"first delta", findings:"", sources:[], researchMessages:[], researchAvailable:false, warnings:[], generation:1, createdAt:1 });
     unsubscribe();
-    publishCareerJob({ id:"live-job", kind:"interview", status:"running", stage:"synthesis", input:{}, reportText:"second delta", findings:"", sources:[], researchMessages:[], researchAvailable:false, warnings:[], generation:1, createdAt:1 });
+    publishCareerJob({ id:"live-job", kind:"interview", status:"running", stage:"synthesis", provider:"anthropic", input:{}, reportText:"second delta", findings:"", sources:[], researchMessages:[], researchAvailable:false, warnings:[], generation:1, createdAt:1 });
     expect(received).toEqual(["first delta"]);
   });
 
@@ -407,6 +556,12 @@ describe("pause_turn continuation lifecycle", () => {
     expect(result.warnings).toEqual(["Web research was partially unavailable: max_uses_exceeded."]);
   });
 
+  it("ends the loop like end_turn when the provider hits its token limit, flagging the state as truncated", async () => {
+    const result=await runResearchContinuation(initial, async () => ({content:[{type:"text",text:"partial"}],accumulatedText:"partial",stopReason:"max_tokens",complete:true}), {signal:new AbortController().signal});
+    expect(result.findings).toBe("partial");
+    expect(result.truncated).toBe(true);
+  });
+
   it("bounds pauses, stops after cancellation, and never replays incomplete streams", async () => {
     let boundedCalls=0;
     await expect(runResearchContinuation(initial, async () => { boundedCalls += 1; return turn("pause_turn","x"); }, {signal:new AbortController().signal,maxTurns:2})).rejects.toThrow("paused too many times");
@@ -423,7 +578,7 @@ describe("pause_turn continuation lifecycle", () => {
 });
 
 describe("durable company-job orchestration", () => {
-  const sseResponse = (text:string, stopReason:"end_turn"|"pause_turn" = "end_turn") => new Response([
+  const sseResponse = (text:string, stopReason:"end_turn"|"pause_turn"|"max_tokens" = "end_turn") => new Response([
     `data: ${JSON.stringify({type:"message_start"})}\n\n`,
     `data: ${JSON.stringify({type:"content_block_start",index:0,content_block:{type:"text",text:""}})}\n\n`,
     `data: ${JSON.stringify({type:"content_block_delta",index:0,delta:{type:"text_delta",text}})}\n\n`,
@@ -492,6 +647,21 @@ describe("durable company-job orchestration", () => {
     expect(synthesisPrompt).toContain("S1: Acme funding news — https://example.test/acme-funding");
   });
 
+  it("surfaces research-leg truncation as a regenerate-recommended finding and still proceeds to synthesis", async () => {
+    const memory=installChromeStorage({careerApiKey:"key",aiConsentGiven:true});
+    const fetchMock=vi.fn().mockResolvedValueOnce(sseResponse("partial research","max_tokens")).mockResolvedValueOnce(sseResponse("report"));
+    vi.stubGlobal("fetch",fetchMock);
+    await handleCareerMessage({action:"CAREER_RUN",consent:true,previewed:true,input:{kind:"company",companyName:"Acme",companyUrl:"https://linkedin.com/company/acme",title:"Engineer",cv:"CV",jd:"JD"}},{locked:true});
+    const job=await waitForTerminal(memory);
+    expect(job.status).toBe("complete");
+    expect(job.researchComplete).toBe(true);
+    expect(job.findings).toBe("partial research");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const validation=job.validation as {valid:boolean; findings:{kind:string; message:string}[]};
+    expect(validation.valid).toBe(false);
+    expect(validation.findings).toContainEqual({kind:"schema", message:"Research reached the provider's token limit before finishing; findings may be incomplete — regenerate for fuller research."});
+  });
+
   it("skips research for Stage-B-only jobs while retaining the manual snapshot", async () => {
     const memory=installChromeStorage({careerApiKey:"key",aiConsentGiven:true});
     const fetchMock=vi.fn().mockResolvedValueOnce(sseResponse("report"));
@@ -541,6 +711,133 @@ describe("durable company-job orchestration", () => {
     expect(job.warnings).not.toContain("reasoning:stale thought");
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
+
+  const openaiSseResponse = (text:string, status:"completed"|"incomplete" = "completed") => new Response([
+    `data: ${JSON.stringify({type:"response.created"})}\n\n`,
+    `data: ${JSON.stringify({type:"response.output_item.added",output_index:0,item:{type:"message"}})}\n\n`,
+    `data: ${JSON.stringify({type:"response.output_text.delta",output_index:0,delta:text})}\n\n`,
+    `data: ${JSON.stringify({type:"response.output_item.done",output_index:0,item:{type:"message"}})}\n\n`,
+    `data: ${JSON.stringify(status === "completed" ? {type:"response.completed",response:{status:"completed"}} : {type:"response.incomplete",response:{status:"incomplete",incomplete_details:{reason:"max_output_tokens"}}})}\n\n`,
+  ].join(""), {status:200});
+
+  it("runs an OpenAI-provider job end-to-end through the Responses API's input mapping, stamping the job's provider", async () => {
+    const memory=installChromeStorage({careerProvider:"openai",careerOpenAiApiKey:"key",aiConsentGiven:true});
+    const fetchMock=vi.fn().mockResolvedValueOnce(openaiSseResponse("OpenAI interview report"));
+    vi.stubGlobal("fetch",fetchMock);
+    await handleCareerMessage({action:"CAREER_RUN",consent:true,previewed:true,input:{kind:"interview",profile:"Profile",cv:"CV",jd:"JD"}},{locked:true});
+    const job=await waitForTerminal(memory);
+    expect(job.status).toBe("complete");
+    expect(job.provider).toBe("openai");
+    expect(job.reportText).toBe("OpenAI interview report");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("https://api.openai.com/v1/responses");
+    expect(init.headers.authorization).toBe("Bearer key");
+    const body = JSON.parse(init.body);
+    expect(body.input).toEqual([{role:"user",content:expect.stringContaining("Profile")}]);
+    expect(body.tools).toBeUndefined();
+  });
+
+  it("degrades gracefully — a no-web-search-support OpenAI model still completes company research with the existing no-research warning path", async () => {
+    const memory=installChromeStorage({careerProvider:"openai",careerOpenAiApiKey:"key",aiConsentGiven:true});
+    const fetchMock=vi.fn().mockResolvedValueOnce(openaiSseResponse("Stage-B-only report"));
+    vi.stubGlobal("fetch",fetchMock);
+    await handleCareerMessage({action:"CAREER_RUN",consent:true,previewed:true,input:{kind:"company",companyName:"Acme",companyUrl:"",title:"Engineer",cv:"CV",jd:"JD",research:false}},{locked:true});
+    const job=await waitForTerminal(memory);
+    expect(job.status).toBe("complete");
+    expect(job.provider).toBe("openai");
+    expect(job.researchAvailable).toBe(false);
+    expect(job.warnings).toContain("No valid LinkedIn company URL: no web research was performed.");
+  });
+
+  it("resumes an interrupted job with the provider it was created under, even if the global setting has since changed", async () => {
+    const interruptedOpenAiJob = {
+      id:"interrupted-openai",
+      kind:"interview",
+      status:"running",
+      stage:"synthesis",
+      provider:"openai",
+      input:{ profile:"Profile", cv:"CV", jd:"JD" },
+      reportText:"stale partial",
+      findings:"",
+      sources:[],
+      researchMessages:[],
+      researchAvailable:false,
+      warnings:[],
+      generation:1,
+      heartbeat:0,
+      createdAt:1,
+    };
+    // The global setting has since been switched back to Anthropic, but the
+    // resumed job must keep using the OpenAI key/model it was created with.
+    const memory=installChromeStorage({
+      careerProvider:"anthropic",
+      careerApiKey:"anthropic-key",
+      careerOpenAiApiKey:"openai-key",
+      aiConsentGiven:true,
+      careerToolJobs:[interruptedOpenAiJob],
+    });
+    const fetchMock=vi.fn().mockResolvedValueOnce(openaiSseResponse("resumed openai report"));
+    vi.stubGlobal("fetch",fetchMock);
+    await handleCareerMessage({action:"ENSURE_JOB",id:interruptedOpenAiJob.id},{locked:true});
+    const job=await waitForTerminal(memory);
+    expect(job.status).toBe("complete");
+    expect(job.provider).toBe("openai");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][0]).toBe("https://api.openai.com/v1/responses");
+    expect(fetchMock.mock.calls[0][1].headers.authorization).toBe("Bearer openai-key");
+  });
+
+  it("surfaces synthesis-leg truncation as a regenerate-recommended finding instead of silently returning a partial report", async () => {
+    const memory=installChromeStorage({careerProvider:"openai",careerOpenAiApiKey:"key",aiConsentGiven:true});
+    const fetchMock=vi.fn().mockResolvedValueOnce(openaiSseResponse("Truncated interview report","incomplete"));
+    vi.stubGlobal("fetch",fetchMock);
+    await handleCareerMessage({action:"CAREER_RUN",consent:true,previewed:true,input:{kind:"interview",profile:"Profile",cv:"CV",jd:"JD"}},{locked:true});
+    const job=await waitForTerminal(memory);
+    expect(job.status).toBe("complete");
+    expect(job.reportText).toBe("Truncated interview report");
+    const validation=job.validation as {valid:boolean; findings:{kind:string; message:string}[]};
+    expect(validation.valid).toBe(false);
+    expect(validation.findings).toContainEqual({kind:"schema", message:"Report was truncated at the provider's output token limit — regenerate for a complete report."});
+  });
+
+  it("honors an explicit CAREER_RUN provider (as report.ts sends on regenerate) over the current global setting", async () => {
+    // The global setting has since been switched to Anthropic, but regenerate
+    // asks to keep using the OpenAI key/model the original report was created with.
+    const memory=installChromeStorage({
+      careerProvider:"anthropic",
+      careerApiKey:"anthropic-key",
+      careerOpenAiApiKey:"openai-key",
+      aiConsentGiven:true,
+    });
+    const fetchMock=vi.fn().mockResolvedValueOnce(openaiSseResponse("regenerated openai report"));
+    vi.stubGlobal("fetch",fetchMock);
+    await handleCareerMessage({action:"CAREER_RUN",consent:true,previewed:true,provider:"openai",input:{kind:"interview",profile:"Profile",cv:"CV",jd:"JD"}},{locked:true});
+    const job=await waitForTerminal(memory);
+    expect(job.status).toBe("complete");
+    expect(job.provider).toBe("openai");
+    expect(fetchMock.mock.calls[0][0]).toBe("https://api.openai.com/v1/responses");
+    expect(fetchMock.mock.calls[0][1].headers.authorization).toBe("Bearer openai-key");
+  });
+});
+
+describe("OpenAI reasoning-rejection retry", () => {
+  it("retries once without the reasoning parameter on a pre-stream 400 that rejects it, then reuses that decision on the next call", async () => {
+    const rejection = new Response("reasoning summaries are not supported for this model", {status:400});
+    const success = new Response([
+      `data: ${JSON.stringify({type:"response.created"})}\n\n`,
+      `data: ${JSON.stringify({type:"response.output_item.added",output_index:0,item:{type:"message"}})}\n\n`,
+      `data: ${JSON.stringify({type:"response.output_text.delta",output_index:0,delta:"ok"})}\n\n`,
+      `data: ${JSON.stringify({type:"response.completed",response:{status:"completed"}})}\n\n`,
+    ].join(""), {status:200});
+    const fetchMock=vi.fn().mockResolvedValueOnce(rejection).mockResolvedValueOnce(success);
+    vi.stubGlobal("fetch",fetchMock);
+    const result=await streamProviderRequest("openai","key","model",[{role:"user",content:"hi"}],new AbortController().signal,false,()=>{});
+    expect(result.accumulatedText).toBe("ok");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).reasoning).toEqual({summary:"auto"});
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body).reasoning).toBeUndefined();
+  });
 });
 
 describe("store popup mode separation", () => {
@@ -565,7 +862,7 @@ describe("career tools panel — inline feedback, per-field clear, page-aware ex
   const popupStoreSource = readFileSync(fileURLToPath(new NodeUrl("../src/popup.store.ts", import.meta.url)), "utf8");
   const popupSource = readFileSync(fileURLToPath(new NodeUrl("../src/popup.ts", import.meta.url)), "utf8");
 
-  const CLEARABLE_FIELDS = ["careerApiKey", "careerCv", "careerJd", "careerProfile", "careerCompanyName", "careerCompanyUrl", "careerJobTitle", "careerSeniority", "careerLocation", "careerJobDescription"];
+  const CLEARABLE_FIELDS = ["careerApiKey", "careerOpenAiApiKey", "careerCv", "careerJd", "careerProfile", "careerCompanyName", "careerCompanyUrl", "careerJobTitle", "careerSeniority", "careerLocation", "careerJobDescription"];
 
   it("gives every clearable field its own Clear button instead of one combined delete-saved row", () => {
     for (const html of [popupStoreHtml, popupHtml]) {
@@ -575,6 +872,28 @@ describe("career tools panel — inline feedback, per-field clear, page-aware ex
         expect(document.querySelector(`.career-clear[data-key="${id}"]`)).not.toBeNull();
       }
       expect(document.getElementById("clearReportsButton")).not.toBeNull();
+    }
+  });
+
+  it("offers an Anthropic/OpenAI provider selector with per-provider key and model fields, both wired for save/clear", () => {
+    for (const html of [popupStoreHtml, popupHtml]) {
+      document.body.innerHTML = html;
+      const providerSelect = document.getElementById("careerProvider") as HTMLSelectElement;
+      expect(providerSelect).not.toBeNull();
+      expect([...providerSelect.options].map(o => o.value)).toEqual(["anthropic", "openai"]);
+      expect(document.getElementById("anthropicProviderFields")).not.toBeNull();
+      expect(document.getElementById("openaiProviderFields")!.hidden).toBe(true);
+      expect(document.getElementById("careerApiKey")).not.toBeNull();
+      expect(document.getElementById("careerOpenAiApiKey")).not.toBeNull();
+      expect(document.getElementById("careerModel")).not.toBeNull();
+      expect(document.getElementById("careerOpenAiModel")).not.toBeNull();
+      expect(document.getElementById("careerOpenAiModelWarning")).not.toBeNull();
+      expect(document.getElementById("careerConsentProvider")).not.toBeNull();
+    }
+    for (const source of [popupStoreSource, popupSource]) {
+      expect(source).toContain("updateProviderUI");
+      expect(source).toContain("careerOpenAiApiKey");
+      expect(source).toContain("careerOpenAiModel");
     }
   });
 

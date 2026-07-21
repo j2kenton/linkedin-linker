@@ -320,8 +320,8 @@ document.addEventListener("DOMContentLoaded", function (): void {
 });
 
 // Career Tools. Available in both builds; consent-gated, requires the
-// user's own Anthropic API key, and never sends data without an explicit
-// per-run action after reviewing a transmission preview.
+// user's own Anthropic or OpenAI API key, and never sends data without an
+// explicit per-run action after reviewing a transmission preview.
 type CareerExtraction = Record<string, unknown> & { ready?: boolean; warnings?: { field?: string; message: string }[] };
 const careerGet = <T>(keys: string[]) => new Promise<T>(resolve => chrome.storage.local.get(keys, resolve as (items: object) => void));
 const careerSet = (items: object) => new Promise<void>((resolve, reject) => chrome.storage.local.set(items, () => chrome.runtime.lastError ? reject(chrome.runtime.lastError) : resolve()));
@@ -341,8 +341,24 @@ document.addEventListener("DOMContentLoaded", () => {
   const tools = careerElement<HTMLElement>("careerTools"); const hint = careerElement<HTMLElement>("careerHint");
   const profileFields = careerElement<HTMLElement>("profileCareerFields"); const jobFields = careerElement<HTMLElement>("jobCareerFields");
   const consent = careerElement<HTMLInputElement>("careerConsent");
-  const inputIds = ["careerApiKey", "careerModel", "careerCv", "careerJd", "careerProfile", "careerCompanyName", "careerCompanyUrl", "careerJobTitle", "careerSeniority", "careerLocation", "careerJobDescription"];
+  const inputIds = ["careerProvider", "careerApiKey", "careerModel", "careerOpenAiApiKey", "careerOpenAiModel", "careerCv", "careerJd", "careerProfile", "careerCompanyName", "careerCompanyUrl", "careerJobTitle", "careerSeniority", "careerLocation", "careerJobDescription"];
   const field = (id: string) => careerElement<HTMLInputElement | HTMLTextAreaElement>(id);
+
+  // Both providers' keys/models are stored under separate keys (per-provider
+  // DEFAULT_MODEL in src/aiClient/provider.ts) so switching providers never
+  // wipes the other one's saved credentials — the popup just swaps which
+  // field pair is visible.
+  const providerSelect = careerElement<HTMLSelectElement>("careerProvider");
+  const currentProvider = (): "anthropic" | "openai" => providerSelect.value === "openai" ? "openai" : "anthropic";
+  const providerLabel = (provider: "anthropic" | "openai") => provider === "openai" ? "OpenAI" : "Anthropic";
+  const currentProviderModel = () => currentProvider() === "openai" ? field("careerOpenAiModel").value : field("careerModel").value;
+  const updateProviderUI = () => {
+    const provider = currentProvider();
+    careerElement<HTMLElement>("anthropicProviderFields").hidden = provider !== "anthropic";
+    careerElement<HTMLElement>("openaiProviderFields").hidden = provider !== "openai";
+    careerElement<HTMLElement>("careerConsentProvider").textContent = providerLabel(provider);
+    careerElement<HTMLElement>("careerProviderIntro").textContent = `Profile and resume content is sent to ${providerLabel(provider)} only after you review the transmission preview and choose an action.`;
+  };
 
   // Inline, per-control feedback replaces the old single bottom-of-panel
   // status line: results render next to the action that produced them, and
@@ -388,11 +404,12 @@ document.addEventListener("DOMContentLoaded", () => {
     preview.hidden=false; preview.open=true;
     const isCompany = payload.kind === "company";
     const researchAvailable = payload.research !== false && /^https:\/\/(www\.)?linkedin\.com\/company\/[^/?#]+\/?$/i.test(String(payload.companyUrl || ""));
+    const provider = providerLabel(currentProvider());
     previewText.textContent = isCompany
       ? researchAvailable
-        ? `Research stage (web search; no CV or JD):\n${JSON.stringify({companyName:payload.companyName, companyNameSource:payload.companyNameSource, companyUrl:payload.companyUrl, companyUrlSource:payload.companyUrlSource, title:payload.title, titleSource:payload.titleSource, seniority:payload.seniority, senioritySource:payload.senioritySource, location:payload.location, locationSource:payload.locationSource}, null, 2)}\n\nSynthesis stage (no web access):\n${JSON.stringify({cv:payload.cv || "", jd:payload.jd || "", jdSource:payload.jdSource, research: "research findings"}, null, 2)}\n\nWeb-search results are processed server-side by Anthropic. Each field above is labeled by its "…Source" value as either "extracted" (read from the LinkedIn page) or "manual" (typed or pasted by you).`
+        ? `Research stage (web search; no CV or JD):\n${JSON.stringify({companyName:payload.companyName, companyNameSource:payload.companyNameSource, companyUrl:payload.companyUrl, companyUrlSource:payload.companyUrlSource, title:payload.title, titleSource:payload.titleSource, seniority:payload.seniority, senioritySource:payload.senioritySource, location:payload.location, locationSource:payload.locationSource}, null, 2)}\n\nSynthesis stage (no web access):\n${JSON.stringify({cv:payload.cv || "", jd:payload.jd || "", jdSource:payload.jdSource, research: "research findings"}, null, 2)}\n\nWeb-search results are processed server-side by ${provider}. Each field above is labeled by its "…Source" value as either "extracted" (read from the LinkedIn page) or "manual" (typed or pasted by you).`
         : `No web research will occur. A valid LinkedIn company URL is required for the research stage.\n\nSynthesis stage (no web access):\n${JSON.stringify({companyName:payload.companyName, companyNameSource:payload.companyNameSource, title:payload.title, titleSource:payload.titleSource, seniority:payload.seniority, senioritySource:payload.senioritySource, location:payload.location, locationSource:payload.locationSource, cv:payload.cv || "", jd:payload.jd || "", jdSource:payload.jdSource}, null, 2)}`
-      : `${label} sent to Anthropic (no web access):\n${JSON.stringify(payload, null, 2)}\n\n"profileSource" is "extracted" (read from the LinkedIn page) or "manual" (typed or pasted by you).`;
+      : `${label} sent to ${provider} (no web access):\n${JSON.stringify(payload, null, 2)}\n\n"profileSource" is "extracted" (read from the LinkedIn page) or "manual" (typed or pasted by you).`;
   };
   careerElement<HTMLButtonElement>("careerPreviewConfirm").onclick = async () => {
     if (!approvedAction) return;
@@ -406,7 +423,10 @@ document.addEventListener("DOMContentLoaded", () => {
   };
   const run = async (input: Record<string, unknown>) => {
     if (!requireCareerReady()) return;
-    await careerSet({ careerApiKey:field("careerApiKey").value, careerModel:field("careerModel").value, aiConsentGiven:true });
+    const provider = currentProvider();
+    await careerSet(provider === "openai"
+      ? { careerProvider:provider, careerOpenAiApiKey:field("careerOpenAiApiKey").value, careerOpenAiModel:field("careerOpenAiModel").value, aiConsentGiven:true }
+      : { careerProvider:provider, careerApiKey:field("careerApiKey").value, careerModel:field("careerModel").value, aiConsentGiven:true });
     const response = await chrome.runtime.sendMessage({ action:"CAREER_RUN", consent:true, previewed:true, input });
     if (!response.ok) { setResult("careerPreviewResult", response.error, "error"); return; }
     chrome.tabs.create({ url: chrome.runtime.getURL(`report.html?job=${encodeURIComponent(response.jobId)}`) });
@@ -536,11 +556,17 @@ document.addEventListener("DOMContentLoaded", () => {
     const updateResearchState = () => { const valid=/^https:\/\/(www\.)?linkedin\.com\/company\/[^/?#]+\/?$/i.test(field("careerCompanyUrl").value); const state=careerElement<HTMLElement>("careerResearchState"); state.textContent=valid ? "Web research available." : "Web research unavailable — supply the company's LinkedIn URL to enable it. You can still run a no-research report."; };
     field("careerCompanyUrl").addEventListener("input", updateResearchState); updateResearchState();
     const known=["claude-opus-4-8", "claude-sonnet-4-5"]; const modelWarning=careerElement<HTMLElement>("careerModelWarning"); const updateModelWarning=()=>modelWarning.hidden=known.includes(field("careerModel").value.trim()); field("careerModel").addEventListener("input",updateModelWarning); updateModelWarning();
+    const knownOpenAi=["gpt-5.6", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna"]; const openAiModelWarning=careerElement<HTMLElement>("careerOpenAiModelWarning"); const updateOpenAiModelWarning=()=>openAiModelWarning.hidden=knownOpenAi.includes(field("careerOpenAiModel").value.trim()); field("careerOpenAiModel").addEventListener("input",updateOpenAiModelWarning); updateOpenAiModelWarning();
+    updateProviderUI();
+    providerSelect.addEventListener("change", updateProviderUI);
   }).catch(() => { hint.textContent="Career Tools service is not ready. Reload the extension."; });
   careerElement<HTMLButtonElement>("careerTestButton").onclick = () => {
     if (!requireCareerReady()) return;
-    showPreview("Test connection", { model:field("careerModel").value, prompt:"OK", max_tokens:16 }, async () => {
-      await careerSet({ careerApiKey:field("careerApiKey").value, careerModel:field("careerModel").value, aiConsentGiven:true });
+    const provider = currentProvider();
+    showPreview("Test connection", { model:currentProviderModel(), prompt:"OK", max_tokens:16 }, async () => {
+      await careerSet(provider === "openai"
+        ? { careerProvider:provider, careerOpenAiApiKey:field("careerOpenAiApiKey").value, careerOpenAiModel:field("careerOpenAiModel").value, aiConsentGiven:true }
+        : { careerProvider:provider, careerApiKey:field("careerApiKey").value, careerModel:field("careerModel").value, aiConsentGiven:true });
       const result = await chrome.runtime.sendMessage({ action:"CAREER_TEST", consent:true, previewed:true });
       setResult("careerPreviewResult", result.ok ? "Connection authenticated." : result.error, result.ok ? "success" : "error");
     }, "Testing connection…");
