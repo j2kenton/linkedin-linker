@@ -1,152 +1,139 @@
 # Career Connect
 
-## [Install from the Chrome Web Store](https://chromewebstore.google.com/detail/linkedin-connection-assis/poedmlfffaldgihhpffkbknjegmkpclj)
+## Turn LinkedIn research into better conversations
 
----
+[Install the Chrome Web Store build](https://chromewebstore.google.com/detail/linkedin-connection-assis/poedmlfffaldgihhpffkbknjegmkpclj)
 
-This repository contains two Chrome extension builds from one codebase:
+Career Connect is a Chrome extension for the part of networking that normally becomes a tedious collection of tabs, copy-and-paste, and half-finished notes.
 
-| | Developer build | Store build |
+It helps you:
+
+- find relevant LinkedIn people with precise search criteria;
+- prepare personalized connection invites at scale;
+- research a company and role before an interview; and
+- turn a public professional profile, your CV, and a job description into practical interview preparation.
+
+The result is a focused workflow from **discover → understand → reach out**. It keeps the human in control of the final message and the final decision.
+
+![Career Connect side panel](assets/screenshots/screenshot-1.png)
+
+![Connection workflow with Test Mode and Live Mode](assets/screenshots/screenshot-2.png)
+
+## One workflow for the work around networking
+
+Networking usually means moving between search results, profiles, job descriptions, notes, and interview preparation. Career Connect brings those moments into the browser tab where the research is happening.
+
+### A product with two deliberately different experiences
+
+The same codebase produces two builds:
+
+| | Developer build | Chrome Web Store build |
 | --- | --- | --- |
-| **Purpose** | Full automation for local/developer use | One-at-a-time invite assistant for Chrome Web Store |
-| **Send behavior** | Clicks LinkedIn's Send button automatically (Live Mode) | Never clicks Send — you review and send each invite yourself |
-| **Batch processing** | Yes — processes all profiles across pages | No — prepares one invite per button click |
-| **Career Tools** | Optional AI interview prep & company research — requires your own Anthropic or OpenAI API key | Optional AI interview prep & company research — requires your own Anthropic or OpenAI API key |
-| **Limits** | Pages and connection count limits | None needed (single-step flow) |
-| **Install method** | Load unpacked via `chrome://extensions` | Load unpacked or install from Chrome Web Store |
-| **Build command** | `npm run build` | `npm run build:store` |
-| **Output** | `dist/` + root `manifest.json` | `release/store/` (self-contained) |
+| Best for | Personal workflows and local automation | Safe, review-first outreach |
+| Connection requests | Can process many profiles across pages | Prepares one invite at a time |
+| Send behavior | Test Mode or Live Mode | Never clicks LinkedIn's Send button |
+| User control | Configurable limits and explicit mode selection | Review every recipient and message before sending |
 
-This project is not affiliated with or endorsed by LinkedIn.
+The store build is not simply a restricted flag on the developer build. It is a separate packaged experience with its own manifest, content entry point, UI, and release verification while sharing the underlying feature logic.
 
-## Screenshots
+### Career preparation with your own context
 
-| Search setup | Connect & send |
-| --- | --- |
-| ![Search filters step in the extension side panel](assets/screenshots/screenshot-1.png) | ![Auto-adjust and Live Mode connect step in the extension side panel](assets/screenshots/screenshot-2.png) |
+Career Tools use a bring-your-own-key model: the user chooses Anthropic or OpenAI and pays the provider directly. The extension provides:
 
-## Developer Build
+- interview preparation grounded in visible profile content, a pasted CV, and a target job description;
+- company and role intelligence with a research stage and a synthesis stage;
+- streamed reports in a dedicated report view;
+- source-aware output and explicit distinctions between researched facts, user-provided context, and modeled estimates;
+- provider-specific request handling, error messages, and separate saved credentials; and
+- a transmission preview and explicit confirmation before sensitive content leaves the browser.
 
-Full automation with Test Mode and Live Mode. Intended for local/developer use only. Users who run this build are responsible for how they use it, including compliance with LinkedIn's terms, Chrome extension policies, and applicable law.
+Career Tools are optional and the core connection workflow works without an API key.
 
-### Developer: What It Does
+### Two ways to use the connection workflow
 
-- Builds LinkedIn people-search URLs from company, title, location, connection-degree, and page inputs.
-- Reads filter values from the active LinkedIn search URL.
-- Saves search and message settings in local Chrome extension storage.
-- Finds visible LinkedIn profiles with Connect buttons across pages.
-- Opens the LinkedIn invite dialog, adds a personalized note, and processes profiles sequentially.
-- **Test Mode:** opens and cancels invite dialogs without sending requests.
-- **Live Mode:** clicks LinkedIn's Send button and sends connection requests.
-- Supports limits for pages and max connection requests with optional auto-decrement.
-- Includes random delays between actions.
+The developer build supports a safe Test Mode before Live Mode. Test Mode opens and cancels invite dialogs so the workflow can be inspected without sending requests. Live Mode is bounded by page and connection limits and uses deliberate pacing between actions.
 
-### Career Tools
+The store build takes the more conservative approach required for a public extension: it prepares one invite draft, fills the user's note, and leaves LinkedIn's dialog open. The user reviews, edits, sends, or skips it.
 
-Both builds provide two optional, consent-gated research tools on LinkedIn:
+### Built around trust and continuity
 
-- On a personal profile (`/in/...`), **Interview Preparation** combines visible public professional content with your pasted CV and target job description. It creates non-diagnostic rapport, communication, leadership-matching, story-selection, and narrative guidance; it does not assess hostility, deception, or adversarial behavior.
-- On a LinkedIn job page, **Company & Role Intelligence** creates a six-part company, architecture, role-expectations, interview, and compensation report. It performs public company research only with a valid LinkedIn company URL; otherwise it clearly generates a Stage-B-only, no-research report with modeled estimates.
+- streamed provider responses are assembled incrementally and persisted while they arrive;
+- reports can reconnect to a running background job after a page or worker interruption;
+- provider changes never silently change the provider used by an existing report;
+- profile and job extraction has readiness checks and fallback behavior for rendered or incomplete pages;
+- report output is validated before it is presented, including structured estimate sections and citation handling;
+- user and extracted content is rendered as text rather than injected as HTML; and
+- sensitive Career data is kept in trusted extension storage and is only sent through an explicit user action.
 
-Open the side panel on the relevant page, choose Anthropic or OpenAI as the provider, enter that provider's API key and model ID, review the per-run consent checkbox, and select the action. Each provider's key and model are stored separately, so switching providers never overwrites the other one's saved key. Resume/CV, job description, and manual fallback fields are local-only trusted extension storage. Set a spend limit on the API key. Company research requires organization-level web-search access from the selected provider; CV and full JD text never enter the web-search request, and the provider processes search results server-side. Career Tools require a Chrome version that supports trusted-context storage; they remain disabled with an update-Chrome message if it is unavailable.
+A missed selector produces a useful explanation, a dropped connection does not lose a report, and a powerful action has an inspectable path before it becomes irreversible.
 
-Career Tools are entirely optional in both builds: off by default, disabled until you supply an API key for the selected provider, and never sent anywhere without per-run consent and a preview of exactly what will be sent and to which provider. The core connection-request features in both builds work with no API key and no network calls beyond LinkedIn itself.
+## See it in action
 
-### Developer: Installation
+### Connection workflow
 
-1. Clone or download this repository.
-2. Install dependencies:
+1. Enter company, title, location, connection-degree, and page filters—or extract filters from a LinkedIn search URL.
+2. Preview and save a personalized message.
+3. Run in Test Mode to inspect the flow, or choose Live Mode in the developer build.
+4. Let Career Connect move through visible, connectable profiles sequentially.
 
-   ```sh
-   npm install
-   ```
+### Career workflow
 
-3. Build:
+1. Open Career Tools from a LinkedIn profile or job page.
+2. Choose Anthropic or OpenAI and enter your own key for that provider.
+3. Add a CV, job description, and any manual profile or company context.
+4. Review the exact transmission preview.
+5. Generate a report, follow the streamed result, and reopen saved reports when needed.
 
-   ```sh
-   npm run build
-   ```
+Company research is organization-level research performed by the selected provider. The extension keeps the CV and full job description out of that web-search request, then uses the returned findings for the final report.
 
-4. Open Chrome and go to `chrome://extensions/`.
-5. Enable Developer Mode.
-6. Click **Load unpacked** and select this project folder.
-
-If the extension was already loaded, click reload on the extension card after rebuilding.
-
-### Developer: Usage
-
-1. Open the extension side panel.
-2. Fill in search filters or extract them from the current LinkedIn search URL.
-3. Click **Save & search** to open a LinkedIn people search page.
-4. Write the connection note and save settings.
-5. Choose Test Mode or Live Mode.
-6. Click **Send connection requests**.
-
-Use Test Mode first. Live Mode sends real LinkedIn connection requests.
-
-## Store Build
-
-A separate, store-policy-compliant variant that prepares one invite draft at a time. The extension never clicks Send — it opens LinkedIn's invite dialog, fills the note you composed, and leaves the dialog open for you to review and send yourself.
-
-### Store: What It Does
-
-- Same search URL builder and message draft composer as the developer build.
-- On each "Prepare next invite" click: finds the next connectable profile on the current page, opens its invite dialog, and fills the note.
-- Tracks which profiles have been prepared in the current page session so repeated clicks advance through the list without revisiting the same profile.
-- No batch processing, no Send click, no Live Mode.
-
-### Store: Installation
+## Run locally
 
 ```sh
 npm install
+npm run build
+```
+
+Then open `chrome://extensions/`, enable Developer Mode, choose **Load unpacked**, and select the repository directory. The developer build is emitted to `dist/`.
+
+To build the review-first Web Store variant:
+
+```sh
 npm run build:store
 ```
 
-The store build is assembled into `release/store/`. Load it in Chrome via `chrome://extensions` → **Load unpacked** → select `release/store/`.
+Load `release/store/` as an unpacked extension, or install it from the Web Store using the link above.
 
-### Store: Usage
+## Verification
 
-1. Open the extension side panel and choose **Connection Assistant**.
-2. Fill in search filters and click **Save & open search** to navigate to LinkedIn.
-3. Compose your message draft and click **Save settings**.
-4. Click **Prepare next invite** — the extension opens LinkedIn's invite dialog and fills your note.
-5. Review the recipient and message in LinkedIn, then click Send (or close the dialog to skip).
-6. Click **Prepare next invite** again for the next profile.
+Automated coverage exercises the parts of the extension where a small mistake has an outsized effect: provider request contracts, streaming assembly, error classification, trusted-storage capability checks, profile and job extraction, safe report rendering, report reconnection, provider isolation, report validation, and store-build baselines.
 
-If the page script is not reachable (e.g. the LinkedIn tab was open before the extension was installed), reload the LinkedIn search page and try again.
-
-## Development
+Useful commands:
 
 ```sh
-npm install
-npm run build        # developer build → dist/
-npm run build:store  # store build → release/store/
-npm run watch        # developer build in watch mode
-npm run typecheck:watch
 npm test
 npm run verify:clean-checkout
 npm run verify:store-baseline
 ```
 
-`npm run build` uses esbuild for the developer extension and emits every manifest-referenced script. Run `npm run typecheck:watch` in a second terminal when live type errors are useful. `src/build-target.ts` is generated before each documented build, typecheck-watch, and test workflow and is intentionally not committed; use `npm test`, rather than bare Vitest, so its `pretest` bootstrap runs. `npm run verify:clean-checkout` copies exactly the files `git ls-files` reports (tracked plus untracked-but-not-ignored, so `src/build-target.ts` is naturally excluded since it's gitignored) into a temporary directory, then runs `npm ci && npm test` there without modifying your checkout — proving what a fresh `git clone` would build and test, not just what happens to be on disk locally. `npm run verify:store-baseline` checks that the packaged store build still matches the recorded baseline. Provider usage — Anthropic adaptive-thinking tokens or OpenAI reasoning-summary tokens — can affect provider cost.
+`verify:clean-checkout` reconstructs a fresh checkout from repository-visible files and runs the install-and-test path there. That protects against a project appearing healthy only because of generated or ignored files on one developer's machine. The store-baseline check protects the packaged review-first build from accidental behavioral drift.
 
-## Files
+## Architecture at a glance
 
-| File | Purpose |
-| --- | --- |
-| `manifest.json` | Developer build manifest |
-| `manifest.store.json` | Store build manifest (used by `build:store`) |
-| `src/content.ts` | Developer build content script (automation) |
-| `src/content.store.ts` | Store build content script (single-step, no Send) |
-| `src/popup.ts` | Developer build side panel logic |
-| `src/popup.store.ts` | Store build side panel logic |
-| `src/background.ts` | Shared automation-completed relay, used by both builds |
-| `src/background.dev.ts` | Developer build service worker entry point |
-| `src/background.store.ts` | Store build service worker entry point |
-| `src/careerBackground.ts` | Career Tools message/port wiring, shared by both background entry points |
-| `popup.html` | Developer build side panel UI |
-| `popup.store.html` | Store build side panel UI |
-| `scripts/set-build-target.js` | Injects `BUILD_TARGET` constant before `tsc` |
-| `scripts/package-store.js` | Assembles `release/store/` from store build output |
-| `tsconfig.json` | Developer TypeScript config |
-| `tsconfig.store.json` | Store TypeScript config (separate entry points) |
+The implementation keeps the two products aligned without forcing them to behave identically:
+
+- `src/popup-career-shared.ts` — shared Career Tools state, extraction actions, provider controls, previews, and saved reports;
+- `src/popup-search-shared.ts` — shared search and connection workflow behavior;
+- `src/aiClient.ts` — durable Career jobs, streaming lifecycle, persistence, and background orchestration;
+- `src/aiClient/provider.ts` — Anthropic/OpenAI request construction and provider error handling;
+- `src/extract/profile.ts` and `src/extract/job.ts` — page extraction and readiness handling;
+- `src/report.ts` and `src/render/markdown.ts` — report presentation, copying, sources, and regeneration;
+- `src/content.ts` / `src/content.store.ts` — developer automation versus single-invite content behavior; and
+- `scripts/build-*.js` and `scripts/package-*.js` — reproducible build and packaging paths.
+
+The code is TypeScript, compiled into Manifest V3 Chrome extension assets, with shared modules used by both builds and Vitest coverage for the most failure-prone contracts.
+
+## Product direction
+
+The next iteration is moving Career Connect toward one unified Career workspace: a Career tab alongside Connect, one adaptive combined report, additive extraction from more LinkedIn contexts, constrained searchable model selection, and durable case history with complete input snapshots. The direction is documented in `.ensemble/2026-07-21_task_4/` and is intentionally described as in progress rather than presented as shipped functionality.
+
+This project is not affiliated with or endorsed by LinkedIn.
