@@ -29,8 +29,20 @@
     "service_worker": "dist/background.dev.js",
     "type": "module"
   },
+  "icons": {
+    "16": "assets/icons-dev/icon16.png",
+    "32": "assets/icons-dev/icon32.png",
+    "48": "assets/icons-dev/icon48.png",
+    "128": "assets/icons-dev/icon128.png"
+  },
   "action": {
-    "default_title": "Career Connect"
+    "default_title": "Career Connect",
+    "default_icon": {
+      "16": "assets/icons-dev/icon16.png",
+      "32": "assets/icons-dev/icon32.png",
+      "48": "assets/icons-dev/icon48.png",
+      "128": "assets/icons-dev/icon128.png"
+    }
   },
   "side_panel": {
     "default_path": "popup.html"

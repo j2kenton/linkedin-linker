@@ -2,13 +2,28 @@ import fs from "node:fs";
 import path from "node:path";
 import zlib from "node:zlib";
 
-const outputDir = path.join("assets", "icons");
 const sizes = [16, 32, 48, 128];
 
 const BACKGROUND = [255, 255, 255, 255];
 const BORDER = [66, 66, 66, 255];
-const NODE = [30, 58, 138, 255];
-const EDGE = [12, 27, 71, 255];
+
+// The two builds ship different node colours so the loaded build is obvious in
+// the toolbar. Keep the developer icons out of assets/icons — package-store.js
+// copies that directory wholesale into the store package.
+const variants = [
+  {
+    label: "store",
+    outputDir: path.join("assets", "icons"),
+    node: [30, 58, 138, 255],
+    edge: [12, 27, 71, 255]
+  },
+  {
+    label: "developer",
+    outputDir: path.join("assets", "icons-dev"),
+    node: [74, 168, 224, 255],
+    edge: [23, 90, 133, 255]
+  }
+];
 
 const crcTable = new Uint32Array(256);
 for (let n = 0; n < 256; n += 1) {
@@ -138,7 +153,7 @@ const createCanvas = (size) => {
   return { rgba, fillRoundedSquare, strokeRoundedSquare, drawLine, drawCircle };
 };
 
-const drawIcon = (size) => {
+const drawIcon = (size, variant) => {
   const canvas = createCanvas(size);
 
   const radius = Math.round(size * 0.2);
@@ -155,22 +170,24 @@ const drawIcon = (size) => {
     [size * 0.74, size * 0.32]
   ];
 
-  canvas.drawLine(nodes[0], nodes[1], strokeWidth, EDGE);
-  canvas.drawLine(nodes[1], nodes[2], strokeWidth, EDGE);
-  canvas.drawCircle(nodes[0], nodeRadius, NODE);
-  canvas.drawCircle(nodes[1], nodeRadius, NODE);
-  canvas.drawCircle(nodes[2], nodeRadius * 1.15, NODE);
+  canvas.drawLine(nodes[0], nodes[1], strokeWidth, variant.edge);
+  canvas.drawLine(nodes[1], nodes[2], strokeWidth, variant.edge);
+  canvas.drawCircle(nodes[0], nodeRadius, variant.node);
+  canvas.drawCircle(nodes[1], nodeRadius, variant.node);
+  canvas.drawCircle(nodes[2], nodeRadius * 1.15, variant.node);
 
   return encodePng(size, size, canvas.rgba);
 };
 
-fs.mkdirSync(outputDir, { recursive: true });
+for (const variant of variants) {
+  fs.mkdirSync(variant.outputDir, { recursive: true });
 
-for (const size of sizes) {
-  fs.writeFileSync(
-    path.join(outputDir, `icon${size}.png`),
-    drawIcon(size)
-  );
+  for (const size of sizes) {
+    fs.writeFileSync(
+      path.join(variant.outputDir, `icon${size}.png`),
+      drawIcon(size, variant)
+    );
+  }
+
+  console.log(`Generated ${sizes.length} ${variant.label} icon files in ${variant.outputDir}`);
 }
-
-console.log(`Generated ${sizes.length} icon files in ${outputDir}`);

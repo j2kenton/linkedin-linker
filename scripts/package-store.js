@@ -48,10 +48,14 @@ if (missing.length > 0) {
   process.exit(1);
 }
 
-// assets (icons etc) if present — copy recursively
+// assets (icons etc) if present — copy recursively.
+// icons-dev holds the light-blue developer-build icons; the store build must
+// not ship them.
+const ASSET_EXCLUDES = new Set(['icons-dev']);
 function copyDir(src, dest) {
   fs.mkdirSync(dest, { recursive: true });
   for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
+    if (ASSET_EXCLUDES.has(entry.name)) continue;
     const srcPath = path.join(src, entry.name);
     const destPath = path.join(dest, entry.name);
     if (entry.isDirectory()) {

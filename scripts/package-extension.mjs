@@ -13,10 +13,10 @@ const files = [
   "popup.html",
   "dist/content.js",
   "dist/popup.js",
-  "assets/icons/icon16.png",
-  "assets/icons/icon32.png",
-  "assets/icons/icon48.png",
-  "assets/icons/icon128.png"
+  "assets/icons-dev/icon16.png",
+  "assets/icons-dev/icon32.png",
+  "assets/icons-dev/icon48.png",
+  "assets/icons-dev/icon128.png"
 ];
 
 const missingFiles = files.filter((file) => !fs.existsSync(file));
