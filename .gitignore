@@ -5,6 +5,7 @@ release/
 src/build-target.ts
 .env*
 !.env.example
+plans\
 
 # BEGIN Ensemble managed meta resources
 # Managed by Ensemble. Do not edit this block manually.
