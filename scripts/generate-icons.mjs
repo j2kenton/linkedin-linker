@@ -5,6 +5,11 @@ import zlib from "node:zlib";
 const outputDir = path.join("assets", "icons");
 const sizes = [16, 32, 48, 128];
 
+const BACKGROUND = [255, 255, 255, 255];
+const BORDER = [66, 66, 66, 255];
+const NODE = [30, 58, 138, 255];
+const EDGE = [12, 27, 71, 255];
+
 const crcTable = new Uint32Array(256);
 for (let n = 0; n < 256; n += 1) {
   let c = n;
@@ -58,76 +63,105 @@ const encodePng = (width, height, rgba) => {
   ]);
 };
 
-const distanceToSegment = (px, py, ax, ay, bx, by) => {
-  const dx = bx - ax;
-  const dy = by - ay;
-  const lengthSquared = dx * dx + dy * dy;
-  const t = lengthSquared === 0
-    ? 0
-    : Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / lengthSquared));
-  const x = ax + t * dx;
-  const y = ay + t * dy;
-  return Math.hypot(px - x, py - y);
-};
+const createCanvas = (size) => {
+  const rgba = Buffer.alloc(size * size * 4);
 
-const insideRoundedRect = (x, y, size, inset, radius) => {
-  const left = inset;
-  const top = inset;
-  const right = size - inset - 1;
-  const bottom = size - inset - 1;
+  const blend = (x, y, color, alpha) => {
+    if (x < 0 || y < 0 || x >= size || y >= size || alpha <= 0) {
+      return;
+    }
 
-  const cx = Math.max(left + radius, Math.min(x, right - radius));
-  const cy = Math.max(top + radius, Math.min(y, bottom - radius));
-  return Math.hypot(x - cx, y - cy) <= radius;
+    const i = (y * size + x) * 4;
+    const backdropAlpha = rgba[i + 3] / 255;
+    const outAlpha = alpha + backdropAlpha * (1 - alpha);
+    if (outAlpha === 0) {
+      return;
+    }
+
+    for (let channel = 0; channel < 3; channel += 1) {
+      rgba[i + channel] = Math.round(
+        (color[channel] * alpha + rgba[i + channel] * backdropAlpha * (1 - alpha)) / outAlpha
+      );
+    }
+    rgba[i + 3] = Math.round(outAlpha * 255);
+  };
+
+  const coverage = (distance) => Math.max(0, Math.min(1, 0.5 - distance));
+
+  const fillRoundedSquare = (radius, inset, color) => {
+    const center = size / 2;
+    const extent = size / 2 - radius - 0.5 - inset;
+    for (let y = 0; y < size; y += 1) {
+      for (let x = 0; x < size; x += 1) {
+        const dx = Math.max(0, Math.abs(x - center) - extent);
+        const dy = Math.max(0, Math.abs(y - center) - extent);
+        blend(x, y, color, coverage(Math.hypot(dx, dy) - radius));
+      }
+    }
+  };
+
+  const strokeRoundedSquare = (radius, inset, strokeWidth, color) => {
+    const center = size / 2;
+    const extent = size / 2 - radius - 0.5 - inset;
+    for (let y = 0; y < size; y += 1) {
+      for (let x = 0; x < size; x += 1) {
+        const dx = Math.max(0, Math.abs(x - center) - extent);
+        const dy = Math.max(0, Math.abs(y - center) - extent);
+        const distance = Math.hypot(dx, dy) - radius;
+        blend(x, y, color, Math.max(0, Math.min(1, strokeWidth / 2 - Math.abs(distance))));
+      }
+    }
+  };
+
+  const drawLine = ([x0, y0], [x1, y1], strokeWidth, color) => {
+    const steps = Math.ceil(Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)) * 2) + 1;
+    for (let step = 0; step <= steps; step += 1) {
+      const t = step / steps;
+      const lx = x0 + (x1 - x0) * t;
+      const ly = y0 + (y1 - y0) * t;
+      for (let y = Math.floor(ly - strokeWidth); y <= Math.ceil(ly + strokeWidth); y += 1) {
+        for (let x = Math.floor(lx - strokeWidth); x <= Math.ceil(lx + strokeWidth); x += 1) {
+          blend(x, y, color, coverage(Math.hypot(x - lx, y - ly) - strokeWidth / 2));
+        }
+      }
+    }
+  };
+
+  const drawCircle = ([cx, cy], radius, color) => {
+    for (let y = Math.floor(cy - radius - 1); y <= Math.ceil(cy + radius + 1); y += 1) {
+      for (let x = Math.floor(cx - radius - 1); x <= Math.ceil(cx + radius + 1); x += 1) {
+        blend(x, y, color, coverage(Math.hypot(x - cx, y - cy) - radius));
+      }
+    }
+  };
+
+  return { rgba, fillRoundedSquare, strokeRoundedSquare, drawLine, drawCircle };
 };
 
 const drawIcon = (size) => {
-  const rgba = Buffer.alloc(size * size * 4);
-  const inset = Math.max(1, Math.round(size * 0.06));
-  const radius = Math.max(3, Math.round(size * 0.18));
-  const lineWidth = Math.max(1.2, size * 0.045);
-  const nodeRadius = Math.max(2, size * 0.1);
+  const canvas = createCanvas(size);
+
+  const radius = Math.round(size * 0.2);
+  const borderWidth = Math.max(1, size * 0.045);
+
+  canvas.fillRoundedSquare(radius, 0, BACKGROUND);
+  canvas.strokeRoundedSquare(radius - borderWidth * 0.7, borderWidth * 0.7, borderWidth, BORDER);
+
+  const strokeWidth = Math.max(1, size * 0.05);
+  const nodeRadius = size * 0.1;
   const nodes = [
-    [size * 0.3, size * 0.68],
-    [size * 0.68, size * 0.32],
-    [size * 0.72, size * 0.72]
-  ];
-  const segments = [
-    [nodes[0], nodes[1]],
-    [nodes[1], nodes[2]]
+    [size * 0.28, size * 0.5],
+    [size * 0.44, size * 0.68],
+    [size * 0.74, size * 0.32]
   ];
 
-  for (let y = 0; y < size; y += 1) {
-    for (let x = 0; x < size; x += 1) {
-      const i = (y * size + x) * 4;
-      const px = x + 0.5;
-      const py = y + 0.5;
+  canvas.drawLine(nodes[0], nodes[1], strokeWidth, EDGE);
+  canvas.drawLine(nodes[1], nodes[2], strokeWidth, EDGE);
+  canvas.drawCircle(nodes[0], nodeRadius, NODE);
+  canvas.drawCircle(nodes[1], nodeRadius, NODE);
+  canvas.drawCircle(nodes[2], nodeRadius * 1.15, NODE);
 
-      if (!insideRoundedRect(px, py, size, inset, radius)) {
-        continue;
-      }
-
-      rgba[i] = 10;
-      rgba[i + 1] = 102;
-      rgba[i + 2] = 194;
-      rgba[i + 3] = 255;
-
-      const onLine = segments.some(([start, end]) =>
-        distanceToSegment(px, py, start[0], start[1], end[0], end[1]) <= lineWidth
-      );
-      const onNode = nodes.some(([cx, cy]) =>
-        Math.hypot(px - cx, py - cy) <= nodeRadius
-      );
-
-      if (onLine || onNode) {
-        rgba[i] = 255;
-        rgba[i + 1] = 255;
-        rgba[i + 2] = 255;
-      }
-    }
-  }
-
-  return encodePng(size, size, rgba);
+  return encodePng(size, size, canvas.rgba);
 };
 
 fs.mkdirSync(outputDir, { recursive: true });
