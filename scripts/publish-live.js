@@ -78,8 +78,9 @@ async function main() {
   run('git add manifest.json manifest.store.json');
   run(`git commit -m "v${newVersion}"`);
   run(`git tag v${newVersion}`);
+  run('git push --follow-tags');
 
-  console.log(`\nPublished v${newVersion} (${bumpType}). Don't forget to run: git push --follow-tags`);
+  console.log(`\nPublished v${newVersion} (${bumpType}).`);
 }
 
 main().catch(error => {
