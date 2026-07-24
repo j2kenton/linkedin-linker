@@ -19,6 +19,7 @@
     "lint": "npm run check-types",
     "pretest": "node scripts/set-build-target.js developer",
     "test": "vitest run",
+    "generate:promo": "node scripts/generate-promo.mjs",
     "generate:store-baseline": "node scripts/generate-store-baseline.js --variant=b1",
     "generate:store-baseline:b2": "node scripts/generate-store-baseline.js --variant=b2",
     "verify:store-baseline": "node scripts/generate-store-baseline.js --check --variant=b1",
@@ -30,6 +31,7 @@
     "chrome-webstore-upload-cli": "^4.0.1",
     "esbuild": "^0.25.0",
     "jsdom": "^26.0.0",
+    "puppeteer": "^24.43.1",
     "typescript": "^5.9.0",
     "vitest": "^3.0.0"
   }
