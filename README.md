@@ -23,6 +23,8 @@ The result is a focused workflow from **discover → understand → reach out**.
 
 ![Career Connect - Connect tab - screenshot 2 of 2](assets/screenshots/screenshot-4.png)
 
+![Career Connect - Report sample](assets/screenshots/screenshot-5.png)
+
 ## One workflow for the work around networking
 
 Networking usually means moving between search results, profiles, job descriptions, notes, and interview preparation. Career Connect brings those moments into the browser tab where the research is happening.
