@@ -1,6 +1,7 @@
 import { renderMarkdown } from "./render/markdown";
 import { COMBINED_HEADINGS, COMPANY_HEADINGS, INTERVIEW_HEADINGS } from "./prompts/common";
 import { reconnectDelay } from "./report/reconnect";
+import { isExtensionContextAlive } from "./runtime/context";
 
 type Job = {
   id: string;
@@ -41,6 +42,21 @@ let port: chrome.runtime.Port | undefined;
 let reconnectTimer: number | undefined;
 let reconnectAttempts = 0;
 let closing = false;
+let contextLost = false;
+
+/**
+ * Terminal state for an orphaned tab: the extension was reloaded/updated since
+ * this report page loaded, so chrome.runtime.connect can never succeed again
+ * from this document. Stop the reconnect loop (otherwise it spins and its dead
+ * chrome-extension:// resolutions flood the network log as .../invalid/) and
+ * tell the user the one thing that fixes it — a reload. The saved report is
+ * untouched; reloading re-subscribes to it.
+ */
+function reportContextLost(): void {
+  contextLost = true;
+  if (reconnectTimer !== undefined) { clearTimeout(reconnectTimer); reconnectTimer = undefined; }
+  status.textContent = "Career Connect was reloaded or updated, so this tab lost its live connection. Reload this tab to reconnect — your saved report is safe.";
+}
 
 function isActive(job = current): boolean {
   return !job || ["running", "queued", "interrupted"].includes(job.status);
@@ -234,7 +250,11 @@ function markInvalidEstimateRows(job: Job): void {
 }
 
 function scheduleReconnect(): void {
-  if (closing || !isActive() || reconnectTimer !== undefined) return;
+  if (closing || contextLost || !isActive() || reconnectTimer !== undefined) return;
+  // A dead runtime never recovers without a reload; retrying would only spin
+  // and emit chrome-extension://invalid/ requests. A merely-cycled service
+  // worker leaves this page's context alive, so that case still reconnects.
+  if (!isExtensionContextAlive()) { reportContextLost(); return; }
   const delay = reconnectDelay(reconnectAttempts);
   reconnectAttempts += 1;
   reconnectTimer = window.setTimeout(() => {
@@ -244,7 +264,7 @@ function scheduleReconnect(): void {
 }
 
 function connect(): void {
-  if (!id || closing || port) return;
+  if (!id || closing || contextLost || port) return;
   try {
     const nextPort = chrome.runtime.connect({ name:"career-report" });
     port = nextPort;
@@ -266,6 +286,7 @@ function connect(): void {
     nextPort.postMessage({ action:"CAREER_SUBSCRIBE", id });
   } catch {
     port = undefined;
+    if (!isExtensionContextAlive()) { reportContextLost(); return; }
     status.textContent = "Unable to connect to the report worker; retrying…";
     scheduleReconnect();
   }

@@ -10,7 +10,11 @@ import { estimateRequestTokenUpperBound } from "./aiClient/modelBudget";
 import type { Provider } from "./aiClient/provider";
 import { classifyUrl, hasDeclaredContentScript, type LinkedInPageKind } from "./pageDetect";
 import { readActiveTab, getExtractionCapabilities, requestBroadPageAccess, ensureExtractionHandler } from "./extract/capabilities";
+import { isExtensionContextAlive, isContextInvalidatedError } from "./runtime/context";
 import type { CareerJob, AnnotatedCareerJob } from "./aiClient";
+
+/** Shown whenever this surface is orphaned by an extension reload/update — the only thing that recovers it is a page/side-panel reload. */
+const RELOAD_REQUIRED_MESSAGE = "Career Connect was reloaded or updated. Reload this page (reopen the side panel), then try again.";
 
 export type CareerExtraction = Record<string, unknown> & { ready?: boolean; warnings?: { field?: string; message: string }[] };
 type AnyExtraction = JobExtraction | ProfileExtraction | CompanyExtraction | GenericExtraction;
@@ -192,7 +196,13 @@ export function initCareerTools(options: CareerToolsOptions): void {
           } else {
             lastReadyFalse = result;
           }
-        } catch { /* content script not responding yet; retry */ }
+        } catch (error) {
+          // A dead side-panel runtime can never reach any tab; retrying just
+          // burns ~10s (reading as a hang) while emitting failing
+          // chrome-extension://invalid/ requests. Surface the reload it needs.
+          if (isContextInvalidatedError(error) || !isExtensionContextAlive()) throw error;
+          /* else: content script not responding yet; retry */
+        }
         if (attempt < 4) await careerSleep(1000);
       }
       return lastReady || lastReadyFalse;
@@ -219,6 +229,16 @@ export function initCareerTools(options: CareerToolsOptions): void {
 
     async function runExtractionForTab(tab: chrome.tabs.Tab, target: ExtractTarget): Promise<{ text: string; kind: "success" | "error" }> {
       if (!tab.id) return { text:"No active tab found.", kind:"error" };
+      try {
+        return await extractInto(tab, target);
+      } catch (error) {
+        if (isContextInvalidatedError(error) || !isExtensionContextAlive()) return { text:RELOAD_REQUIRED_MESSAGE, kind:"error" };
+        throw error;
+      }
+    }
+
+    async function extractInto(tab: chrome.tabs.Tab, target: ExtractTarget): Promise<{ text: string; kind: "success" | "error" }> {
+      if (!tab.id) return { text:"No active tab found.", kind:"error" };
       const targeted = await requestExtraction(tab.id, TARGET_ACTION[target]);
       let patch = targeted ? toPatch(target, targeted as unknown as AnyExtraction) : {};
       let usedGeneric = false;
@@ -241,6 +261,7 @@ export function initCareerTools(options: CareerToolsOptions): void {
     }
 
     async function runExtraction(target: ExtractTarget): Promise<{ text: string; kind: "success" | "error" }> {
+      if (!isExtensionContextAlive()) return { text:RELOAD_REQUIRED_MESSAGE, kind:"error" };
       const tab = await readActiveTab();
       if (!tab?.id) return { text:"No active tab found.", kind:"error" };
 

@@ -6,6 +6,7 @@ import { streamProviderRequest } from "../src/aiClient/provider";
 import { appendResearchContinuation, acceptsJobWrite, buildRequestBody, buildOpenAIRequestBody, classifyProviderError, handleCareerMessage, initializeCareerTools, jobNeedsResume, normalizeResearchIdentity, publishCareerJob, retainJobsForStorage, runResearchContinuation, startFreshReportStream, subscribeCareerJob } from "../src/aiClient";
 import { sourceTable, toolResultWarnings } from "../src/aiClient/research";
 import { reconnectDelay } from "../src/report/reconnect";
+import { isExtensionContextAlive, isContextInvalidatedError } from "../src/runtime/context";
 import { respondAfterCareerInitialization } from "../src/careerStatus";
 import { COMBINED_HEADINGS, COMPANY_HEADINGS, ESTIMATE_TABLE, INSUFFICIENT_CONTEXT_MARKER } from "../src/prompts/common";
 import { companySynthesisPrompt } from "../src/prompts/companyIntelSynthesis";
@@ -767,6 +768,29 @@ describe("durable job lifecycle guards", () => {
     expect(reconnectDelay(1)).toBe(500);
     expect(reconnectDelay(5)).toBe(8_000);
     expect(reconnectDelay(99)).toBe(10_000);
+  });
+});
+
+describe("extension-context guards", () => {
+  it("treats a runtime carrying an id as alive and a missing runtime/id as orphaned", () => {
+    try {
+      vi.stubGlobal("chrome", { runtime: { id: "abc123" } });
+      expect(isExtensionContextAlive()).toBe(true);
+      vi.stubGlobal("chrome", { runtime: {} });
+      expect(isExtensionContextAlive()).toBe(false);
+      vi.stubGlobal("chrome", undefined);
+      expect(isExtensionContextAlive()).toBe(false);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("flags only invalidation errors as terminal, so transient receiver misses still retry", () => {
+    expect(isContextInvalidatedError(new Error("Extension context invalidated."))).toBe(true);
+    expect(isContextInvalidatedError("Extension context invalidated")).toBe(true);
+    expect(isContextInvalidatedError(new Error("Could not establish connection. Receiving end does not exist."))).toBe(false);
+    expect(isContextInvalidatedError(new Error("The message port closed before a response was received."))).toBe(false);
+    expect(isContextInvalidatedError(undefined)).toBe(false);
   });
 });
 
