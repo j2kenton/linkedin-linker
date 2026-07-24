@@ -15,9 +15,13 @@ It helps you:
 
 The result is a focused workflow from **discover → understand → reach out**. It keeps the human in control of the final message and the final decision.
 
-![Career Connect side panel](assets/screenshots/screenshot-1.png)
+![Career Connect - Career tab - screenshot 1 of 2](assets/screenshots/screenshot-1.png)
 
-![Connection workflow with Test Mode and Live Mode](assets/screenshots/screenshot-2.png)
+![Career Connect - Career tab - screenshot 2 of 2](assets/screenshots/screenshot-2.png)
+
+![Career Connect - Connect tab - screenshot 1 of 2](assets/screenshots/screenshot-3.png)
+
+![Career Connect - Connect tab - screenshot 2 of 2](assets/screenshots/screenshot-4.png)
 
 ## One workflow for the work around networking
 
