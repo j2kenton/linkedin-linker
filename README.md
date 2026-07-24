@@ -38,14 +38,18 @@ The store build is not simply a restricted flag on the developer build. It is a 
 
 ### Career preparation with your own context
 
-Career Tools use a bring-your-own-key model: the user chooses Anthropic or OpenAI and pays the provider directly. The extension provides:
+The popup opens on a **Career** tab (with **Connect** — the connection workflow — alongside it); the last tab you used is restored the next time you open the popup. Career Tools use a bring-your-own-key model: the user chooses Anthropic or OpenAI and pays the provider directly. The extension provides:
 
-- interview preparation grounded in visible profile content, a pasted CV, and a target job description;
-- company and role intelligence with a research stage and a synthesis stage;
-- streamed reports in a dedicated report view;
+- one combined, adaptive interview-preparation report built from whatever context is available — CV, job description, interviewer profile, company details, role, seniority, location, and interview stage — rather than separate interview/company reports;
+- a constrained, searchable model selector per provider (type to filter; only listed, verified model IDs can be selected — no free-text model IDs);
+- a company-research stage when a valid LinkedIn company URL is available, and a synthesis stage that still produces a full report without it;
+- best-effort extraction from the current page for job, interviewer/profile, and company context — including LinkedIn profiles (including your own), job postings, job-search result pages, company pages, and other LinkedIn/non-LinkedIn pages with useful information — that only ever adds to existing data, never overwrites it;
+- streamed reports in a dedicated report view, including a collapsed "Generation context" section showing the exact input snapshot and provider/model used;
+- report/case history: reopen a prior report; add its saved context to your current case or replace the current case with it; delete one you no longer need; or start a **New** case without losing earlier ones — History also shows total storage used and flags any unreadable saved record;
+- a session-storage recovery anchor for the rare case a report can't be saved to local storage right away — it stays recoverable (with a **Retry save** action in History and on the report page) until the browser closes;
 - source-aware output and explicit distinctions between researched facts, user-provided context, and modeled estimates;
-- provider-specific request handling, error messages, and separate saved credentials; and
-- a transmission preview and explicit confirmation before sensitive content leaves the browser.
+- provider-specific request handling, error messages, and separate saved credentials per provider; and
+- a transmission preview and an explicit transmission notice before any content leaves the browser — reviewed once per submission, with no separate recurring consent checkbox.
 
 Career Tools are optional and the core connection workflow works without an API key.
 
@@ -78,13 +82,13 @@ A missed selector produces a useful explanation, a dropped connection does not l
 
 ### Career workflow
 
-1. Open Career Tools from a LinkedIn profile or job page.
-2. Choose Anthropic or OpenAI and enter your own key for that provider.
-3. Add a CV, job description, and any manual profile or company context.
-4. Review the exact transmission preview.
-5. Generate a report, follow the streamed result, and reopen saved reports when needed.
+1. Open the **Career** tab and choose Anthropic or OpenAI, entering your own key and picking a model from the searchable list for that provider.
+2. Work through the four sections in any order — they're a visual guide, not a gated wizard: job description & role details, interviewer information, company information, then generate. Use each section's Extract button on the current page, or type/paste manually.
+3. Pick an interview stage if you have one, and review the transmission notice and preview.
+4. Generate the combined report, follow the streamed result, and reopen it later from History alongside its saved input snapshot.
+5. Use **New** to start a fresh case (for a different company or role) without losing earlier reports.
 
-Company research is organization-level research performed by the selected provider. The extension keeps the CV and full job description out of that web-search request, then uses the returned findings for the final report.
+Company research is organization-level research performed by the selected provider when a valid LinkedIn company URL is available. The extension keeps the CV and full job description out of that web-search request, then uses the returned findings for the final report; without a company URL, the report still generates using whatever other context is supplied.
 
 ## Run locally
 
@@ -115,18 +119,23 @@ npm run verify:clean-checkout
 npm run verify:store-baseline
 ```
 
-`verify:clean-checkout` reconstructs a fresh checkout from repository-visible files and runs the install-and-test path there. That protects against a project appearing healthy only because of generated or ignored files on one developer's machine. The store-baseline check protects the packaged review-first build from accidental behavioral drift.
+`verify:clean-checkout` reconstructs a fresh checkout from repository-visible files and runs the install-and-test path there. That protects against a project appearing healthy only because of generated or ignored files on one developer's machine. The store-baseline check protects the packaged review-first build from accidental behavioral drift — run `npm run build:store && npm run generate:store-baseline` to refresh `test/fixtures/store-baseline.json` after any change to packaged output (manifest, popup HTML, or bundled scripts).
 
 ## Architecture at a glance
 
 The implementation keeps the two products aligned without forcing them to behave identically:
 
-- `src/popup-career-shared.ts` — shared Career Tools state, extraction actions, provider controls, previews, and saved reports;
+- `src/popup-tabs.ts` — the shared Career/Connect tab shell used by both popups;
+- `src/popup-career-shared.ts` — shared Career Tools state, extraction actions, provider/model controls, previews, and history;
 - `src/popup-search-shared.ts` — shared search and connection workflow behavior;
+- `src/career/fields.ts` — the canonical Career input contract (form ↔ wire mapping, caps, provenance);
+- `src/career/merge.ts` and `src/career/patch.ts` — additive extraction merge and extraction-to-field mapping;
+- `src/models.ts` — the constrained, verified per-provider model catalog;
 - `src/aiClient.ts` — durable Career jobs, streaming lifecycle, persistence, and background orchestration;
 - `src/aiClient/provider.ts` — Anthropic/OpenAI request construction and provider error handling;
-- `src/extract/profile.ts` and `src/extract/job.ts` — page extraction and readiness handling;
-- `src/report.ts` and `src/render/markdown.ts` — report presentation, copying, sources, and regeneration;
+- `src/extract/profile.ts`, `src/extract/job.ts`, `src/extract/company.ts`, `src/extract/generic.ts` — page extraction with resilient fallback ladders (selectors → JSON-LD → Open Graph metadata → visible text), and `src/extract/messageHandler.ts`, the shared extraction listener used by every content-script entry point;
+- `src/prompts/careerReport.ts` and `src/validate/report.ts` — the combined-report prompt and its validator;
+- `src/report.ts` and `src/render/markdown.ts` — report presentation, copying, sources, generation-context snapshot, and regeneration;
 - `src/content.ts` / `src/content.store.ts` — developer automation versus single-invite content behavior; and
 - `scripts/build-*.js` and `scripts/package-*.js` — reproducible build and packaging paths.
 
@@ -134,6 +143,12 @@ The code is TypeScript, compiled into Manifest V3 Chrome extension assets, with 
 
 ## Product direction
 
-The next iteration is moving Career Connect toward one unified Career workspace: a Career tab alongside Connect, one adaptive combined report, additive extraction from more LinkedIn contexts, constrained searchable model selection, and durable case history with complete input snapshots. The direction is documented in `.ensemble/2026-07-21_task_4/` and is intentionally described as in progress rather than presented as shipped functionality.
+Both builds now share a two-tab popup (Career first and default, Connect second), one adaptive combined Career report, a constrained searchable model selector, additive best-effort extraction from any current page, and durable report history with input snapshots.
+
+The dev build's declared content script already covers every page (`<all_urls>`), so its extraction controls work anywhere with no extra permission prompts. The Chrome Web Store build ships two pipeline variants from the same commit (see `STORE_SUBMISSION.md`): the default **B1** variant, whose declared content script is limited to `https://www.linkedin.com/*` and which never calls `chrome.scripting` or requests any additional permission (extraction outside LinkedIn is reported as unavailable in this build); and a gated **B2** variant (`npm run build:store:b2` / `npm run package:b2`), not shipped until a publisher approves it and it passes live validation, which adds on-demand injection of a read-only extraction bundle plus a section-local "Allow page access" control that requests Chrome's optional `<all_urls>` permission only when clicked. `src/extract/capabilities.ts` derives which behavior applies at runtime from the installed manifest and API availability — never from a build-time flag — so the same popup code runs correctly against either package.
+
+Every job write is bounded and anchored before any provider call starts or resumes (plan §8.4-§8.8): `src/career/bytes.ts` splits a persisted job into an immutable fixed/identity part and a bounded growth part and clamps the growth part to per-field byte ceilings; `src/career/persistedJob.ts` is the single ingress every local-storage read, session-storage read, and tab-submitted record passes through, repairing or refusing malformed data rather than trusting a stored schema version; and `src/career/pendingJobs.ts` reserves a `chrome.storage.session` recovery anchor — capacity-checked against the exact serialized register, never evicting another job's anchor — whenever `chrome.storage.local` fails, so a job is never started or resumed without *some* durable place for its progress to live. `retainJobsForStorage` never deletes a whole report automatically — it only compacts resume-only state (research transcripts, reasoning warnings) from complete/cancelled jobs under a generous (50 MB) byte safety net. Request-size budgeting against verified model limits is implemented in `src/aiClient/modelBudget.ts` and enforced at the worker's provider-call chokepoint.
+
+Not yet fully implemented from the original direction: live per-provider model-catalog/capacity re-verification evidence (the `KNOWN_MODELS` capacities are carried-over defaults, not freshly re-verified against current provider docs — see `STORE_SUBMISSION.md`).
 
 This project is not affiliated with or endorsed by LinkedIn.

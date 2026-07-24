@@ -70,9 +70,11 @@
       border: 1px solid #e9ecef;
     }
     .career-tools { text-align: left; margin: 20px 0; padding: 15px; border: 1px solid #b9d7ee; border-radius: 4px; background: #f4faff; }
-    .career-tools textarea, .career-tools input:not([type=checkbox]) { box-sizing: border-box; width: 100%; margin: 4px 0 4px; padding: 6px; }
+    .career-tools textarea, .career-tools input:not([type=checkbox]), .career-tools select { box-sizing: border-box; width: 100%; margin: 4px 0 4px; padding: 6px; }
     .career-tools small { display:block; color:#555; margin-bottom:8px; }
     .career-hint { color:#0077b5; }
+    .career-section { margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid #e0eefc; }
+    .career-section h5 { margin: 0 0 8px; color: #0077b5; font-size: 14px; }
     .career-field { margin-bottom: 10px; }
     .career-field label { display:block; font-size:13px; margin-bottom:3px; }
     .career-field-row { display:flex; gap:6px; align-items:flex-start; }
@@ -110,266 +112,321 @@
       margin-left: 26px;
       font-style: italic;
     }
+    .tab-row { display: flex; border-bottom: 1px solid #e9ecef; margin-bottom: 14px; }
+    .tab-btn { flex: 1; padding: 10px; background: none; border: none; border-bottom: 3px solid transparent; font-size: 14px; font-weight: 600; color: #666; cursor: pointer; }
+    .tab-btn[aria-selected="true"] { color: #0077b5; border-bottom-color: #0077b5; }
+    .history-row { border: 1px solid #e9ecef; border-radius: 4px; padding: 8px; margin-bottom: 6px; font-size: 12px; }
+    .history-row strong { display: block; }
+    .history-meta { color: #666; margin: 2px 0 6px; }
+    .history-row button { margin-right: 6px; padding: 4px 8px; font-size: 11px; }
   </style>
 </head>
 <body>
   <div class="container">
-    <div class="title">Career Connect</div>
-    <div class="description">
-      Automate connection requests on LinkedIn search results pages with sequential processing and safety delays.
+    <div role="tablist" class="tab-row" aria-label="Career Connect">
+      <button type="button" id="tabCareer" role="tab" aria-selected="true" aria-controls="panelCareer" class="tab-btn">Career</button>
+      <button type="button" id="tabConnect" role="tab" aria-selected="false" aria-controls="panelConnect" class="tab-btn">Connect</button>
     </div>
 
-    <div class="warning">
-      ⚠️ Use responsibly and in accordance with LinkedIn's Terms of Service.
+    <div id="panelCareer" role="tabpanel" aria-labelledby="tabCareer">
+      <div class="title">Career</div>
+      <div class="description">
+        AI interview prep and company research using your own Anthropic or OpenAI API key.
+      </div>
+
+      <section id="careerTools" class="career-tools" hidden>
+        <small id="careerHint" class="career-hint" role="status" aria-live="polite"></small>
+        <div id="allowPageAccessContainer" hidden>
+          <button id="allowPageAccessButton" type="button">Allow page access</button>
+          <small id="allowPageAccessResult" class="career-result" role="status" aria-live="polite" hidden></small>
+        </div>
+
+        <div class="career-section">
+          <h5>AI provider</h5>
+          <div class="career-field">
+            <label for="careerProvider">Provider</label>
+            <select id="careerProvider">
+              <option value="anthropic">Anthropic</option>
+              <option value="openai">OpenAI</option>
+            </select>
+          </div>
+
+          <div id="anthropicProviderFields">
+            <div class="career-field">
+              <label for="careerApiKey">Anthropic API key</label>
+              <div class="career-field-row">
+                <input id="careerApiKey" type="password" autocomplete="off" placeholder="sk-ant-…">
+                <button type="button" class="career-clear" data-key="careerApiKey">Clear</button>
+              </div>
+            </div>
+            <div class="career-field">
+              <label for="careerModelFilter">Model</label>
+              <input id="careerModelFilter" type="text" placeholder="Type to search models…" autocomplete="off">
+              <select id="careerModel"></select>
+            </div>
+          </div>
+
+          <div id="openaiProviderFields" hidden>
+            <div class="career-field">
+              <label for="careerOpenAiApiKey">OpenAI API key</label>
+              <div class="career-field-row">
+                <input id="careerOpenAiApiKey" type="password" autocomplete="off" placeholder="sk-…">
+                <button type="button" class="career-clear" data-key="careerOpenAiApiKey">Clear</button>
+              </div>
+            </div>
+            <div class="career-field">
+              <label for="careerOpenAiModelFilter">Model</label>
+              <input id="careerOpenAiModelFilter" type="text" placeholder="Type to search models…" autocomplete="off">
+              <select id="careerOpenAiModel"></select>
+            </div>
+          </div>
+          <small id="careerModelMigrationNote" class="career-result" hidden></small>
+
+          <button id="careerTestButton" type="button">Review &amp; test connection</button>
+          <details id="careerPreview" hidden>
+            <summary>Transmission preview</summary>
+            <pre id="careerPreviewText" style="white-space:pre-wrap;max-height:180px;overflow:auto"></pre>
+            <button id="careerPreviewConfirm" type="button">Send approved data</button>
+            <small id="careerPreviewResult" class="career-result" role="status" aria-live="polite" hidden></small>
+          </details>
+        </div>
+
+        <div class="career-section">
+          <h5>1. Job description &amp; role details</h5>
+          <div class="career-field">
+            <label for="careerJobTitle">Role title</label>
+            <div class="career-field-row">
+              <input id="careerJobTitle" type="text">
+              <button type="button" class="career-clear" data-key="careerJobTitle">Clear</button>
+            </div>
+          </div>
+          <div class="career-field">
+            <label for="careerSeniority">Seniority</label>
+            <div class="career-field-row">
+              <input id="careerSeniority" type="text">
+              <button type="button" class="career-clear" data-key="careerSeniority">Clear</button>
+            </div>
+          </div>
+          <div class="career-field">
+            <label for="careerLocation">Location</label>
+            <div class="career-field-row">
+              <input id="careerLocation" type="text" placeholder="Location">
+              <button type="button" class="career-clear" data-key="careerLocation">Clear</button>
+            </div>
+          </div>
+          <div class="career-field">
+            <label for="careerJobDescription">Job description</label>
+            <div class="career-field-row">
+              <textarea id="careerJobDescription" rows="6"></textarea>
+              <button type="button" class="career-clear" data-key="careerJobDescription">Clear</button>
+            </div>
+          </div>
+          <button id="extractJobButton" type="button">Extract job from this page</button>
+          <small id="extractJobResult" class="career-result" role="status" aria-live="polite" hidden></small>
+        </div>
+
+        <div class="career-section">
+          <h5>2. Interviewer information</h5>
+          <div class="career-field">
+            <label for="careerProfile">Interviewer profile / notes</label>
+            <div class="career-field-row">
+              <textarea id="careerProfile" rows="5" placeholder="Extracted profile or manual notes"></textarea>
+              <button type="button" class="career-clear" data-key="careerProfile">Clear</button>
+            </div>
+          </div>
+          <button id="extractProfileButton" type="button">Extract profile from this page</button>
+          <small id="extractProfileResult" class="career-result" role="status" aria-live="polite" hidden></small>
+
+          <div class="career-field">
+            <label for="careerCv">Your CV / resume</label>
+            <div class="career-field-row">
+              <textarea id="careerCv" rows="5" placeholder="Paste your CV or resume"></textarea>
+              <button type="button" class="career-clear" data-key="careerCv">Clear</button>
+            </div>
+          </div>
+          <button id="extractCvButton" type="button">Extract my details from this page</button>
+          <small id="extractCvResult" class="career-result" role="status" aria-live="polite" hidden></small>
+        </div>
+
+        <div class="career-section">
+          <h5>3. Company information</h5>
+          <div class="career-field">
+            <label for="careerCompanyName">Company name</label>
+            <div class="career-field-row">
+              <input id="careerCompanyName" type="text">
+              <button type="button" class="career-clear" data-key="careerCompanyName">Clear</button>
+            </div>
+          </div>
+          <div class="career-field">
+            <label for="careerCompanyUrl">LinkedIn company URL</label>
+            <div class="career-field-row">
+              <input id="careerCompanyUrl" type="url" placeholder="https://www.linkedin.com/company/example/">
+              <button type="button" class="career-clear" data-key="careerCompanyUrl">Clear</button>
+            </div>
+          </div>
+          <div class="career-field">
+            <label for="careerCompanyInfo">Additional company information</label>
+            <div class="career-field-row">
+              <textarea id="careerCompanyInfo" rows="4" placeholder="Industry, size, headquarters, notes…"></textarea>
+              <button type="button" class="career-clear" data-key="careerCompanyInfo">Clear</button>
+            </div>
+          </div>
+          <div class="checkbox-row">
+            <input id="careerResearch" type="checkbox" checked>
+            <label for="careerResearch">Research public company facts (requires valid LinkedIn company URL)</label>
+          </div>
+          <small id="careerResearchState"></small>
+          <button id="extractCompanyButton" type="button">Extract company from this page</button>
+          <small id="extractCompanyResult" class="career-result" role="status" aria-live="polite" hidden></small>
+        </div>
+
+        <div class="career-section">
+          <h5>4. Generate combined report</h5>
+          <div class="career-field">
+            <label for="careerStage">Interview stage</label>
+            <select id="careerStage">
+              <option value="">Not specified</option>
+              <option value="recruiter">Recruiter screen</option>
+              <option value="hiring-manager">Hiring manager</option>
+              <option value="technical">Technical</option>
+              <option value="panel">Panel</option>
+              <option value="final">Final</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <small id="careerTransmissionNotice" class="career-hint"></small>
+          <button id="generateReportButton" type="button">Generate combined report</button>
+        </div>
+
+        <div class="career-section">
+          <h5>History</h5>
+          <div class="career-field-row">
+            <button type="button" id="newCaseButton">New</button>
+          </div>
+          <small id="newCaseResult" class="career-result" role="status" aria-live="polite" hidden></small>
+          <small id="historySummary"></small>
+          <div id="careerHistoryList"></div>
+          <button type="button" id="clearReportsButton" class="career-clear">Clear all history</button>
+          <small id="clearReportsResult" class="career-result" role="status" aria-live="polite" hidden></small>
+        </div>
+      </section>
     </div>
 
-    <div class="settings">
-      <h4 style="margin: 0 0 10px 0; color: #0077b5; font-size: 16px;">📋 Step 1: Search for connections</h4>
-      <div style="margin-bottom: 10px;">
-        <label for="companyName">Target company name:</label>
-        <input type="text" id="companyName" placeholder="e.g. Microsoft" style="width: 100%; padding: 5px; margin-top: 5px;">
-        <button id="getCompanyNameFromUrlButton" style="margin-top: 5px; margin-bottom: 20px; padding: 4px 8px; font-size: 12px; background: #f0f0f0; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;">Get from current URL</button>
-      </div>
-      <div style="margin-bottom: 10px;">
-        <label for="companiesIds">Current company ID:</label>
-        <input type="text" id="companiesIds" placeholder="e.g. 1035" style="width: 100%; padding: 5px; margin-top: 5px;">
-        <div style="margin: 5px 0; font-size: 11px; color: #666; font-style: italic;">Select this yourself by clicking "All filters" button on results page and then click:</div>
-        <button id="getFromUrlButton" style="margin-top: 5px; margin-bottom: 20px; padding: 4px 8px; font-size: 12px; background: #f0f0f0; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;">Get from current URL</button>
-      </div>
-      <div style="margin-bottom: 10px;">
-        <label for="titleOfProspect">Job title of connection:</label>
-        <input type="text" id="titleOfProspect" placeholder="e.g. Engineering Manager" style="width: 100%; padding: 5px; margin-top: 5px;">
-        <button id="getTitleFromUrlButton" style="margin-top: 5px; margin-bottom: 20px; padding: 4px 8px; font-size: 12px; background: #f0f0f0; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;">Get from current URL</button>
-      </div>
-      <div style="margin-bottom: 10px;">
-        <label for="locationIds">Location ID (where the <b>connection</b> lives - <b>not</b> job location):</label>
-        <input type="text" id="locationIds" placeholder="e.g. 101620260" style="width: 100%; padding: 5px; margin-top: 5px;">
-        <div style="margin: 5px 0; font-size: 11px; color: #666; font-style: italic;">Select this yourself by clicking "All filters" button on results page and then click:</div>
-        <button id="getLocationFromUrlButton" style="margin-top: 5px; margin-bottom: 20px; padding: 4px 8px; font-size: 12px; background: #f0f0f0; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;">Get from current URL</button>
-      </div>
-      <div style="margin-bottom: 10px;">
-        <label for="connectionDegree">Connection degree (multi-select):</label>
-        <select id="connectionDegree" multiple style="width: 100%; padding: 5px; margin-top: 5px; height: 80px;">
-          <option value="F">1st</option>
-          <option value="S">2nd</option>
-          <option value="O">3rd+</option>
-        </select>
-        <button id="getConnectionDegreeFromUrlButton" style="margin-top: 5px; margin-bottom: 20px; padding: 4px 8px; font-size: 12px; background: #f0f0f0; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;">Get from current URL</button>
-      </div>
-      <div style="margin-bottom: 10px;">
-        <label for="startPage">Page number to start at:</label>
-        <input type="number" id="startPage" placeholder="1" min="1" style="width: 100%; padding: 5px; margin-top: 5px;">
-        <button id="getStartPageFromUrlButton" style="margin-top: 5px; margin-bottom: 20px; padding: 4px 8px; font-size: 12px; background: #f0f0f0; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;">Get from current URL</button>
-      </div>
-      <button id="goToSearchButton" class="button" style="margin-top: 10px;">🔍 Save & search</button>
-    </div>
-
-    <section id="careerTools" class="career-tools" hidden>
-      <h4 style="margin:0 0 8px;color:#0077b5">Career Tools</h4>
-      <small id="careerProviderIntro">Profile and resume content is sent to Anthropic only after you review the transmission preview and choose an action.</small>
-      <small id="careerHint" class="career-hint" role="status" aria-live="polite"></small>
-
-      <div class="career-field">
-        <label for="careerProvider">AI provider</label>
-        <select id="careerProvider">
-          <option value="anthropic">Anthropic</option>
-          <option value="openai">OpenAI</option>
-        </select>
+    <div id="panelConnect" role="tabpanel" aria-labelledby="tabConnect" hidden>
+      <div class="title">Connect</div>
+      <div class="description">
+        Automate connection requests on LinkedIn search results pages with sequential processing and safety delays.
       </div>
 
-      <div id="anthropicProviderFields">
-        <div class="career-field">
-          <label for="careerApiKey">Anthropic API key</label>
-          <div class="career-field-row">
-            <input id="careerApiKey" type="password" autocomplete="off" placeholder="sk-ant-…">
-            <button type="button" class="career-clear" data-key="careerApiKey">Clear</button>
+      <div class="warning">
+        ⚠️ Use responsibly and in accordance with LinkedIn's Terms of Service.
+      </div>
+
+      <div class="settings">
+        <h4 style="margin: 0 0 10px 0; color: #0077b5; font-size: 16px;">📋 Step 1: Search for connections</h4>
+        <div style="margin-bottom: 10px;">
+          <label for="companyName">Target company name:</label>
+          <input type="text" id="companyName" placeholder="e.g. Microsoft" style="width: 100%; padding: 5px; margin-top: 5px;">
+          <button id="getCompanyNameFromUrlButton" style="margin-top: 5px; margin-bottom: 20px; padding: 4px 8px; font-size: 12px; background: #f0f0f0; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;">Get from current URL</button>
+        </div>
+        <div style="margin-bottom: 10px;">
+          <label for="companiesIds">Current company ID:</label>
+          <input type="text" id="companiesIds" placeholder="e.g. 1035" style="width: 100%; padding: 5px; margin-top: 5px;">
+          <div style="margin: 5px 0; font-size: 11px; color: #666; font-style: italic;">Select this yourself by clicking "All filters" button on results page and then click:</div>
+          <button id="getFromUrlButton" style="margin-top: 5px; margin-bottom: 20px; padding: 4px 8px; font-size: 12px; background: #f0f0f0; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;">Get from current URL</button>
+        </div>
+        <div style="margin-bottom: 10px;">
+          <label for="titleOfProspect">Job title of connection:</label>
+          <input type="text" id="titleOfProspect" placeholder="e.g. Engineering Manager" style="width: 100%; padding: 5px; margin-top: 5px;">
+          <button id="getTitleFromUrlButton" style="margin-top: 5px; margin-bottom: 20px; padding: 4px 8px; font-size: 12px; background: #f0f0f0; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;">Get from current URL</button>
+        </div>
+        <div style="margin-bottom: 10px;">
+          <label for="locationIds">Location ID (where the <b>connection</b> lives - <b>not</b> job location):</label>
+          <input type="text" id="locationIds" placeholder="e.g. 101620260" style="width: 100%; padding: 5px; margin-top: 5px;">
+          <div style="margin: 5px 0; font-size: 11px; color: #666; font-style: italic;">Select this yourself by clicking "All filters" button on results page and then click:</div>
+          <button id="getLocationFromUrlButton" style="margin-top: 5px; margin-bottom: 20px; padding: 4px 8px; font-size: 12px; background: #f0f0f0; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;">Get from current URL</button>
+        </div>
+        <div style="margin-bottom: 10px;">
+          <label for="connectionDegree">Connection degree (multi-select):</label>
+          <select id="connectionDegree" multiple style="width: 100%; padding: 5px; margin-top: 5px; height: 80px;">
+            <option value="F">1st</option>
+            <option value="S">2nd</option>
+            <option value="O">3rd+</option>
+          </select>
+          <button id="getConnectionDegreeFromUrlButton" style="margin-top: 5px; margin-bottom: 20px; padding: 4px 8px; font-size: 12px; background: #f0f0f0; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;">Get from current URL</button>
+        </div>
+        <div style="margin-bottom: 10px;">
+          <label for="startPage">Page number to start at:</label>
+          <input type="number" id="startPage" placeholder="1" min="1" style="width: 100%; padding: 5px; margin-top: 5px;">
+          <button id="getStartPageFromUrlButton" style="margin-top: 5px; margin-bottom: 20px; padding: 4px 8px; font-size: 12px; background: #f0f0f0; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;">Get from current URL</button>
+        </div>
+        <button id="goToSearchButton" class="button" style="margin-top: 10px;">🔍 Save & search</button>
+      </div>
+
+      <div class="settings">
+        <h4 style="margin: 0 0 10px 0; color: #0077b5; font-size: 16px;">💬 Step 2: Customize your message</h4>
+        <div style="margin-bottom: 10px;">
+          <label for="greetingPart1">Greeting part 1:</label>
+          <input type="text" id="greetingPart1" placeholder="e.g. Hi" style="width: 100%; padding: 5px; margin-top: 5px;">
+        </div>
+        <div style="margin-bottom: 10px;">
+          <label class="checkbox-label">
+            <input type="checkbox" id="includeFirstNameCheckbox">
+            <span class="checkmark"></span>
+            Include first name of connection
+          </label>
+        </div>
+        <div style="margin-bottom: 10px;">
+          <label for="greetingPart2">Greeting part 2:</label>
+          <input type="text" id="greetingPart2" placeholder="e.g. 👋," style="width: 100%; padding: 5px; margin-top: 5px;">
+        </div>
+        <div style="margin-bottom: 10px;">
+          <label for="messageText">Message:</label>
+          <textarea id="messageText" rows="8" style="width: 100%; padding: 5px; margin-top: 5px; resize: vertical; font-family: inherit;" placeholder="Enter your connection message here..."></textarea>
+        </div>
+        <div style="margin-bottom: 10px;">
+          <label>Message Preview:</label>
+          <div id="messagePreview" style="width: 100%; padding: 10px; margin-top: 5px; background-color: #f8f9fa; border: 1px solid #e9ecef; border-radius: 4px; font-family: inherit; white-space: pre-wrap; min-height: 60px;"></div>
+        </div>
+        <div style="margin-bottom: 10px;">
+          <label for="stopPage">Page to stop after (blank = no limit):</label>
+          <input type="number" id="stopPage" placeholder="" min="1" style="width: 100%; padding: 5px; margin-top: 5px;">
+        </div>
+        <div style="margin-bottom: 10px;">
+          <label for="maxConnections">Max connect requests to send (blank = no limit):</label>
+          <input type="number" id="maxConnections" placeholder="" min="1" style="width: 100%; padding: 5px; margin-top: 5px;">
+        </div>
+        <div style="margin-bottom: 10px;">
+          <label class="checkbox-label">
+            <input type="checkbox" id="autoAdjustCheckbox">
+            <span class="checkmark"></span>
+            Auto-adjust max connections
+          </label>
+          <div class="checkbox-description">
+            Automatically decrease the limit after each successful connection (live mode only)
           </div>
         </div>
-        <label>Model ID <input id="careerModel" value="claude-opus-4-8"></label>
-        <small id="careerModelWarning" hidden>Unknown model ID: web research may not be supported.</small>
+        <button id="saveMessageButton" class="button" style="margin-top: 10px; width: auto; padding: 8px 16px; font-size: 12px;">💾 Save auto-connect settings</button>
       </div>
 
-      <div id="openaiProviderFields" hidden>
-        <div class="career-field">
-          <label for="careerOpenAiApiKey">OpenAI API key</label>
-          <div class="career-field-row">
-            <input id="careerOpenAiApiKey" type="password" autocomplete="off" placeholder="sk-…">
-            <button type="button" class="career-clear" data-key="careerOpenAiApiKey">Clear</button>
+      <div class="settings">
+        <h4 style="margin: 0 0 10px 0; color: #0077b5; font-size: 16px;">🚀 Step 3: Connect!</h4>
+        <div style="margin-bottom: 10px;">
+          <label class="checkbox-label">
+            <input type="checkbox" id="liveModeCheckbox">
+            <span class="checkmark"></span>
+            Live Mode (actually send requests)
+          </label>
+          <div class="checkbox-description">
+            Uncheck for test mode (logs actions without sending)
           </div>
         </div>
-        <label>Model ID <input id="careerOpenAiModel" value="gpt-5.6-terra"></label>
-        <small id="careerOpenAiModelWarning" hidden>Unknown model ID: web research may not be supported.</small>
+        <button id="startButton" class="button">Send connection requests</button>
       </div>
 
-      <div class="checkbox-row">
-        <input id="careerConsent" type="checkbox">
-        <label for="careerConsent">I consent to sending the displayed inputs to <span id="careerConsentProvider">Anthropic</span> for this run.</label>
+      <div id="status" class="status">
+        Click the button when on a LinkedIn search results page
       </div>
-      <small id="careerConsentError" class="field-error" role="alert" hidden></small>
-
-      <button id="careerTestButton" type="button">Review &amp; test connection</button>
-      <details id="careerPreview" hidden>
-        <summary>Transmission preview</summary>
-        <pre id="careerPreviewText" style="white-space:pre-wrap;max-height:180px;overflow:auto"></pre>
-        <button id="careerPreviewConfirm" type="button">Send approved data</button>
-        <small id="careerPreviewResult" class="career-result" role="status" aria-live="polite" hidden></small>
-      </details>
-      <hr>
-      <div id="profileCareerFields" hidden>
-        <div class="career-field">
-          <label for="careerCv">CV / resume</label>
-          <div class="career-field-row">
-            <textarea id="careerCv" rows="5" placeholder="Paste your CV or resume"></textarea>
-            <button type="button" class="career-clear" data-key="careerCv">Clear</button>
-          </div>
-        </div>
-        <button id="extractCvButton" type="button">Extract my details from this profile</button>
-        <small id="extractCvResult" class="career-result" role="status" aria-live="polite" hidden></small>
-
-        <div class="career-field">
-          <label for="careerJd">Target job description</label>
-          <div class="career-field-row">
-            <textarea id="careerJd" rows="5" placeholder="Paste the target job description"></textarea>
-            <button type="button" class="career-clear" data-key="careerJd">Clear</button>
-          </div>
-        </div>
-
-        <div class="career-field">
-          <label for="careerProfile">Interviewer profile</label>
-          <div class="career-field-row">
-            <textarea id="careerProfile" rows="5" placeholder="Extracted profile or manual fallback"></textarea>
-            <button type="button" class="career-clear" data-key="careerProfile">Clear</button>
-          </div>
-          <small id="careerProfileError" class="field-error" role="alert" hidden></small>
-        </div>
-        <button id="extractProfileButton" type="button">Extract LinkedIn profile</button>
-        <small id="extractProfileResult" class="career-result" role="status" aria-live="polite" hidden></small>
-        <button id="interviewButton" type="button">Generate Interview Preparation</button>
-      </div>
-      <div id="jobCareerFields" hidden>
-        <div class="career-field">
-          <label for="careerCompanyName">Company name</label>
-          <div class="career-field-row">
-            <input id="careerCompanyName" type="text">
-            <button type="button" class="career-clear" data-key="careerCompanyName">Clear</button>
-          </div>
-          <small id="careerCompanyNameError" class="field-error" role="alert" hidden></small>
-        </div>
-        <div class="career-field">
-          <label for="careerCompanyUrl">LinkedIn company URL</label>
-          <div class="career-field-row">
-            <input id="careerCompanyUrl" type="url" placeholder="https://www.linkedin.com/company/example/">
-            <button type="button" class="career-clear" data-key="careerCompanyUrl">Clear</button>
-          </div>
-        </div>
-        <div class="career-field">
-          <label for="careerJobTitle">Role title</label>
-          <div class="career-field-row">
-            <input id="careerJobTitle" type="text">
-            <button type="button" class="career-clear" data-key="careerJobTitle">Clear</button>
-          </div>
-        </div>
-        <div class="career-field">
-          <label for="careerSeniority">Seniority</label>
-          <div class="career-field-row">
-            <input id="careerSeniority" type="text">
-            <button type="button" class="career-clear" data-key="careerSeniority">Clear</button>
-          </div>
-        </div>
-        <div class="career-field">
-          <label for="careerLocation">Location</label>
-          <div class="career-field-row">
-            <input id="careerLocation" type="text" placeholder="Location">
-            <button type="button" class="career-clear" data-key="careerLocation">Clear</button>
-          </div>
-        </div>
-        <div class="career-field">
-          <label for="careerJobDescription">Job description</label>
-          <div class="career-field-row">
-            <textarea id="careerJobDescription" rows="6"></textarea>
-            <button type="button" class="career-clear" data-key="careerJobDescription">Clear</button>
-          </div>
-        </div>
-        <div class="checkbox-row">
-          <input id="careerResearch" type="checkbox" checked>
-          <label for="careerResearch">Research public company facts (requires valid LinkedIn company URL)</label>
-        </div>
-        <small id="careerResearchState"></small>
-        <button id="extractJobButton" type="button">Extract LinkedIn job</button>
-        <small id="extractJobResult" class="career-result" role="status" aria-live="polite" hidden></small>
-        <button id="companyButton" type="button">Generate Company &amp; Role Intelligence</button>
-      </div>
-
-      <div class="career-field">
-        <span>Saved reports</span>
-        <button type="button" id="clearReportsButton" class="career-clear">Clear saved reports</button>
-        <small id="clearReportsResult" class="career-result" role="status" aria-live="polite" hidden></small>
-      </div>
-    </section>
-
-    <div class="settings">
-      <h4 style="margin: 0 0 10px 0; color: #0077b5; font-size: 16px;">💬 Step 2: Customize your message</h4>
-      <div style="margin-bottom: 10px;">
-        <label for="greetingPart1">Greeting part 1:</label>
-        <input type="text" id="greetingPart1" placeholder="e.g. Hi" style="width: 100%; padding: 5px; margin-top: 5px;">
-      </div>
-      <div style="margin-bottom: 10px;">
-        <label class="checkbox-label">
-          <input type="checkbox" id="includeFirstNameCheckbox">
-          <span class="checkmark"></span>
-          Include first name of connection
-        </label>
-      </div>
-      <div style="margin-bottom: 10px;">
-        <label for="greetingPart2">Greeting part 2:</label>
-        <input type="text" id="greetingPart2" placeholder="e.g. 👋," style="width: 100%; padding: 5px; margin-top: 5px;">
-      </div>
-      <div style="margin-bottom: 10px;">
-        <label for="messageText">Message:</label>
-        <textarea id="messageText" rows="8" style="width: 100%; padding: 5px; margin-top: 5px; resize: vertical; font-family: inherit;" placeholder="Enter your connection message here..."></textarea>
-      </div>
-      <div style="margin-bottom: 10px;">
-        <label>Message Preview:</label>
-        <div id="messagePreview" style="width: 100%; padding: 10px; margin-top: 5px; background-color: #f8f9fa; border: 1px solid #e9ecef; border-radius: 4px; font-family: inherit; white-space: pre-wrap; min-height: 60px;"></div>
-      </div>
-      <div style="margin-bottom: 10px;">
-        <label for="stopPage">Page to stop after (blank = no limit):</label>
-        <input type="number" id="stopPage" placeholder="" min="1" style="width: 100%; padding: 5px; margin-top: 5px;">
-      </div>
-      <div style="margin-bottom: 10px;">
-        <label for="maxConnections">Max connect requests to send (blank = no limit):</label>
-        <input type="number" id="maxConnections" placeholder="" min="1" style="width: 100%; padding: 5px; margin-top: 5px;">
-      </div>
-      <div style="margin-bottom: 10px;">
-        <label class="checkbox-label">
-          <input type="checkbox" id="autoAdjustCheckbox">
-          <span class="checkmark"></span>
-          Auto-adjust max connections
-        </label>
-        <div class="checkbox-description">
-          Automatically decrease the limit after each successful connection (live mode only)
-        </div>
-      </div>
-      <button id="saveMessageButton" class="button" style="margin-top: 10px; width: auto; padding: 8px 16px; font-size: 12px;">💾 Save auto-connect settings</button>
-    </div>
-
-    <div class="settings">
-      <h4 style="margin: 0 0 10px 0; color: #0077b5; font-size: 16px;">🚀 Step 3: Connect!</h4>
-      <div style="margin-bottom: 10px;">
-        <label class="checkbox-label">
-          <input type="checkbox" id="liveModeCheckbox">
-          <span class="checkmark"></span>
-          Live Mode (actually send requests)
-        </label>
-        <div class="checkbox-description">
-          Uncheck for test mode (logs actions without sending)
-        </div>
-      </div>
-      <button id="startButton" class="button">Send connection requests</button>
-    </div>
-
-    <div id="status" class="status">
-      Click the button when on a LinkedIn search results page
     </div>
   </div>
 

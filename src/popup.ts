@@ -1,7 +1,7 @@
 // Popup script for Career Connect
 import { BUILD_TARGET } from "./build-target";
-import { extractableKind as pageDetectExtractableKind } from "./pageDetect";
-import { careerElement, initCareerTools } from "./popup-career-shared";
+import { initCareerTools } from "./popup-career-shared";
+import { initPopupTabs } from "./popup-tabs";
 import { attachUrlExtractionHandlers, generateLinkedInURL } from "./popup-search-shared";
 import type { SearchStrings } from "./popup-search-shared";
 const _BUILD_TARGET: string = BUILD_TARGET;
@@ -512,5 +512,7 @@ function runUpdateScript(): void {
   }, 2000);
 }
 
-const _extractableKind = (url: string): "profile" | "job" | "other" => pageDetectExtractableKind(url, null);
-initCareerTools(_extractableKind);
+// The dev build's content script matches <all_urls> (manifest.json), so it
+// can already reach every page — no on-demand injection is ever needed here.
+initCareerTools({ hostPattern: null });
+initPopupTabs();

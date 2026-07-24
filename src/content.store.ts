@@ -1,5 +1,4 @@
-import { extractJob } from "./extract/job";
-import { extractProfile } from "./extract/profile";
+import { registerExtractionListener } from "./extract/messageHandler";
 import { buildNote, generateRandomTimeout, extractFirstName, findConnectButton, findModal, type MessageSettings } from "./content-shared";
 
 {
@@ -139,13 +138,5 @@ chrome.runtime.onMessage.addListener(
   }
 );
 
-// Career Tools read visible LinkedIn text only, and are ignored by subframes.
-// `sender.frameId` describes the sender's frame, not this receiver's — a
-// request from the popup has no tab-frame sender at all, so only this
-// frame's own top-frame identity may gate the response.
-chrome.runtime.onMessage.addListener((request: { action?: string }, _sender, sendResponse) => {
-  if (window.top !== window) return;
-  if (request.action === "EXTRACT_PROFILE") { sendResponse(extractProfile(document)); return; }
-  if (request.action === "EXTRACT_JOB") sendResponse(extractJob(document));
-});
+registerExtractionListener();
 }

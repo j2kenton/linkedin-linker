@@ -12,7 +12,17 @@ export function wireCareerTools(): void {
 
   chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
     if (request.action === "CAREER_TOOLS_STATUS") return respondAfterCareerInitialization(careerStatus, sendResponse);
-    if (String(request.action || "").startsWith("CAREER_") || request.action === "ENSURE_JOB") { careerStatus.then(status => handleCareerMessage(request, status).then(sendResponse)); return true; }
+    if (String(request.action || "").startsWith("CAREER_") || request.action === "ENSURE_JOB") {
+      // handleCareerMessage's own handlers already turn expected failures into
+      // { ok:false, error } responses; this catch only covers an unexpected
+      // rejection (e.g. an unguarded storage write) so sendResponse is always
+      // called — otherwise the sender's message promise hangs/rejects and the
+      // rejection here goes unhandled in the service worker.
+      careerStatus
+        .then(status => handleCareerMessage(request, status))
+        .then(sendResponse, error => sendResponse({ ok:false, error: error instanceof Error ? error.message : "Career Tools request failed." }));
+      return true;
+    }
     return undefined;
   });
 

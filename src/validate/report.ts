@@ -1,4 +1,6 @@
-import { COMPANY_HEADINGS, ESTIMATE_TABLE, INTERVIEW_HEADINGS } from "../prompts/common";
+import { COMBINED_HEADINGS, COMPANY_HEADINGS, ESTIMATE_TABLE, INSUFFICIENT_CONTEXT_MARKER, INTERVIEW_HEADINGS } from "../prompts/common";
+
+export type ReportKind = "company" | "interview" | "combined";
 
 export interface ValidationFinding {
   section?: string;
@@ -45,6 +47,11 @@ function sectionText(markdown: string, heading: string, headings: readonly strin
     .filter(index => index >= 0)
     .sort((left, right) => left - right)[0];
   return next === undefined ? rest : rest.slice(0, next);
+}
+
+/** True if a section's entire body is (only) the insufficient-context marker — a valid, deliberate way to skip a section, not a defect. */
+function isInsufficientContextOnly(body: string): boolean {
+  return body.replace(/\r?\n/g, " ").trim() === INSUFFICIENT_CONTEXT_MARKER;
 }
 
 function addSchemaFindings(
@@ -113,11 +120,16 @@ function validateEstimateRow(
 function validateEstimateSection(
   markdown: string,
   heading: string,
+  headings: readonly string[],
   sourceIds: string[],
   stageBOnly: boolean,
   findings: ValidationFinding[],
 ): boolean {
-  const body = sectionText(markdown, heading, COMPANY_HEADINGS);
+  const body = sectionText(markdown, heading, headings);
+  // A combined report may legitimately have nothing to estimate (no company
+  // context supplied at all) — the insufficient-context marker is valid
+  // content, not a missing table.
+  if (isInsufficientContextOnly(body)) return false;
   const allLines = body.split(/\r?\n/);
 
   // Scanned per line (not as one joined blob) so every out-of-table
@@ -152,14 +164,28 @@ function validateEstimateSection(
   return findings.some(finding => finding.kind === "estimate" && finding.section === heading);
 }
 
+interface KindConfig {
+  headings: readonly string[];
+  /** "all" scans the whole document (legacy interview reports); an array restricts both detection and withholding to those specific section(s); null skips the check entirely. */
+  prohibitedHeadings: readonly string[] | "all" | null;
+  estimateHeadings: readonly string[];
+}
+
+function kindConfig(kind: ReportKind): KindConfig {
+  if (kind === "company") return { headings: COMPANY_HEADINGS, prohibitedHeadings: null, estimateHeadings: [COMPANY_HEADINGS[1], COMPANY_HEADINGS[5]] };
+  if (kind === "combined") return { headings: COMBINED_HEADINGS, prohibitedHeadings: [COMBINED_HEADINGS[3], COMBINED_HEADINGS[4]], estimateHeadings: [COMBINED_HEADINGS[5]] };
+  return { headings: INTERVIEW_HEADINGS, prohibitedHeadings: "all", estimateHeadings: [] };
+}
+
 /** Lexical validation of report shape; it validates structure, never factual truth. */
 export function validateReport(
   markdown: string,
-  kind: "company" | "interview",
+  kind: ReportKind,
   sourceIds: string[] = [],
   stageBOnly = false,
 ): Validation {
-  const expected: readonly string[] = kind === "company" ? [...COMPANY_HEADINGS] : [...INTERVIEW_HEADINGS];
+  const config = kindConfig(kind);
+  const expected: readonly string[] = config.headings;
   const headings: string[] = markdown.match(/^## .+$/gm) || [];
   const findings: ValidationFinding[] = [];
   const missing = expected.filter(heading => !headings.includes(heading));
@@ -170,23 +196,29 @@ export function validateReport(
   if (findOutOfOrderHeadings(headings, expected)) findings.push({ kind: "schema", message: "Headings appear out of the required order" });
   validateCitations(markdown, sourceIds, stageBOnly, findings);
 
-  const prohibitedFound = kind === "interview" ? (markdown.match(prohibited) || []) : [];
+  let prohibitedFound: string[] = [];
+  if (config.prohibitedHeadings === "all") {
+    prohibitedFound = markdown.match(prohibited) || [];
+  } else if (config.prohibitedHeadings) {
+    const scanned = config.prohibitedHeadings.map(heading => sectionText(markdown, heading, expected)).join("\n");
+    prohibited.lastIndex = 0;
+    prohibitedFound = scanned.match(prohibited) || [];
+  }
   const withheldSections: string[] = [];
   if (prohibitedFound.length) {
     const unique = [...new Set(prohibitedFound.map(value => value.toLowerCase()))];
     unique.forEach(message => findings.push({ kind: "prohibited", message }));
-    for (const heading of expected) {
+    const headingsToCheck = config.prohibitedHeadings === "all" ? expected : config.prohibitedHeadings || [];
+    for (const heading of headingsToCheck) {
       prohibited.lastIndex = 0;
       if (prohibited.test(sectionText(markdown, heading, expected))) withheldSections.push(heading);
     }
   }
 
   const invalidEstimateSections: string[] = [];
-  if (kind === "company") {
-    for (const heading of [COMPANY_HEADINGS[1], COMPANY_HEADINGS[5]]) {
-      if (validateEstimateSection(markdown, heading, sourceIds, stageBOnly, findings)) {
-        invalidEstimateSections.push(heading);
-      }
+  for (const heading of config.estimateHeadings) {
+    if (validateEstimateSection(markdown, heading, expected, sourceIds, stageBOnly, findings)) {
+      invalidEstimateSections.push(heading);
     }
   }
 

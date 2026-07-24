@@ -1,8 +1,9 @@
 // Popup script for Career Connect — store build
 // This file is the store-only entry point.
 // No auto-send, no Live Mode, no batch processing, no self-update, no runtime script injection.
-import { STORE_CONTENT_SCRIPT_HOST, extractableKind as pageDetectExtractableKind } from "./pageDetect";
-import { careerElement, initCareerTools } from "./popup-career-shared";
+import { STORE_CONTENT_SCRIPT_HOST } from "./pageDetect";
+import { initCareerTools } from "./popup-career-shared";
+import { initPopupTabs } from "./popup-tabs";
 import { attachUrlExtractionHandlers, generateLinkedInURL } from "./popup-search-shared";
 import type { SearchStrings } from "./popup-search-shared";
 
@@ -244,44 +245,18 @@ document.addEventListener("DOMContentLoaded", function (): void {
   });
 });
 
-const _extractableKind = (url: string): "profile" | "job" | "other" =>
-  pageDetectExtractableKind(url, STORE_CONTENT_SCRIPT_HOST);
-
 type CareerLock = { locked: boolean; reason?: string };
 const careerLock: Promise<CareerLock> = chrome.runtime.sendMessage({ action: "CAREER_TOOLS_STATUS" })
   .then((lock: CareerLock | undefined | null) => lock ?? { locked: false, reason: "Career Tools are unavailable." })
   .catch(() => ({ locked: false, reason: "Career Tools service is not ready. Reload the extension." }));
 
-initCareerTools(_extractableKind, careerLock);
-
-// Mode controller — the popup always opens on the chooser; picking a tool
-// shows only that view so Connection Assistant and Career Tools can no
-// longer show contradictory status at the same time.
-type PopupMode = "chooser" | "connection" | "career";
-document.addEventListener("DOMContentLoaded", () => {
-  const chooser = careerElement<HTMLElement>("modeChooser");
-  const connectionView = careerElement<HTMLElement>("connectionView");
-  const careerView = careerElement<HTMLElement>("careerView");
-  const backButton = careerElement<HTMLButtonElement>("backButton");
-  const chooseConnection = careerElement<HTMLButtonElement>("chooseConnection");
-  const chooseCareer = careerElement<HTMLButtonElement>("chooseCareer");
-  const modeNote = careerElement<HTMLElement>("modeNote");
-
-  const show = (mode: PopupMode): void => {
-    chooser.hidden = mode !== "chooser";
-    connectionView.hidden = mode !== "connection";
-    careerView.hidden = mode !== "career";
-    backButton.hidden = mode === "chooser";
-  };
-
-  chooseConnection.onclick = () => show("connection");
-  chooseCareer.onclick = () => show("career");
-  backButton.onclick = () => show("chooser");
-
-  careerLock.then((lock: CareerLock) => {
-    chooseCareer.disabled = !lock.locked;
-    if (!lock.locked) modeNote.textContent = lock.reason || "Career Tools are unavailable.";
-  });
-
-  show("chooser");
-});
+// On-demand extraction for pages outside this build's declared content
+// script (https://www.linkedin.com/* only — see manifest.store.json) is
+// handled centrally by src/extract/capabilities.ts's ensureExtractionHandler,
+// which only injects dist/extractInject.js when the installed manifest
+// declares "scripting" (the B2 store variant). The B1 variant (the default,
+// checked-in manifest.store.json) declares neither "scripting" nor optional
+// broad host access, so it never calls chrome.scripting at all — a missing
+// declared handler there surfaces as a reload prompt instead.
+initCareerTools({ hostPattern: STORE_CONTENT_SCRIPT_HOST, careerLockPromise: careerLock });
+initPopupTabs();

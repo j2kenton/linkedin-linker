@@ -1,17 +1,26 @@
 #!/usr/bin/env node
-// Zips the assembled store build (release/store/) into release/store.zip,
-// the artifact used for Chrome Web Store submission.
-// Run after: npm run build:store
+// Zips the assembled store build into the Chrome Web Store submission
+// artifact. Usage: node scripts/package-release.js [--variant=b1|b2]
+//   b1 (default): release/store/      -> release/store.zip
+//   b2:           release/store-b2/   -> release/store-b2.zip
+// Run after: npm run build:store[:b2]
 
 const fs = require('fs');
 const path = require('path');
 
 const root = path.join(__dirname, '..');
-const sourceDir = path.join(root, 'release', 'store');
-const outputFile = path.join(root, 'release', 'store.zip');
+const variantArg = process.argv.find(arg => arg.startsWith('--variant='));
+const variant = variantArg ? variantArg.slice('--variant='.length) : 'b1';
+if (variant !== 'b1' && variant !== 'b2') {
+  console.error('Usage: package-release.js [--variant=b1|b2]');
+  process.exit(1);
+}
+const sourceDir = path.join(root, 'release', variant === 'b2' ? 'store-b2' : 'store');
+const outputFile = path.join(root, 'release', variant === 'b2' ? 'store-b2.zip' : 'store.zip');
+const buildCommand = variant === 'b2' ? 'npm run build:store:b2' : 'npm run build:store';
 
 if (!fs.existsSync(sourceDir)) {
-  console.error(`ERROR: ${sourceDir} does not exist — run "npm run build:store" first.`);
+  console.error(`ERROR: ${sourceDir} does not exist — run "${buildCommand}" first.`);
   process.exit(1);
 }
 
@@ -73,7 +82,7 @@ const uint32 = (value) => {
 
 const files = listFiles(sourceDir).sort();
 if (files.length === 0) {
-  console.error(`ERROR: ${sourceDir} is empty — run "npm run build:store" first.`);
+  console.error(`ERROR: ${sourceDir} is empty — run "${buildCommand}" first.`);
   process.exit(1);
 }
 

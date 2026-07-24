@@ -3,6 +3,6 @@
   "compilerOptions": {
     "noEmit": true
   },
-  "include": ["src/background.ts", "src/popup.store.ts", "src/content.store.ts", "src/report.ts"],
+  "include": ["src/background.ts", "src/popup.store.ts", "src/content.store.ts", "src/report.ts", "src/extractInject.ts"],
   "exclude": ["node_modules", "dist"]
 }

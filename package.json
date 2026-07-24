@@ -4,9 +4,12 @@
   "description": "Automates LinkedIn connection requests with sequential processing and random delays",
   "scripts": {
     "build": "node scripts/set-build-target.js developer && tsc --noEmit && node scripts/build-dev.js",
-    "build:store": "node scripts/set-build-target.js store && tsc -p tsconfig.store.json && node scripts/build-store.js && node scripts/package-store.js",
-    "package": "npm run build:store && node scripts/package-release.js",
+    "build:store": "node scripts/set-build-target.js store b1 && tsc -p tsconfig.store.json && node scripts/build-store.js --variant=b1 && node scripts/package-store.js --variant=b1",
+    "build:store:b2": "node scripts/set-build-target.js store b2 && tsc -p tsconfig.store.json && node scripts/build-store.js --variant=b2 && node scripts/package-store.js --variant=b2",
+    "package": "npm run build:store && node scripts/package-release.js --variant=b1",
+    "package:b2": "npm run build:store:b2 && node scripts/package-release.js --variant=b2",
     "webstore:upload": "npm run package && node scripts/run-webstore-cli.js upload --source release/store.zip --extension-id poedmlfffaldgihhpffkbknjegmkpclj",
+    "webstore:upload:b2": "npm run package:b2 && node scripts/run-webstore-cli.js upload --source release/store-b2.zip --extension-id poedmlfffaldgihhpffkbknjegmkpclj",
     "webstore:publish": "node scripts/run-webstore-cli.js publish --extension-id poedmlfffaldgihhpffkbknjegmkpclj",
     "release": "node scripts/publish-live.js",
     "ensemble:release": "npm run release",
@@ -16,8 +19,10 @@
     "lint": "npm run check-types",
     "pretest": "node scripts/set-build-target.js developer",
     "test": "vitest run",
-    "generate:store-baseline": "node scripts/generate-store-baseline.js",
-    "verify:store-baseline": "node scripts/generate-store-baseline.js --check",
+    "generate:store-baseline": "node scripts/generate-store-baseline.js --variant=b1",
+    "generate:store-baseline:b2": "node scripts/generate-store-baseline.js --variant=b2",
+    "verify:store-baseline": "node scripts/generate-store-baseline.js --check --variant=b1",
+    "verify:store-baseline:b2": "node scripts/generate-store-baseline.js --check --variant=b2",
     "verify:clean-checkout": "node scripts/verify-clean-checkout.js"
   },
   "devDependencies": {

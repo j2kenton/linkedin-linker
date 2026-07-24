@@ -1,11 +1,12 @@
 import { StreamAssembler, OpenAIStreamAssembler, type AssembledStream } from "./streamAssembler";
+import { DEFAULT_MODEL } from "../models";
 
 export type Provider = "anthropic" | "openai";
 
-export const DEFAULT_MODEL: Record<Provider, string> = {
-  anthropic: "claude-opus-4-8",
-  openai: "gpt-5.6-terra",
-};
+// The verified per-provider model catalog lives in ../models.ts (it needs
+// this file's Provider type); re-exported here so existing callers importing
+// DEFAULT_MODEL from this module keep working unchanged.
+export { DEFAULT_MODEL };
 
 /** The single provider-name source of truth for error text, consent copy, and UI labels. */
 export const PROVIDER_LABEL: Record<Provider, string> = {
@@ -17,6 +18,16 @@ const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_WEB_SEARCH_TOOL = "web_search_20260209";
 const OPENAI_URL = "https://api.openai.com/v1/responses";
 const OPENAI_RESEARCH_MAX_TOKENS = 24000;
+const TEST_MAX_TOKENS = 16;
+const ANTHROPIC_SEARCH_MAX_TOKENS = 6000;
+const SYNTHESIS_MAX_TOKENS = 9000;
+
+/** The single source of truth for the requested output-token ceiling of every streamed call — used both to build the actual request body and to pre-flight it through assertRequestFitsModel before that request is sent. */
+export function resolveRequestedOutputTokens(provider: Provider, search: boolean, test: boolean): number {
+  if (test) return TEST_MAX_TOKENS;
+  if (provider === "openai") return search ? OPENAI_RESEARCH_MAX_TOKENS : SYNTHESIS_MAX_TOKENS;
+  return search ? ANTHROPIC_SEARCH_MAX_TOKENS : SYNTHESIS_MAX_TOKENS;
+}
 
 export function classifyProviderError(provider: Provider, status: number, body: string, research: boolean): string {
   const name = PROVIDER_LABEL[provider];
@@ -39,7 +50,7 @@ export function classifyProviderError(provider: Provider, status: number, body: 
 
 /** The single serialized request shape for every streamed Anthropic call. */
 export function buildRequestBody(model: string, messages: Record<string, unknown>[], search: boolean, test = false): Record<string, unknown> {
-  const body: Record<string, unknown> = { model, max_tokens:test ? 16 : search ? 6000 : 9000, stream:true, thinking:{ type:"adaptive", display:"summarized" }, messages };
+  const body: Record<string, unknown> = { model, max_tokens:resolveRequestedOutputTokens("anthropic", search, test), stream:true, thinking:{ type:"adaptive", display:"summarized" }, messages };
   if (search) body.tools = [{ type:ANTHROPIC_WEB_SEARCH_TOOL, name:"web_search", max_uses:8 }];
   return body;
 }
@@ -73,7 +84,7 @@ function toResponsesInput(messages: Record<string, unknown>[]): Record<string, u
 
 /** The single serialized request shape for every streamed OpenAI Responses call. */
 export function buildOpenAIRequestBody(model: string, messages: Record<string, unknown>[], search: boolean, test = false, skipReasoning = false): Record<string, unknown> {
-  const body: Record<string, unknown> = { model, input:toResponsesInput(messages), max_output_tokens:test ? 16 : search ? OPENAI_RESEARCH_MAX_TOKENS : 9000, stream:true };
+  const body: Record<string, unknown> = { model, input:toResponsesInput(messages), max_output_tokens:resolveRequestedOutputTokens("openai", search, test), stream:true };
   if (!skipReasoning) body.reasoning = { summary:"auto" };
   if (search) body.tools = [{ type:"web_search", search_context_size:"medium" }];
   return body;

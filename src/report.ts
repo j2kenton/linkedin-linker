@@ -1,13 +1,15 @@
 import { renderMarkdown } from "./render/markdown";
-import { COMPANY_HEADINGS, INTERVIEW_HEADINGS } from "./prompts/common";
+import { COMBINED_HEADINGS, COMPANY_HEADINGS, INTERVIEW_HEADINGS } from "./prompts/common";
 import { reconnectDelay } from "./report/reconnect";
 
 type Job = {
   id: string;
-  kind: "company" | "interview";
+  kind: "company" | "interview" | "combined";
   status: string;
   stage: string;
   provider: "anthropic" | "openai";
+  model?: string;
+  createdAt?: number;
   reportText: string;
   error?: string;
   input: Record<string, string>;
@@ -15,6 +17,20 @@ type Job = {
   warnings?: string[];
   researchAvailable: boolean;
   validation?: { findings: { message: string; kind: string; line?: string }[]; withheldSections: string[]; invalidEstimateSections: string[] };
+  /** True only when this job's freshest known state lives in the session recovery register rather than durable local storage. */
+  unsaved?: boolean;
+};
+
+const HEADINGS_BY_KIND: Record<Job["kind"], readonly string[]> = {
+  company: COMPANY_HEADINGS,
+  interview: INTERVIEW_HEADINGS,
+  combined: COMBINED_HEADINGS,
+};
+
+const FIELD_LABEL: Record<string, string> = {
+  cv: "CV / resume", profile: "Interviewer profile / notes", companyName: "Company name", companyUrl: "Company LinkedIn URL",
+  companyInfo: "Company information", title: "Role title", seniority: "Seniority", location: "Location",
+  jd: "Job description", stage: "Interview stage",
 };
 
 const id = new URLSearchParams(location.search).get("job");
@@ -33,7 +49,7 @@ function isActive(job = current): boolean {
 function copySections(job: Job): void {
   const root = document.querySelector<HTMLElement>("#sectionCopy")!;
   root.replaceChildren();
-  const headings = job.kind === "company" ? COMPANY_HEADINGS : INTERVIEW_HEADINGS;
+  const headings = HEADINGS_BY_KIND[job.kind];
   for (const heading of headings) {
     const start = job.reportText.indexOf(heading);
     if (start < 0) continue;
@@ -82,7 +98,7 @@ function renderSources(job: Job): void {
 function trustedText(job: Job): string {
   const withheld = job.validation?.withheldSections || [];
   if (!withheld.length) return job.reportText;
-  const headings = job.kind === "company" ? COMPANY_HEADINGS : INTERVIEW_HEADINGS;
+  const headings = HEADINGS_BY_KIND[job.kind];
   let text = job.reportText;
   for (const heading of withheld) {
     const start = text.indexOf(heading);
@@ -94,19 +110,32 @@ function trustedText(job: Job): string {
   return text;
 }
 
+/** Consistent with the popup's History "Retry save" action: surfaces the same recovery guidance (copy the text now, retry saving) whenever this report's freshest state is only in the session recovery register. */
+function renderRecoveryNotice(job: Job): void {
+  const notice = document.querySelector<HTMLElement>("#recoveryNotice");
+  if (!notice) return;
+  notice.hidden = !job.unsaved;
+  const text = document.querySelector<HTMLElement>("#recoveryNoticeText");
+  if (text) text.textContent = "This report has not been saved to local storage yet — it's only recoverable until the browser closes. Copy it as Markdown now, or retry saving.";
+}
+
 function renderJob(job: Job): void {
   current = job;
   status.textContent = `${job.status}${job.stage ? ` — ${job.stage}` : ""}${job.error ? `: ${job.error}` : ""}`;
+  renderRecoveryNotice(job);
   const disclaimer = document.querySelector<HTMLDivElement>("#disclaimer")!;
   disclaimer.hidden = false;
-  disclaimer.textContent = job.kind === "company"
-    ? `AI-generated estimates and ranges — verify before relying on them${job.researchAvailable ? "." : ". No web research was performed."}`
-    : "Hypotheses from public professional content, not an assessment of the person.";
+  disclaimer.textContent = job.kind === "interview"
+    ? "Hypotheses from public professional content, not an assessment of the person."
+    : job.kind === "combined"
+      ? `AI-generated report adapted to the context you supplied — estimates and interviewer observations are hypotheses, not facts; verify before relying on them${job.researchAvailable ? "." : ". No web research was performed."}`
+      : `AI-generated estimates and ranges — verify before relying on them${job.researchAvailable ? "." : ". No web research was performed."}`;
   const reasoning = document.querySelector<HTMLParagraphElement>("#reasoning")!;
   const note = job.warnings?.find(warning => warning.startsWith("reasoning:"));
   reasoning.hidden = !note;
   reasoning.textContent = note ? `Reasoning… ${note.slice(10)}` : "";
   renderMarkdown(report, trustedText(job), job.sources);
+  renderGenerationContext(job);
   markInvalidEstimateSections(job);
   markInvalidEstimateRows(job);
   copySections(job);
@@ -125,6 +154,48 @@ function renderJob(job: Job): void {
     details.append(summary, pre);
     report.append(details);
   }
+}
+
+/** Renders the collapsed "Generation context" section: the exact input snapshot and provider/model metadata used to generate this report. All text is inserted via textContent, never innerHTML — the snapshot may contain arbitrary user- or page-derived text. */
+function renderGenerationContext(job: Job): void {
+  const container = document.querySelector<HTMLElement>("#generationContext");
+  if (!container) return;
+  container.replaceChildren();
+  const details = document.createElement("details");
+  const summary = document.createElement("summary");
+  summary.textContent = "Generation context";
+  details.append(summary);
+
+  const meta = document.createElement("p");
+  const metaParts = [
+    `Provider: ${job.provider}`,
+    job.model ? `Model: ${job.model}` : "Model: (not recorded — generated before model tracking was added)",
+    `Research: ${job.researchAvailable ? "performed" : "not performed"}`,
+    job.createdAt ? `Created: ${new Date(job.createdAt).toLocaleString()}` : "",
+  ].filter(Boolean);
+  meta.textContent = metaParts.join(" · ");
+  details.append(meta);
+
+  const entries = Object.entries(job.input || {}).filter(([key]) => !key.endsWith("Source") && key !== "kind" && key !== "research");
+  if (!entries.length) {
+    const empty = document.createElement("p");
+    empty.textContent = "No input snapshot is available for this report.";
+    details.append(empty);
+  }
+  for (const [key, value] of entries) {
+    if (!value) continue;
+    const label = document.createElement("p");
+    const strong = document.createElement("strong");
+    const source = (job.input || {})[`${key}Source`];
+    strong.textContent = `${FIELD_LABEL[key] || key}${source ? ` [${source}]` : ""}:`;
+    label.append(strong);
+    details.append(label);
+    const pre = document.createElement("pre");
+    pre.textContent = value;
+    details.append(pre);
+  }
+
+  container.append(details);
 }
 
 /** Marks each estimate-bearing section the validator flagged, so a grammar failure is visible where it occurred. */
@@ -202,6 +273,14 @@ function connect(): void {
 
 document.querySelector<HTMLButtonElement>("#copy")!.onclick = () => current && navigator.clipboard.writeText(current.reportText);
 document.querySelector<HTMLButtonElement>("#cancel")!.onclick = () => chrome.runtime.sendMessage({ action:"CAREER_CANCEL", id });
+document.querySelector<HTMLButtonElement>("#retrySave")?.addEventListener("click", async () => {
+  // Sending the tab's own in-memory copy (when available) lets the worker
+  // rebuild the report even if its recovery anchor was lost after this tab
+  // loaded — an id-only retry can only re-attempt whatever the worker still
+  // has anchored, which is null in that case.
+  const response = await chrome.runtime.sendMessage({ action:"CAREER_SAVE_JOB", id, job:current });
+  status.textContent = response?.ok ? `${current?.status || ""} — saved.` : (response?.error || "Could not save this report.");
+});
 document.querySelector<HTMLButtonElement>("#regenerate")!.onclick = async () => {
   if (!current) return;
   const preview = current.kind === "company"
@@ -212,7 +291,7 @@ document.querySelector<HTMLButtonElement>("#regenerate")!.onclick = async () => 
   // which vendor its data goes to on re-run.
   const providerName = current.provider === "openai" ? "OpenAI" : "Anthropic";
   if (!window.confirm(`Transmission preview — regenerate will send the following saved data to ${providerName} (the provider this report was created with):\n\n${preview}\n\nContinue?`)) return;
-  const response = await chrome.runtime.sendMessage({ action:"CAREER_RUN", consent:true, previewed:true, provider:current.provider, input:{ kind:current.kind, ...current.input, research:current.researchAvailable } });
+  const response = await chrome.runtime.sendMessage({ action:"CAREER_RUN", previewed:true, provider:current.provider, input:{ kind:current.kind, ...current.input, research:current.researchAvailable } });
   if (response.ok) location.replace(`report.html?job=${encodeURIComponent(response.jobId)}`);
   else status.textContent = response.error;
 };
