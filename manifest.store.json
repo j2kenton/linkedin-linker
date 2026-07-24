@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Career Connect",
-  "version": "1.2",
+  "version": "1.2.1",
   "minimum_chrome_version": "114",
   "description": "Prepare LinkedIn invite drafts, plus optional AI interview prep and company research using your own Anthropic or OpenAI API key.",
   "permissions": [
