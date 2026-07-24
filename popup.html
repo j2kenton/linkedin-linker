@@ -3,91 +3,213 @@
 <head>
   <meta charset="utf-8">
   <style>
+    :root {
+      --c-bg: #F4F2EE;
+      --c-surface: #FFFFFF;
+      --c-surface-2: #F7F8FA;
+      --c-border: #E4E7EB;
+      --c-border-strong: #CDD3DB;
+      --c-primary: #0A66C2;
+      --c-primary-hover: #004182;
+      --c-primary-active: #00335F;
+      --c-primary-tint: #EAF3FC;
+      --c-text: #1D2226;
+      --c-text-secondary: #56687A;
+      --c-text-muted: #8C949C;
+      --c-success: #057642;
+      --c-success-bg: #E9F6EE;
+      --c-danger: #B3261E;
+      --c-danger-bg: #FBEAE9;
+      --c-warning: #7A5300;
+      --c-warning-bg: #FEF6E0;
+      --c-warning-border: #F1DCA0;
+      --radius-s: 6px;
+      --radius-m: 10px;
+      --radius-l: 14px;
+      --radius-pill: 999px;
+      --shadow-s: 0 1px 2px rgba(16, 24, 40, .06);
+      --shadow-m: 0 4px 12px rgba(16, 24, 40, .08);
+      --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+    *, *::before, *::after { box-sizing: border-box; }
     body {
       min-width: 200px;
       max-width: 600px;
       width: 100%;
-      padding: 20px;
-      box-sizing: border-box;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      margin: 0;
+      padding: 22px;
+      background: var(--c-bg);
+      color: var(--c-text);
+      font-family: var(--font);
+      font-size: 14px;
+      line-height: 1.45;
+      -webkit-font-smoothing: antialiased;
     }
     .container {
-      text-align: center;
+      text-align: left;
     }
     .title {
-      font-size: 18px;
-      font-weight: bold;
-      margin-bottom: 15px;
-      color: #0077b5;
+      font-size: 19px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      margin-bottom: 4px;
+      color: var(--c-text);
     }
     .description {
-      font-size: 14px;
-      color: #666;
+      font-size: 13px;
+      color: var(--c-text-secondary);
       margin-bottom: 20px;
-      line-height: 1.4;
+      line-height: 1.5;
     }
     .button {
-      background-color: #0077b5;
-      color: white;
+      background-color: var(--c-primary);
+      color: #fff;
       border: none;
-      padding: 12px 24px;
-      border-radius: 4px;
+      padding: 11px 20px;
+      border-radius: var(--radius-pill);
       font-size: 14px;
+      font-weight: 600;
       cursor: pointer;
       width: 100%;
-      transition: background-color 0.2s;
+      box-shadow: var(--shadow-s);
+      transition: background-color 0.15s ease, box-shadow 0.15s ease;
     }
     .button:hover {
-      background-color: #005582;
+      background-color: var(--c-primary-hover);
     }
     .button:active {
-      background-color: #004269;
+      background-color: var(--c-primary-active);
     }
     .button:disabled {
-      background-color: #ccc;
+      background-color: #C7CDD4;
+      color: #fff;
       cursor: not-allowed;
+      box-shadow: none;
     }
     .status {
-      margin-top: 15px;
-      font-size: 12px;
-      color: #666;
+      margin-top: 16px;
+      font-size: 12.5px;
+      color: var(--c-text-secondary);
+      text-align: center;
     }
     .warning {
-      background-color: #fff3cd;
-      border: 1px solid #ffeaa7;
-      border-radius: 4px;
-      padding: 10px;
-      margin: 15px 0;
-      font-size: 12px;
-      color: #856404;
+      background-color: var(--c-warning-bg);
+      border: 1px solid var(--c-warning-border);
+      border-radius: var(--radius-m);
+      padding: 12px 14px;
+      margin: 16px 0;
+      font-size: 12.5px;
+      line-height: 1.5;
+      color: var(--c-warning);
     }
     .settings {
       text-align: left;
-      margin: 20px 0;
-      padding: 15px;
-      background-color: #f8f9fa;
-      border-radius: 4px;
-      border: 1px solid #e9ecef;
+      margin: 16px 0;
+      padding: 18px;
+      background-color: var(--c-surface);
+      border-radius: var(--radius-l);
+      border: 1px solid var(--c-border);
+      box-shadow: var(--shadow-s);
     }
-    .career-tools { text-align: left; margin: 20px 0; padding: 15px; border: 1px solid #b9d7ee; border-radius: 4px; background: #f4faff; }
-    .career-tools textarea, .career-tools input:not([type=checkbox]), .career-tools select { box-sizing: border-box; width: 100%; margin: 4px 0 4px; padding: 6px; }
-    .career-tools small { display:block; color:#555; margin-bottom:8px; }
-    .career-hint { color:#0077b5; }
-    .career-section { margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid #e0eefc; }
-    .career-section h5 { margin: 0 0 8px; color: #0077b5; font-size: 14px; }
-    .career-field { margin-bottom: 10px; }
-    .career-field label { display:block; font-size:13px; margin-bottom:3px; }
+    .settings h4 {
+      margin: 0 0 14px 0;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--c-border);
+      color: var(--c-text);
+      font-size: 14px;
+      font-weight: 700;
+    }
+    .field { margin-bottom: 14px; }
+    .field label { display: block; font-size: 12.5px; font-weight: 600; color: var(--c-text-secondary); margin-bottom: 5px; }
+    .field input, .field textarea, .field select {
+      width: 100%;
+      padding: 8px 10px;
+      font-family: inherit;
+      font-size: 13px;
+      color: var(--c-text);
+      background: var(--c-surface);
+      border: 1px solid var(--c-border-strong);
+      border-radius: var(--radius-s);
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .field textarea { resize: vertical; }
+    .field input:focus, .field textarea:focus, .field select:focus {
+      outline: none;
+      border-color: var(--c-primary);
+      box-shadow: 0 0 0 3px var(--c-primary-tint);
+    }
+    .url-btn {
+      margin-top: 6px;
+      padding: 5px 12px;
+      font-size: 11.5px;
+      font-weight: 600;
+      background: var(--c-surface);
+      color: var(--c-primary);
+      border: 1px solid var(--c-border-strong);
+      border-radius: var(--radius-pill);
+      cursor: pointer;
+      transition: background-color 0.15s ease, border-color 0.15s ease;
+    }
+    .url-btn:hover { background: var(--c-primary-tint); border-color: var(--c-primary); }
+    .preview-box {
+      padding: 10px 12px;
+      background: var(--c-surface-2);
+      border: 1px solid var(--c-border);
+      border-radius: var(--radius-m);
+      font-size: 12.5px;
+      white-space: pre-wrap;
+      min-height: 52px;
+      color: var(--c-text);
+    }
+    .save-btn {
+      padding: 8px 16px;
+      font-size: 12.5px;
+      font-weight: 600;
+      background: var(--c-surface);
+      color: var(--c-primary);
+      border: 1px solid var(--c-primary);
+      border-radius: var(--radius-pill);
+      cursor: pointer;
+      transition: background-color 0.15s ease;
+    }
+    .save-btn:hover { background: var(--c-primary-tint); }
+    .career-tools { text-align: left; margin: 16px 0; padding: 20px; border: 1px solid var(--c-border); border-radius: var(--radius-l); background: var(--c-surface); box-shadow: var(--shadow-s); }
+    .career-tools textarea, .career-tools input:not([type=checkbox]), .career-tools select {
+      box-sizing: border-box; width: 100%; margin: 4px 0; padding: 8px 10px; font-size: 13px; font-family: inherit;
+      color: var(--c-text); background: var(--c-surface); border: 1px solid var(--c-border-strong); border-radius: var(--radius-s);
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .career-tools textarea:focus, .career-tools input:focus, .career-tools select:focus {
+      outline: none; border-color: var(--c-primary); box-shadow: 0 0 0 3px var(--c-primary-tint);
+    }
+    .career-tools small { display:block; color: var(--c-text-secondary); margin-bottom:8px; font-size: 12px; }
+    .career-tools details { margin-top: 10px; }
+    .career-tools summary { cursor: pointer; font-size: 12.5px; font-weight: 600; color: var(--c-primary); }
+    .career-tools pre { background: var(--c-surface-2); border: 1px solid var(--c-border); border-radius: var(--radius-s); padding: 10px; font-size: 11.5px; }
+    .career-hint { color: var(--c-primary); font-weight: 500; }
+    .career-section { margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--c-border); }
+    .career-section:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+    .career-section h5 { margin: 0 0 12px; padding-left: 10px; border-left: 3px solid var(--c-primary); color: var(--c-text); font-size: 13px; font-weight: 700; }
+    .career-field { margin-bottom: 12px; }
+    .career-field label { display:block; font-size:12.5px; font-weight:600; color: var(--c-text-secondary); margin-bottom:4px; }
     .career-field-row { display:flex; gap:6px; align-items:flex-start; }
     .career-field-row input, .career-field-row textarea { flex:1 1 auto; width:auto; margin:0; }
-    .career-clear { flex:none; margin-top:4px; padding:5px 8px; font-size:11px; background:#f0f0f0; border:1px solid #ccc; border-radius:3px; cursor:pointer; white-space:nowrap; }
-    .career-clear:hover { background:#e0e0e0; }
-    .field-error { color:#d93025; font-size:11px; margin:2px 0 8px; }
-    .career-tools input.invalid, .career-tools textarea.invalid { border-color:#d93025; }
-    .career-result { font-size:12px; margin:4px 0 10px; }
-    .career-result.success { color:#188038; }
-    .career-result.error { color:#d93025; }
-    .career-result.pending { color:#666; }
-    .checkbox-row { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-bottom: 10px; }
+    .career-clear {
+      flex:none; margin-top:4px; padding:6px 10px; font-size:11px; font-weight:600; white-space:nowrap;
+      background: var(--c-surface); color: var(--c-text-secondary); border:1px solid var(--c-border-strong); border-radius: var(--radius-pill); cursor:pointer;
+      transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+    }
+    .career-clear:hover { background: var(--c-surface-2); border-color: var(--c-text-secondary); color: var(--c-text); }
+    .career-clear-danger { color: var(--c-danger); border-color: #EFC6C2; }
+    .career-clear-danger:hover { background: var(--c-danger-bg); border-color: var(--c-danger); color: var(--c-danger); }
+    .field-error { color: var(--c-danger); font-size:11px; margin:2px 0 8px; }
+    .career-tools input.invalid, .career-tools textarea.invalid { border-color: var(--c-danger); }
+    .career-result { font-size:12px; margin:4px 0 10px; color: var(--c-text-secondary); }
+    .career-result.success { color: var(--c-success); font-weight: 600; }
+    .career-result.error { color: var(--c-danger); font-weight: 600; }
+    .career-result.pending { color: var(--c-text-secondary); font-style: italic; }
+    .checkbox-row { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-bottom: 12px; color: var(--c-text); }
+    .checkbox-row input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--c-primary); }
     /* Author rules that set display: block (e.g. ".career-tools small" above)
        otherwise win the cascade over the UA [hidden] default, so a hidden
        small/div inside .career-tools would render visible. Force it closed. */
@@ -95,30 +217,61 @@
     .checkbox-label {
       display: flex;
       align-items: center;
-      font-size: 14px;
-      font-weight: 500;
-      color: #333;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--c-text);
       cursor: pointer;
-      margin-bottom: 5px;
+      margin-bottom: 6px;
     }
     .checkbox-label input[type="checkbox"] {
-      margin: 0 10px 0 0;
-      transform: scale(1.1);
-      accent-color: #0077b5;
+      margin: 0;
+      width: 16px;
+      height: 16px;
+      accent-color: var(--c-primary);
     }
     .checkbox-description {
-      font-size: 12px;
-      color: #666;
-      margin-left: 26px;
-      font-style: italic;
+      font-size: 11.5px;
+      color: var(--c-text-secondary);
+      margin-left: 24px;
+      margin-bottom: 10px;
     }
-    .tab-row { display: flex; border-bottom: 1px solid #e9ecef; margin-bottom: 14px; }
-    .tab-btn { flex: 1; padding: 10px; background: none; border: none; border-bottom: 3px solid transparent; font-size: 14px; font-weight: 600; color: #666; cursor: pointer; }
-    .tab-btn[aria-selected="true"] { color: #0077b5; border-bottom-color: #0077b5; }
-    .history-row { border: 1px solid #e9ecef; border-radius: 4px; padding: 8px; margin-bottom: 6px; font-size: 12px; }
-    .history-row strong { display: block; }
-    .history-meta { color: #666; margin: 2px 0 6px; }
-    .history-row button { margin-right: 6px; padding: 4px 8px; font-size: 11px; }
+    .tab-row { display: flex; gap: 4px; border-bottom: 1px solid var(--c-border); margin-bottom: 18px; }
+    .tab-btn {
+      flex: 1; padding: 10px 4px; background: none; border: none; border-bottom: 2px solid transparent;
+      border-radius: var(--radius-s) var(--radius-s) 0 0;
+      font-size: 13.5px; font-weight: 600; color: var(--c-text-secondary); cursor: pointer;
+      transition: color 0.15s ease, background-color 0.15s ease;
+    }
+    .tab-btn:hover { color: var(--c-text); background: var(--c-surface-2); }
+    .tab-btn[aria-selected="true"] { color: var(--c-primary); border-bottom-color: var(--c-primary); }
+    .history-row { border: 1px solid var(--c-border); border-radius: var(--radius-m); padding: 12px; margin-bottom: 10px; font-size: 12.5px; background: var(--c-surface-2); }
+    .history-row strong { display: block; font-size: 13px; color: var(--c-text); margin-bottom: 2px; }
+    .history-meta { color: var(--c-text-secondary); margin: 2px 0 8px; font-size: 11.5px; }
+    .history-status { color: var(--c-text-secondary); font-size: 11.5px; margin-top: 6px; }
+    .history-row button { margin-right: 6px; margin-bottom: 6px; padding: 5px 10px; font-size: 11px; }
+    :where(.career-tools, .settings, #confirmPanel) button {
+      font-family: inherit; font-size: 12.5px; font-weight: 600; padding: 8px 14px;
+      border-radius: var(--radius-pill); border: 1px solid var(--c-primary);
+      background: var(--c-surface); color: var(--c-primary); cursor: pointer;
+      transition: background-color 0.15s ease;
+    }
+    :where(.career-tools, .settings, #confirmPanel) button:hover { background: var(--c-primary-tint); }
+    .settings .button, .career-tools .button, #confirmPanel .button { background: var(--c-primary); color: #fff; border: none; }
+    .settings .button:hover, .career-tools .button:hover, #confirmPanel .button:hover { background: var(--c-primary-hover); }
+    .settings .button:disabled, .career-tools .button:disabled, #confirmPanel .button:disabled { background: #C7CDD4; color: #fff; cursor: not-allowed; box-shadow: none; }
+    .link-btn {
+      display: block;
+      border: none;
+      background: none;
+      color: var(--c-primary);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-bottom: 10px;
+      padding: 0;
+    }
+    .link-btn:hover { text-decoration: underline; }
   </style>
 </head>
 <body>
@@ -295,7 +448,7 @@
             </select>
           </div>
           <small id="careerTransmissionNotice" class="career-hint"></small>
-          <button id="generateReportButton" type="button">Generate combined report</button>
+          <button id="generateReportButton" type="button" class="button">Generate combined report</button>
         </div>
 
         <div class="career-section">
@@ -306,7 +459,7 @@
           <small id="newCaseResult" class="career-result" role="status" aria-live="polite" hidden></small>
           <small id="historySummary"></small>
           <div id="careerHistoryList"></div>
-          <button type="button" id="clearReportsButton" class="career-clear">Clear all history</button>
+          <button type="button" id="clearReportsButton" class="career-clear career-clear-danger">Clear all history</button>
           <small id="clearReportsResult" class="career-result" role="status" aria-live="polite" hidden></small>
         </div>
       </section>
@@ -319,107 +472,101 @@
       </div>
 
       <div class="warning">
-        ⚠️ Use responsibly and in accordance with LinkedIn's Terms of Service.
+        Use responsibly and in accordance with LinkedIn's Terms of Service.
       </div>
 
       <div class="settings">
-        <h4 style="margin: 0 0 10px 0; color: #0077b5; font-size: 16px;">📋 Step 1: Search for connections</h4>
-        <div style="margin-bottom: 10px;">
-          <label for="companyName">Target company name:</label>
-          <input type="text" id="companyName" placeholder="e.g. Microsoft" style="width: 100%; padding: 5px; margin-top: 5px;">
-          <button id="getCompanyNameFromUrlButton" style="margin-top: 5px; margin-bottom: 20px; padding: 4px 8px; font-size: 12px; background: #f0f0f0; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;">Get from current URL</button>
+        <h4>Step 1: Search for connections</h4>
+        <div class="field">
+          <label for="companyName">Target company name</label>
+          <input type="text" id="companyName" placeholder="e.g. Microsoft">
+          <button id="getCompanyNameFromUrlButton" class="url-btn">Get from current URL</button>
         </div>
-        <div style="margin-bottom: 10px;">
-          <label for="companiesIds">Current company ID:</label>
-          <input type="text" id="companiesIds" placeholder="e.g. 1035" style="width: 100%; padding: 5px; margin-top: 5px;">
-          <div style="margin: 5px 0; font-size: 11px; color: #666; font-style: italic;">Select this yourself by clicking "All filters" button on results page and then click:</div>
-          <button id="getFromUrlButton" style="margin-top: 5px; margin-bottom: 20px; padding: 4px 8px; font-size: 12px; background: #f0f0f0; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;">Get from current URL</button>
+        <div class="field">
+          <label for="companiesIds">Current company ID</label>
+          <input type="text" id="companiesIds" placeholder="e.g. 1035">
+          <div style="margin: 5px 0; font-size: 11px; color: var(--c-text-secondary); font-style: italic;">Select this yourself by clicking "All filters" button on results page and then click:</div>
+          <button id="getFromUrlButton" class="url-btn">Get from current URL</button>
         </div>
-        <div style="margin-bottom: 10px;">
-          <label for="titleOfProspect">Job title of connection:</label>
-          <input type="text" id="titleOfProspect" placeholder="e.g. Engineering Manager" style="width: 100%; padding: 5px; margin-top: 5px;">
-          <button id="getTitleFromUrlButton" style="margin-top: 5px; margin-bottom: 20px; padding: 4px 8px; font-size: 12px; background: #f0f0f0; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;">Get from current URL</button>
+        <div class="field">
+          <label for="titleOfProspect">Job title of connection</label>
+          <input type="text" id="titleOfProspect" placeholder="e.g. Engineering Manager">
+          <button id="getTitleFromUrlButton" class="url-btn">Get from current URL</button>
         </div>
-        <div style="margin-bottom: 10px;">
-          <label for="locationIds">Location ID (where the <b>connection</b> lives - <b>not</b> job location):</label>
-          <input type="text" id="locationIds" placeholder="e.g. 101620260" style="width: 100%; padding: 5px; margin-top: 5px;">
-          <div style="margin: 5px 0; font-size: 11px; color: #666; font-style: italic;">Select this yourself by clicking "All filters" button on results page and then click:</div>
-          <button id="getLocationFromUrlButton" style="margin-top: 5px; margin-bottom: 20px; padding: 4px 8px; font-size: 12px; background: #f0f0f0; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;">Get from current URL</button>
+        <div class="field">
+          <label for="locationIds">Location ID (where the <b>connection</b> lives - <b>not</b> job location)</label>
+          <input type="text" id="locationIds" placeholder="e.g. 101620260">
+          <div style="margin: 5px 0; font-size: 11px; color: var(--c-text-secondary); font-style: italic;">Select this yourself by clicking "All filters" button on results page and then click:</div>
+          <button id="getLocationFromUrlButton" class="url-btn">Get from current URL</button>
         </div>
-        <div style="margin-bottom: 10px;">
-          <label for="connectionDegree">Connection degree (multi-select):</label>
-          <select id="connectionDegree" multiple style="width: 100%; padding: 5px; margin-top: 5px; height: 80px;">
+        <div class="field">
+          <label for="connectionDegree">Connection degree (multi-select)</label>
+          <select id="connectionDegree" multiple style="height: 80px;">
             <option value="F">1st</option>
             <option value="S">2nd</option>
             <option value="O">3rd+</option>
           </select>
-          <button id="getConnectionDegreeFromUrlButton" style="margin-top: 5px; margin-bottom: 20px; padding: 4px 8px; font-size: 12px; background: #f0f0f0; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;">Get from current URL</button>
+          <button id="getConnectionDegreeFromUrlButton" class="url-btn">Get from current URL</button>
         </div>
-        <div style="margin-bottom: 10px;">
-          <label for="startPage">Page number to start at:</label>
-          <input type="number" id="startPage" placeholder="1" min="1" style="width: 100%; padding: 5px; margin-top: 5px;">
-          <button id="getStartPageFromUrlButton" style="margin-top: 5px; margin-bottom: 20px; padding: 4px 8px; font-size: 12px; background: #f0f0f0; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;">Get from current URL</button>
+        <div class="field">
+          <label for="startPage">Page number to start at</label>
+          <input type="number" id="startPage" placeholder="1" min="1">
+          <button id="getStartPageFromUrlButton" class="url-btn">Get from current URL</button>
         </div>
-        <button id="goToSearchButton" class="button" style="margin-top: 10px;">🔍 Save & search</button>
+        <button id="goToSearchButton" class="button" style="margin-top: 14px;">Save &amp; search</button>
       </div>
 
       <div class="settings">
-        <h4 style="margin: 0 0 10px 0; color: #0077b5; font-size: 16px;">💬 Step 2: Customize your message</h4>
-        <div style="margin-bottom: 10px;">
-          <label for="greetingPart1">Greeting part 1:</label>
-          <input type="text" id="greetingPart1" placeholder="e.g. Hi" style="width: 100%; padding: 5px; margin-top: 5px;">
+        <h4>Step 2: Customize your message</h4>
+        <div class="field">
+          <label for="greetingPart1">Greeting part 1</label>
+          <input type="text" id="greetingPart1" placeholder="e.g. Hi">
         </div>
-        <div style="margin-bottom: 10px;">
-          <label class="checkbox-label">
-            <input type="checkbox" id="includeFirstNameCheckbox">
-            <span class="checkmark"></span>
-            Include first name of connection
-          </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="includeFirstNameCheckbox">
+          <span class="checkmark"></span>
+          Include first name of connection
+        </label>
+        <div class="field">
+          <label for="greetingPart2">Greeting part 2</label>
+          <input type="text" id="greetingPart2" placeholder="e.g. 👋,">
         </div>
-        <div style="margin-bottom: 10px;">
-          <label for="greetingPart2">Greeting part 2:</label>
-          <input type="text" id="greetingPart2" placeholder="e.g. 👋," style="width: 100%; padding: 5px; margin-top: 5px;">
+        <div class="field">
+          <label for="messageText">Message</label>
+          <textarea id="messageText" rows="8" placeholder="Enter your connection message here..."></textarea>
         </div>
-        <div style="margin-bottom: 10px;">
-          <label for="messageText">Message:</label>
-          <textarea id="messageText" rows="8" style="width: 100%; padding: 5px; margin-top: 5px; resize: vertical; font-family: inherit;" placeholder="Enter your connection message here..."></textarea>
+        <div class="field">
+          <label>Message Preview</label>
+          <div id="messagePreview" class="preview-box"></div>
         </div>
-        <div style="margin-bottom: 10px;">
-          <label>Message Preview:</label>
-          <div id="messagePreview" style="width: 100%; padding: 10px; margin-top: 5px; background-color: #f8f9fa; border: 1px solid #e9ecef; border-radius: 4px; font-family: inherit; white-space: pre-wrap; min-height: 60px;"></div>
+        <div class="field">
+          <label for="stopPage">Page to stop after (blank = no limit)</label>
+          <input type="number" id="stopPage" placeholder="" min="1">
         </div>
-        <div style="margin-bottom: 10px;">
-          <label for="stopPage">Page to stop after (blank = no limit):</label>
-          <input type="number" id="stopPage" placeholder="" min="1" style="width: 100%; padding: 5px; margin-top: 5px;">
+        <div class="field">
+          <label for="maxConnections">Max connect requests to send (blank = no limit)</label>
+          <input type="number" id="maxConnections" placeholder="" min="1">
         </div>
-        <div style="margin-bottom: 10px;">
-          <label for="maxConnections">Max connect requests to send (blank = no limit):</label>
-          <input type="number" id="maxConnections" placeholder="" min="1" style="width: 100%; padding: 5px; margin-top: 5px;">
+        <label class="checkbox-label">
+          <input type="checkbox" id="autoAdjustCheckbox">
+          <span class="checkmark"></span>
+          Auto-adjust max connections
+        </label>
+        <div class="checkbox-description">
+          Automatically decrease the limit after each successful connection (live mode only)
         </div>
-        <div style="margin-bottom: 10px;">
-          <label class="checkbox-label">
-            <input type="checkbox" id="autoAdjustCheckbox">
-            <span class="checkmark"></span>
-            Auto-adjust max connections
-          </label>
-          <div class="checkbox-description">
-            Automatically decrease the limit after each successful connection (live mode only)
-          </div>
-        </div>
-        <button id="saveMessageButton" class="button" style="margin-top: 10px; width: auto; padding: 8px 16px; font-size: 12px;">💾 Save auto-connect settings</button>
+        <button id="saveMessageButton" class="save-btn" style="margin-top: 6px;">Save auto-connect settings</button>
       </div>
 
       <div class="settings">
-        <h4 style="margin: 0 0 10px 0; color: #0077b5; font-size: 16px;">🚀 Step 3: Connect!</h4>
-        <div style="margin-bottom: 10px;">
-          <label class="checkbox-label">
-            <input type="checkbox" id="liveModeCheckbox">
-            <span class="checkmark"></span>
-            Live Mode (actually send requests)
-          </label>
-          <div class="checkbox-description">
-            Uncheck for test mode (logs actions without sending)
-          </div>
+        <h4>Step 3: Connect!</h4>
+        <label class="checkbox-label">
+          <input type="checkbox" id="liveModeCheckbox">
+          <span class="checkmark"></span>
+          Live Mode (actually send requests)
+        </label>
+        <div class="checkbox-description">
+          Uncheck for test mode (logs actions without sending)
         </div>
         <button id="startButton" class="button">Send connection requests</button>
       </div>

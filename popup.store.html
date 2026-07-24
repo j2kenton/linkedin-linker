@@ -3,110 +3,200 @@
 <head>
   <meta charset="utf-8">
   <style>
+    :root {
+      --c-bg: #F4F2EE;
+      --c-surface: #FFFFFF;
+      --c-surface-2: #F7F8FA;
+      --c-border: #E4E7EB;
+      --c-border-strong: #CDD3DB;
+      --c-primary: #0A66C2;
+      --c-primary-hover: #004182;
+      --c-primary-active: #00335F;
+      --c-primary-tint: #EAF3FC;
+      --c-text: #1D2226;
+      --c-text-secondary: #56687A;
+      --c-text-muted: #8C949C;
+      --c-success: #057642;
+      --c-success-bg: #E9F6EE;
+      --c-danger: #B3261E;
+      --c-danger-bg: #FBEAE9;
+      --c-warning: #7A5300;
+      --c-warning-bg: #FEF6E0;
+      --c-warning-border: #F1DCA0;
+      --radius-s: 6px;
+      --radius-m: 10px;
+      --radius-l: 14px;
+      --radius-pill: 999px;
+      --shadow-s: 0 1px 2px rgba(16, 24, 40, .06);
+      --shadow-m: 0 4px 12px rgba(16, 24, 40, .08);
+      --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+    *, *::before, *::after { box-sizing: border-box; }
     body {
       min-width: 200px;
       max-width: 600px;
       width: 100%;
-      padding: 20px;
-      box-sizing: border-box;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    }
-    .container { text-align: center; }
-    .title { font-size: 18px; font-weight: bold; margin-bottom: 6px; color: #0077b5; }
-    .subtitle { font-size: 12px; color: #666; margin-bottom: 20px; }
-    .button {
-      background-color: #0077b5;
-      color: white;
-      border: none;
-      padding: 12px 24px;
-      border-radius: 4px;
+      margin: 0;
+      padding: 22px;
+      background: var(--c-bg);
+      color: var(--c-text);
+      font-family: var(--font);
       font-size: 14px;
+      line-height: 1.45;
+      -webkit-font-smoothing: antialiased;
+    }
+    .container { text-align: left; }
+    .title { font-size: 19px; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 4px; color: var(--c-text); }
+    .subtitle { font-size: 13px; color: var(--c-text-secondary); margin-bottom: 20px; line-height: 1.5; }
+    .button {
+      background-color: var(--c-primary);
+      color: #fff;
+      border: none;
+      padding: 11px 20px;
+      border-radius: var(--radius-pill);
+      font-size: 14px;
+      font-weight: 600;
       cursor: pointer;
       width: 100%;
-      transition: background-color 0.2s;
+      box-shadow: var(--shadow-s);
+      transition: background-color 0.15s ease, box-shadow 0.15s ease;
     }
-    .button:hover { background-color: #005582; }
-    .button:active { background-color: #004269; }
-    .button:disabled { background-color: #ccc; cursor: not-allowed; }
-    .status { margin-top: 15px; font-size: 12px; color: #666; }
+    .button:hover { background-color: var(--c-primary-hover); }
+    .button:active { background-color: var(--c-primary-active); }
+    .button:disabled { background-color: #C7CDD4; color: #fff; cursor: not-allowed; box-shadow: none; }
+    .status { margin-top: 16px; font-size: 12.5px; color: var(--c-text-secondary); text-align: center; }
     .settings {
       text-align: left;
-      margin: 20px 0;
-      padding: 15px;
-      background-color: #f8f9fa;
-      border-radius: 4px;
-      border: 1px solid #e9ecef;
+      margin: 16px 0;
+      padding: 18px;
+      background-color: var(--c-surface);
+      border-radius: var(--radius-l);
+      border: 1px solid var(--c-border);
+      box-shadow: var(--shadow-s);
     }
-    .settings h4 { margin: 0 0 10px 0; color: #0077b5; font-size: 16px; }
-    .field { margin-bottom: 10px; }
-    .field label { display: block; font-size: 13px; margin-bottom: 3px; }
+    .settings h4 { margin: 0 0 14px 0; padding-bottom: 10px; border-bottom: 1px solid var(--c-border); color: var(--c-text); font-size: 14px; font-weight: 700; }
+    .field { margin-bottom: 14px; }
+    .field label { display: block; font-size: 12.5px; font-weight: 600; color: var(--c-text-secondary); margin-bottom: 5px; }
     .field input, .field textarea, .field select {
       width: 100%;
-      padding: 5px;
+      padding: 8px 10px;
       box-sizing: border-box;
       font-family: inherit;
+      font-size: 13px;
+      color: var(--c-text);
+      background: var(--c-surface);
+      border: 1px solid var(--c-border-strong);
+      border-radius: var(--radius-s);
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
     }
     .field textarea { resize: vertical; }
-    .url-btn {
-      margin-top: 4px;
-      padding: 3px 8px;
-      font-size: 11px;
-      background: #f0f0f0;
-      border: 1px solid #ccc;
-      border-radius: 3px;
-      cursor: pointer;
+    .field input:focus, .field textarea:focus, .field select:focus {
+      outline: none; border-color: var(--c-primary); box-shadow: 0 0 0 3px var(--c-primary-tint);
     }
-    .checkbox-row { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-bottom: 10px; }
+    .url-btn {
+      margin-top: 6px;
+      padding: 5px 12px;
+      font-size: 11.5px;
+      font-weight: 600;
+      background: var(--c-surface);
+      color: var(--c-primary);
+      border: 1px solid var(--c-border-strong);
+      border-radius: var(--radius-pill);
+      cursor: pointer;
+      transition: background-color 0.15s ease, border-color 0.15s ease;
+    }
+    .url-btn:hover { background: var(--c-primary-tint); border-color: var(--c-primary); }
+    .checkbox-row { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-bottom: 12px; color: var(--c-text); }
+    .checkbox-row input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--c-primary); }
     .preview-box {
-      padding: 8px;
-      background: #fff;
-      border: 1px solid #e9ecef;
-      border-radius: 4px;
-      font-size: 12px;
+      padding: 10px 12px;
+      background: var(--c-surface-2);
+      border: 1px solid var(--c-border);
+      border-radius: var(--radius-m);
+      font-size: 12.5px;
       white-space: pre-wrap;
-      min-height: 50px;
+      min-height: 52px;
+      color: var(--c-text);
     }
     .save-btn {
-      padding: 7px 14px;
-      font-size: 12px;
-      background: #f0f0f0;
-      border: 1px solid #ccc;
-      border-radius: 3px;
+      padding: 8px 16px;
+      font-size: 12.5px;
+      font-weight: 600;
+      background: var(--c-surface);
+      color: var(--c-primary);
+      border: 1px solid var(--c-primary);
+      border-radius: var(--radius-pill);
       cursor: pointer;
+      transition: background-color 0.15s ease;
     }
-    .save-btn:hover { background: #e0e0e0; }
-    .career-tools { text-align: left; margin: 20px 0; padding: 15px; border: 1px solid #b9d7ee; border-radius: 4px; background: #f4faff; }
-    .career-tools textarea, .career-tools input:not([type=checkbox]), .career-tools select { box-sizing: border-box; width: 100%; margin: 4px 0 4px; padding: 6px; }
-    .career-tools small { display:block; color:#555; margin-bottom:8px; }
-    .career-hint { color:#0077b5; }
-    .career-section { margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid #e0eefc; }
-    .career-section h5 { margin: 0 0 8px; color: #0077b5; font-size: 14px; }
-    .career-field { margin-bottom: 10px; }
-    .career-field label { display:block; font-size:13px; margin-bottom:3px; }
+    .save-btn:hover { background: var(--c-primary-tint); }
+    .career-tools { text-align: left; margin: 16px 0; padding: 20px; border: 1px solid var(--c-border); border-radius: var(--radius-l); background: var(--c-surface); box-shadow: var(--shadow-s); }
+    .career-tools textarea, .career-tools input:not([type=checkbox]), .career-tools select {
+      box-sizing: border-box; width: 100%; margin: 4px 0; padding: 8px 10px; font-size: 13px; font-family: inherit;
+      color: var(--c-text); background: var(--c-surface); border: 1px solid var(--c-border-strong); border-radius: var(--radius-s);
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .career-tools textarea:focus, .career-tools input:focus, .career-tools select:focus {
+      outline: none; border-color: var(--c-primary); box-shadow: 0 0 0 3px var(--c-primary-tint);
+    }
+    .career-tools small { display:block; color: var(--c-text-secondary); margin-bottom:8px; font-size: 12px; }
+    .career-tools details { margin-top: 10px; }
+    .career-tools summary { cursor: pointer; font-size: 12.5px; font-weight: 600; color: var(--c-primary); }
+    .career-tools pre { background: var(--c-surface-2); border: 1px solid var(--c-border); border-radius: var(--radius-s); padding: 10px; font-size: 11.5px; }
+    .career-hint { color: var(--c-primary); font-weight: 500; }
+    .career-section { margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--c-border); }
+    .career-section:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+    .career-section h5 { margin: 0 0 12px; padding-left: 10px; border-left: 3px solid var(--c-primary); color: var(--c-text); font-size: 13px; font-weight: 700; }
+    .career-field { margin-bottom: 12px; }
+    .career-field label { display:block; font-size:12.5px; font-weight:600; color: var(--c-text-secondary); margin-bottom:4px; }
     .career-field-row { display:flex; gap:6px; align-items:flex-start; }
     .career-field-row input, .career-field-row textarea { flex:1 1 auto; width:auto; margin:0; }
-    .career-clear { flex:none; margin-top:4px; padding:5px 8px; font-size:11px; background:#f0f0f0; border:1px solid #ccc; border-radius:3px; cursor:pointer; white-space:nowrap; }
-    .career-clear:hover { background:#e0e0e0; }
-    .field-error { color:#d93025; font-size:11px; margin:2px 0 8px; }
-    .career-tools input.invalid, .career-tools textarea.invalid { border-color:#d93025; }
-    .career-result { font-size:12px; margin:4px 0 10px; }
-    .career-result.success { color:#188038; }
-    .career-result.error { color:#d93025; }
-    .career-result.pending { color:#666; }
+    .career-clear {
+      flex:none; margin-top:4px; padding:6px 10px; font-size:11px; font-weight:600; white-space:nowrap;
+      background: var(--c-surface); color: var(--c-text-secondary); border:1px solid var(--c-border-strong); border-radius: var(--radius-pill); cursor:pointer;
+      transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+    }
+    .career-clear:hover { background: var(--c-surface-2); border-color: var(--c-text-secondary); color: var(--c-text); }
+    .career-clear-danger { color: var(--c-danger); border-color: #EFC6C2; }
+    .career-clear-danger:hover { background: var(--c-danger-bg); border-color: var(--c-danger); color: var(--c-danger); }
+    .field-error { color: var(--c-danger); font-size:11px; margin:2px 0 8px; }
+    .career-tools input.invalid, .career-tools textarea.invalid { border-color: var(--c-danger); }
+    .career-result { font-size:12px; margin:4px 0 10px; color: var(--c-text-secondary); }
+    .career-result.success { color: var(--c-success); font-weight: 600; }
+    .career-result.error { color: var(--c-danger); font-weight: 600; }
+    .career-result.pending { color: var(--c-text-secondary); font-style: italic; }
     [hidden] { display: none !important; }
-    .tab-row { display: flex; border-bottom: 1px solid #e9ecef; margin-bottom: 14px; }
-    .tab-btn { flex: 1; padding: 10px; background: none; border: none; border-bottom: 3px solid transparent; font-size: 14px; font-weight: 600; color: #666; cursor: pointer; }
-    .tab-btn[aria-selected="true"] { color: #0077b5; border-bottom-color: #0077b5; }
-    .history-row { border: 1px solid #e9ecef; border-radius: 4px; padding: 8px; margin-bottom: 6px; font-size: 12px; }
-    .history-row strong { display: block; }
-    .history-meta { color: #666; margin: 2px 0 6px; }
-    .history-row button { margin-right: 6px; padding: 4px 8px; font-size: 11px; }
+    .tab-row { display: flex; gap: 4px; border-bottom: 1px solid var(--c-border); margin-bottom: 18px; }
+    .tab-btn {
+      flex: 1; padding: 10px 4px; background: none; border: none; border-bottom: 2px solid transparent;
+      border-radius: var(--radius-s) var(--radius-s) 0 0;
+      font-size: 13.5px; font-weight: 600; color: var(--c-text-secondary); cursor: pointer;
+      transition: color 0.15s ease, background-color 0.15s ease;
+    }
+    .tab-btn:hover { color: var(--c-text); background: var(--c-surface-2); }
+    .tab-btn[aria-selected="true"] { color: var(--c-primary); border-bottom-color: var(--c-primary); }
+    .history-row { border: 1px solid var(--c-border); border-radius: var(--radius-m); padding: 12px; margin-bottom: 10px; font-size: 12.5px; background: var(--c-surface-2); }
+    .history-row strong { display: block; font-size: 13px; color: var(--c-text); margin-bottom: 2px; }
+    .history-meta { color: var(--c-text-secondary); margin: 2px 0 8px; font-size: 11.5px; }
+    .history-status { color: var(--c-text-secondary); font-size: 11.5px; margin-top: 6px; }
+    .history-row button { margin-right: 6px; margin-bottom: 6px; padding: 5px 10px; font-size: 11px; }
+    :where(.career-tools, .settings) button {
+      font-family: inherit; font-size: 12.5px; font-weight: 600; padding: 8px 14px;
+      border-radius: var(--radius-pill); border: 1px solid var(--c-primary);
+      background: var(--c-surface); color: var(--c-primary); cursor: pointer;
+      transition: background-color 0.15s ease;
+    }
+    :where(.career-tools, .settings) button:hover { background: var(--c-primary-tint); }
+    .settings .button, .career-tools .button { background: var(--c-primary); color: #fff; border: none; }
+    .settings .button:hover, .career-tools .button:hover { background: var(--c-primary-hover); }
+    .settings .button:disabled, .career-tools .button:disabled { background: #C7CDD4; color: #fff; cursor: not-allowed; box-shadow: none; }
     .link-btn {
       display: block;
       border: none;
       background: none;
-      color: #0077b5;
+      color: var(--c-primary);
       font-size: 12px;
+      font-weight: 600;
       cursor: pointer;
       margin-bottom: 10px;
       padding: 0;
@@ -286,7 +376,7 @@
             </select>
           </div>
           <small id="careerTransmissionNotice" class="career-hint"></small>
-          <button id="generateReportButton" type="button">Generate combined report</button>
+          <button id="generateReportButton" type="button" class="button">Generate combined report</button>
         </div>
 
         <div class="career-section">
@@ -297,7 +387,7 @@
           <small id="newCaseResult" class="career-result" role="status" aria-live="polite" hidden></small>
           <small id="historySummary"></small>
           <div id="careerHistoryList"></div>
-          <button type="button" id="clearReportsButton" class="career-clear">Clear all history</button>
+          <button type="button" id="clearReportsButton" class="career-clear career-clear-danger">Clear all history</button>
           <small id="clearReportsResult" class="career-result" role="status" aria-live="polite" hidden></small>
         </div>
       </section>
@@ -343,7 +433,7 @@
           <input type="number" id="startPage" placeholder="1" min="1">
           <button class="url-btn" id="getStartPageFromUrlButton">Get from current URL</button>
         </div>
-        <button id="goToSearchButton" class="button" style="margin-top:10px;">Save &amp; open search</button>
+        <button id="goToSearchButton" class="button" style="margin-top:14px;">Save &amp; open search</button>
       </div>
 
       <div class="settings">
@@ -373,7 +463,7 @@
 
       <div class="settings">
         <h4>Step 3: Prepare invite</h4>
-        <p style="font-size:12px;color:#555;margin:0 0 10px 0;">
+        <p style="font-size:12px;color:var(--c-text-secondary);margin:0 0 14px 0;line-height:1.5;">
           Click below to open LinkedIn's invite dialog for the next connectable profile and fill your draft note.
           You decide whether to send it.
         </p>

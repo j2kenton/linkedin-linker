@@ -1,1 +1,222 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Career Tools Report</title><style>body{font:15px system-ui;max-width:900px;margin:32px auto;padding:0 18px;color:#172b4d}button{padding:7px 10px;margin:4px}pre{white-space:pre-wrap;line-height:1.5}.notice{padding:10px;background:#fff3cd;border-radius:4px}.issue{padding:10px;background:#ffe8e8}.source{display:block;margin:4px 0}.reasoning{color:#6b4f00;font-style:italic}.unverified-reference{color:#a12222;text-decoration:underline dotted}.estimate-invalid-badge{color:#a12222;font-weight:600;font-size:0.85em}.estimate-row-invalid-badge{color:#a12222;font-weight:600;font-size:0.8em;margin-left:4px}</style></head><body><h1>Career Tools Report</h1><p id="status">Loading…</p><p id="reasoning" class="reasoning" hidden></p><p><button id="copy">Copy as Markdown</button><button id="regenerate">Regenerate</button><button id="cancel">Cancel</button></p><div id="recoveryNotice" class="issue" hidden><span id="recoveryNoticeText"></span> <button id="retrySave">Retry save</button></div><div id="disclaimer" class="notice" hidden></div><div id="issues" class="issue" hidden></div><section id="sectionCopy"></section><article id="report"></article><section id="sources" hidden><h2>Sources</h2><div id="sourceList"></div></section><section id="generationContext"></section><script src="dist/report.js"></script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Career Tools Report</title>
+<style>
+  :root {
+    --c-bg: #F4F2EE;
+    --c-surface: #FFFFFF;
+    --c-surface-2: #F7F8FA;
+    --c-border: #E4E7EB;
+    --c-border-strong: #CDD3DB;
+    --c-primary: #0A66C2;
+    --c-primary-hover: #004182;
+    --c-primary-tint: #EAF3FC;
+    --c-text: #1D2226;
+    --c-text-secondary: #56687A;
+    --c-text-muted: #8C949C;
+    --c-success: #057642;
+    --c-danger: #B3261E;
+    --c-warning: #7A5300;
+    --c-warning-bg: #FEF6E0;
+    --c-warning-border: #F1DCA0;
+    --c-danger-bg: #FBEAE9;
+    --c-danger-border: #F1C6C2;
+    --radius-s: 6px;
+    --radius-m: 10px;
+    --radius-l: 14px;
+    --radius-pill: 999px;
+    --shadow-s: 0 1px 2px rgba(16, 24, 40, .06);
+    --shadow-m: 0 4px 16px rgba(16, 24, 40, .08);
+    --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  }
+  * , *::before, *::after { box-sizing: border-box; }
+  body {
+    font: 15px/1.6 var(--font);
+    max-width: 860px;
+    margin: 40px auto;
+    padding: 0 20px 60px;
+    background: var(--c-bg);
+    color: var(--c-text);
+    -webkit-font-smoothing: antialiased;
+  }
+  h1 {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin: 0 0 20px;
+    color: var(--c-text);
+  }
+  #report h1, #report h2, #report h3 {
+    color: var(--c-text);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin: 28px 0 10px;
+    padding-top: 4px;
+  }
+  #report h1 { font-size: 19px; border-top: 1px solid var(--c-border); padding-top: 20px; }
+  #report h1:first-child { border-top: none; padding-top: 0; margin-top: 0; }
+  #report h2 { font-size: 16px; }
+  #report h3 { font-size: 14px; color: var(--c-text-secondary); text-transform: uppercase; letter-spacing: .04em; }
+  #report p { margin: 0 0 12px; }
+  #status {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--c-text-secondary);
+    margin: 0 0 18px;
+  }
+  button {
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 8px 16px;
+    margin: 0 8px 8px 0;
+    background: var(--c-surface);
+    color: var(--c-primary);
+    border: 1px solid var(--c-primary);
+    border-radius: var(--radius-pill);
+    cursor: pointer;
+    transition: background-color .15s ease;
+  }
+  button:hover { background: var(--c-primary-tint); }
+  button#copy {
+    background: var(--c-primary);
+    color: #fff;
+    border: none;
+  }
+  button#copy:hover { background: var(--c-primary-hover); }
+  pre {
+    white-space: pre-wrap;
+    line-height: 1.5;
+    background: var(--c-surface-2);
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius-s);
+    padding: 12px;
+    font-size: 12.5px;
+    color: var(--c-text);
+  }
+  .notice {
+    padding: 12px 14px;
+    background: var(--c-warning-bg);
+    border: 1px solid var(--c-warning-border);
+    border-radius: var(--radius-m);
+    color: var(--c-warning);
+    font-size: 13px;
+    line-height: 1.5;
+    margin-bottom: 16px;
+  }
+  .issue {
+    padding: 12px 14px;
+    background: var(--c-danger-bg);
+    border: 1px solid var(--c-danger-border);
+    border-radius: var(--radius-m);
+    color: var(--c-danger);
+    font-size: 13px;
+    line-height: 1.5;
+    margin-bottom: 16px;
+  }
+  .issue button {
+    background: var(--c-surface);
+    color: var(--c-danger);
+    border-color: var(--c-danger);
+    margin-top: 6px;
+  }
+  .issue button:hover { background: var(--c-danger-bg); }
+  .source {
+    display: block;
+    margin: 6px 0;
+    font-size: 13px;
+    color: var(--c-primary);
+    text-decoration: none;
+  }
+  .source:hover { text-decoration: underline; }
+  .reasoning {
+    color: var(--c-warning);
+    font-style: italic;
+    font-size: 13px;
+    background: var(--c-warning-bg);
+    border: 1px solid var(--c-warning-border);
+    border-radius: var(--radius-m);
+    padding: 10px 14px;
+    margin-bottom: 16px;
+  }
+  .unverified-reference {
+    color: var(--c-danger);
+    text-decoration: underline dotted;
+  }
+  .estimate-invalid-badge {
+    color: var(--c-danger);
+    font-weight: 600;
+    font-size: 0.85em;
+  }
+  .estimate-row-invalid-badge {
+    color: var(--c-danger);
+    font-weight: 600;
+    font-size: 0.8em;
+    margin-left: 4px;
+  }
+  #sectionCopy { margin-bottom: 6px; }
+  #report {
+    display: block;
+    background: var(--c-surface);
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius-l);
+    box-shadow: var(--shadow-s);
+    padding: 24px 28px;
+    margin-bottom: 20px;
+  }
+  #sources {
+    background: var(--c-surface);
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius-l);
+    box-shadow: var(--shadow-s);
+    padding: 20px 24px;
+    margin-bottom: 20px;
+  }
+  #sources h2 {
+    font-size: 15px;
+    font-weight: 700;
+    margin: 0 0 12px;
+    color: var(--c-text);
+  }
+  #generationContext, #report details {
+    margin-top: 12px;
+  }
+  details {
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius-m);
+    padding: 10px 14px;
+    background: var(--c-surface-2);
+  }
+  details summary {
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--c-primary);
+  }
+  details[open] summary { margin-bottom: 8px; }
+</style>
+</head>
+<body>
+  <h1>Career Tools Report</h1>
+  <p id="status">Loading…</p>
+  <p id="reasoning" class="reasoning" hidden></p>
+  <p>
+    <button id="copy">Copy as Markdown</button>
+    <button id="regenerate">Regenerate</button>
+    <button id="cancel">Cancel</button>
+  </p>
+  <div id="recoveryNotice" class="issue" hidden><span id="recoveryNoticeText"></span> <button id="retrySave">Retry save</button></div>
+  <div id="disclaimer" class="notice" hidden></div>
+  <div id="issues" class="issue" hidden></div>
+  <section id="sectionCopy"></section>
+  <article id="report"></article>
+  <section id="sources" hidden>
+    <h2>Sources</h2>
+    <div id="sourceList"></div>
+  </section>
+  <section id="generationContext"></section>
+  <script src="dist/report.js"></script>
+</body>
+</html>

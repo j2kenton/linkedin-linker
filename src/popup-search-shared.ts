@@ -56,11 +56,11 @@ function requireLinkedInSearchTab(
 ): chrome.tabs.Tab | null {
   const tab = tabs[0];
   if (!tab || !tab.url) {
-    setStatus(statusDiv, strings.noTabUrl, "#d93025");
+    setStatus(statusDiv, strings.noTabUrl, "#B3261E");
     return null;
   }
   if (!tab.url.includes("linkedin.com/search/results/people")) {
-    setStatus(statusDiv, strings.notSearchPage, "#d93025");
+    setStatus(statusDiv, strings.notSearchPage, "#B3261E");
     return null;
   }
   return tab;
@@ -79,20 +79,20 @@ function extractJsonArrayParam(
   try {
     const param = new URL(url).searchParams.get(paramName);
     if (!param) {
-      setStatus(statusDiv, noParamMsg, "#d93025");
+      setStatus(statusDiv, noParamMsg, "#B3261E");
       return;
     }
     const decoded = decodeURIComponent(param);
     const arr = JSON.parse(decoded) as string[];
     if (!Array.isArray(arr) || arr.length === 0) {
-      setStatus(statusDiv, invalidMsg, "#d93025");
+      setStatus(statusDiv, invalidMsg, "#B3261E");
       return;
     }
     const joined = arr.join(",");
     input.value = joined;
-    setStatus(statusDiv, extractedMsg(joined), "#188038");
+    setStatus(statusDiv, extractedMsg(joined), "#057642");
   } catch {
-    setStatus(statusDiv, parseFailedMsg, "#d93025");
+    setStatus(statusDiv, parseFailedMsg, "#B3261E");
   }
 }
 
@@ -134,14 +134,14 @@ export function attachUrlExtractionHandlers(
       try {
         const param = new URL(tab.url).searchParams.get("company");
         if (!param) {
-          setStatus(statusDiv, strings.noCompanyName, "#d93025");
+          setStatus(statusDiv, strings.noCompanyName, "#B3261E");
           return;
         }
         const name = decodeURIComponent(param);
         form.companyNameInput.value = name;
-        setStatus(statusDiv, strings.companyNameExtracted(name), "#188038");
+        setStatus(statusDiv, strings.companyNameExtracted(name), "#057642");
       } catch {
-        setStatus(statusDiv, strings.parseCompanyNameFailed, "#d93025");
+        setStatus(statusDiv, strings.parseCompanyNameFailed, "#B3261E");
       }
     });
   });
@@ -153,14 +153,14 @@ export function attachUrlExtractionHandlers(
       try {
         const param = new URL(tab.url).searchParams.get("titleFreeText");
         if (!param) {
-          setStatus(statusDiv, strings.noTitle, "#d93025");
+          setStatus(statusDiv, strings.noTitle, "#B3261E");
           return;
         }
         const title = decodeURIComponent(param);
         form.titleOfProspectInput.value = title;
-        setStatus(statusDiv, strings.titleExtracted(title), "#188038");
+        setStatus(statusDiv, strings.titleExtracted(title), "#057642");
       } catch {
-        setStatus(statusDiv, strings.parseTitleFailed, "#d93025");
+        setStatus(statusDiv, strings.parseTitleFailed, "#B3261E");
       }
     });
   });
@@ -172,21 +172,21 @@ export function attachUrlExtractionHandlers(
       try {
         const param = new URL(tab.url).searchParams.get("network");
         if (!param) {
-          setStatus(statusDiv, strings.noConnectionDegree, "#d93025");
+          setStatus(statusDiv, strings.noConnectionDegree, "#B3261E");
           return;
         }
         const decoded = decodeURIComponent(param);
         const degrees = JSON.parse(decoded) as string[];
         if (!Array.isArray(degrees) || degrees.length === 0) {
-          setStatus(statusDiv, strings.invalidConnectionDegree, "#d93025");
+          setStatus(statusDiv, strings.invalidConnectionDegree, "#B3261E");
           return;
         }
         Array.from(form.connectionDegreeInput.options).forEach(opt => {
           opt.selected = degrees.includes(opt.value);
         });
-        setStatus(statusDiv, strings.connectionDegreeExtracted(degrees.join(", ")), "#188038");
+        setStatus(statusDiv, strings.connectionDegreeExtracted(degrees.join(", ")), "#057642");
       } catch {
-        setStatus(statusDiv, strings.parseConnectionDegreeFailed, "#d93025");
+        setStatus(statusDiv, strings.parseConnectionDegreeFailed, "#B3261E");
       }
     });
   });
@@ -198,18 +198,18 @@ export function attachUrlExtractionHandlers(
       try {
         const param = new URL(tab.url).searchParams.get("page");
         if (!param) {
-          setStatus(statusDiv, strings.noPage, "#d93025");
+          setStatus(statusDiv, strings.noPage, "#B3261E");
           return;
         }
         const n = parseInt(param);
         if (isNaN(n) || n < 1) {
-          setStatus(statusDiv, strings.invalidPage, "#d93025");
+          setStatus(statusDiv, strings.invalidPage, "#B3261E");
           return;
         }
         form.startPageInput.value = String(n);
-        setStatus(statusDiv, strings.pageExtracted(n), "#188038");
+        setStatus(statusDiv, strings.pageExtracted(n), "#057642");
       } catch {
-        setStatus(statusDiv, strings.parsePageFailed, "#d93025");
+        setStatus(statusDiv, strings.parsePageFailed, "#B3261E");
       }
     });
   });

@@ -154,7 +154,7 @@ document.addEventListener('DOMContentLoaded', function(): void {
     chrome.storage.local.set(autoConnectParams, () => {
       // Show success message
       statusDiv.textContent = 'Auto-connect settings saved successfully!';
-      statusDiv.style.color = '#188038';
+      statusDiv.style.color = '#057642';
 
       // Clear success message after 3 seconds
       setTimeout(() => {
@@ -204,10 +204,10 @@ document.addEventListener('DOMContentLoaded', function(): void {
     // Update status to show current mode
     if (liveMode) {
       statusDiv.textContent = 'Live Mode: Will send actual connection requests';
-      statusDiv.style.color = '#d93025';
+      statusDiv.style.color = '#B3261E';
     } else {
       statusDiv.textContent = 'Test Mode: Will only log actions (safe)';
-      statusDiv.style.color = '#f57c00';
+      statusDiv.style.color = '#9A6700';
     }
 
     // Clear status after 3 seconds
@@ -243,7 +243,7 @@ document.addEventListener('DOMContentLoaded', function(): void {
 
       // Update status
       statusDiv.textContent = 'Opening LinkedIn search page...';
-      statusDiv.style.color = '#0077b5';
+      statusDiv.style.color = '#0A66C2';
 
       // Refresh status after tab opens
       setTimeout(() => {
@@ -258,7 +258,7 @@ document.addEventListener('DOMContentLoaded', function(): void {
     if (!tab || !tab.id) {
       // Handle the error gracefully, e.g., show an error message and abort
       statusDiv.textContent = 'Error: No active tab found. Please open a tab and try again.';
-      statusDiv.style.color = '#d93025';
+      statusDiv.style.color = '#B3261E';
       return;
     }
 
@@ -267,7 +267,7 @@ document.addEventListener('DOMContentLoaded', function(): void {
     startButton.textContent = 'Starting...';
     liveModeCheckbox.disabled = true; // Disable live mode checkbox while running
     statusDiv.textContent = 'Starting automation...';
-    statusDiv.style.color = '#666';
+    statusDiv.style.color = '#56687A';
 
     try {
       // First check if content script is ready by sending a ping
@@ -323,7 +323,7 @@ document.addEventListener('DOMContentLoaded', function(): void {
       if (response && response.status === "started") {
         startButton.textContent = 'Running...';
         statusDiv.textContent = `Automation started in ${liveModeCheckbox.checked ? 'LIVE' : 'TEST'} mode! Check console for progress.`;
-        statusDiv.style.color = liveModeCheckbox.checked ? '#d93025' : '#f57c00';
+        statusDiv.style.color = liveModeCheckbox.checked ? '#B3261E' : '#9A6700';
       } else {
         throw new Error('Content script did not respond properly');
       }
@@ -339,7 +339,7 @@ document.addEventListener('DOMContentLoaded', function(): void {
         errorMessage += ` - ${error.message}`;
       }
       statusDiv.textContent = errorMessage;
-      statusDiv.style.color = '#d93025';
+      statusDiv.style.color = '#B3261E';
     }
   });
 
@@ -350,14 +350,14 @@ document.addEventListener('DOMContentLoaded', function(): void {
       if (currentTab.url && currentTab.url.includes('linkedin.com/search/results/people')) {
         if (liveModeCheckbox.checked) {
           statusDiv.textContent = 'Ready to start (Live Mode)';
-          statusDiv.style.color = '#d93025';
+          statusDiv.style.color = '#B3261E';
         } else {
           statusDiv.textContent = 'Ready to start (Test Mode - Safe)';
-          statusDiv.style.color = '#f57c00';
+          statusDiv.style.color = '#9A6700';
         }
       } else {
         statusDiv.textContent = '';
-        statusDiv.style.color = '#666';
+        statusDiv.style.color = '#56687A';
       }
     });
   }
@@ -382,7 +382,7 @@ document.addEventListener('DOMContentLoaded', function(): void {
       startButton.textContent = 'Start Automation';
       liveModeCheckbox.disabled = false;
       statusDiv.textContent = 'Automation completed! Ready for next run.';
-      statusDiv.style.color = '#188038';
+      statusDiv.style.color = '#057642';
       hideConfirmationPanel();
     }
   });
@@ -401,14 +401,14 @@ document.addEventListener('DOMContentLoaded', function(): void {
     if (!panel) {
       panel = document.createElement('div');
       panel.id = 'confirmPanel';
-      panel.style.cssText = 'margin-top:12px;padding:12px;background:#fff3cd;border:1px solid #f0ad4e;border-radius:4px;font-size:13px;';
+      panel.style.cssText = 'margin-top:12px;padding:14px;background:#FEF6E0;border:1px solid #F1DCA0;border-radius:10px;font-size:13px;';
       statusDiv.parentNode!.insertBefore(panel, statusDiv.nextSibling);
     }
     panel.innerHTML = `
       <strong>Ready to send to ${firstName ? firstName : 'this person'}?</strong>
-      <div style="margin-top:8px;display:flex;gap:8px;">
-        <button id="confirmSendBtn" style="flex:1;padding:7px;background:#0077b5;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:13px;">Send</button>
-        <button id="skipSendBtn" style="flex:1;padding:7px;background:#e9ecef;color:#333;border:none;border-radius:4px;cursor:pointer;font-size:13px;">Skip</button>
+      <div style="margin-top:10px;display:flex;gap:8px;">
+        <button id="confirmSendBtn" style="flex:1;padding:8px;background:#0A66C2;color:#fff;border:none;border-radius:999px;cursor:pointer;font-size:13px;font-weight:600;">Send</button>
+        <button id="skipSendBtn" style="flex:1;padding:8px;background:#fff;color:#1D2226;border:1px solid #CDD3DB;border-radius:999px;cursor:pointer;font-size:13px;font-weight:600;">Skip</button>
       </div>
     `;
     (document.getElementById('confirmSendBtn') as HTMLButtonElement).addEventListener('click', () => {
@@ -470,10 +470,10 @@ function showUpdateNotification(): void {
 
   // Create update notification HTML
   statusDiv.innerHTML = `
-    <div style="color: #f57c00; border: 1px solid #f57c00; padding: 10px; border-radius: 4px; margin: 10px 0; background-color: #fff3cd;">
+    <div style="color: #7A5300; border: 1px solid #F1DCA0; padding: 12px 14px; border-radius: 10px; margin: 10px 0; background-color: #FEF6E0; text-align: left;">
       <strong>Update Available!</strong><br>
       <small>New version of Career Connect is ready.</small><br>
-      <button id="updateBtn" style="margin-top: 8px; padding: 6px 12px; background: #0077b5; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 12px;">Update Now</button>
+      <button id="updateBtn" style="margin-top: 10px; padding: 7px 14px; background: #0A66C2; color: white; border: none; border-radius: 999px; cursor: pointer; font-size: 12px; font-weight: 600;">Update Now</button>
     </div>
   `;
 
@@ -492,7 +492,7 @@ function runUpdateScript(): void {
 
   // Show loading state
   statusDiv.innerHTML = `
-    <div style="color: #666; border: 1px solid #ddd; padding: 10px; border-radius: 4px; margin: 10px 0;">
+    <div style="color: #56687A; border: 1px solid #E4E7EB; padding: 12px 14px; border-radius: 10px; margin: 10px 0; text-align: left;">
       <strong>Updating extension...</strong><br>
       <small>Running git pull to download latest changes.</small>
     </div>
@@ -504,7 +504,7 @@ function runUpdateScript(): void {
 
   setTimeout(() => {
     statusDiv.innerHTML = `
-      <div style="color: #188038; border: 1px solid #188038; padding: 10px; border-radius: 4px; margin: 10px 0;">
+      <div style="color: #057642; border: 1px solid #057642; padding: 12px 14px; border-radius: 10px; margin: 10px 0; text-align: left;">
         <strong>Update complete!</strong><br>
         <small>Please reload the extension in Chrome extensions page (chrome://extensions/).</small>
       </div>

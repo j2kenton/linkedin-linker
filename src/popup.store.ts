@@ -112,7 +112,7 @@ document.addEventListener("DOMContentLoaded", function (): void {
       messageText: messageTextTextarea.value,
     }, () => {
       statusDiv.textContent = "Settings saved.";
-      statusDiv.style.color = "#188038";
+      statusDiv.style.color = "#057642";
       setTimeout(updateStatus, 2000);
     });
   });
@@ -170,7 +170,7 @@ document.addEventListener("DOMContentLoaded", function (): void {
       });
       chrome.tabs.create({ url });
       statusDiv.textContent = "Opening LinkedIn search page...";
-      statusDiv.style.color = "#0077b5";
+      statusDiv.style.color = "#0A66C2";
       setTimeout(() => updateStatus(), 1000);
     });
   });
@@ -179,14 +179,14 @@ document.addEventListener("DOMContentLoaded", function (): void {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tab?.id || !tab.url?.includes("linkedin.com/search/results/people")) {
       statusDiv.textContent = "Please navigate to a LinkedIn people search results page first.";
-      statusDiv.style.color = "#d93025";
+      statusDiv.style.color = "#B3261E";
       return;
     }
 
     prepareButton.disabled = true;
     prepareButton.textContent = "Preparing...";
     statusDiv.textContent = "Finding next connectable profile...";
-    statusDiv.style.color = "#666";
+    statusDiv.style.color = "#56687A";
 
     const messageSettings: MessageSettings = {
       greetingPart1: greetingPart1Input.value,
@@ -204,10 +204,10 @@ document.addEventListener("DOMContentLoaded", function (): void {
       if (response?.status === "prepared") {
         const name = response.firstName ? ` for ${response.firstName}` : "";
         statusDiv.textContent = `Invite draft prepared${name}. Review and send it in LinkedIn.`;
-        statusDiv.style.color = "#188038";
+        statusDiv.style.color = "#057642";
       } else {
         statusDiv.textContent = response?.error ?? "Could not prepare invite.";
-        statusDiv.style.color = "#d93025";
+        statusDiv.style.color = "#B3261E";
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Unknown error";
@@ -215,7 +215,7 @@ document.addEventListener("DOMContentLoaded", function (): void {
       statusDiv.textContent = isConnectionError
         ? "Could not reach the page script. Please reload the LinkedIn search page and try again."
         : "Error: " + msg;
-      statusDiv.style.color = "#d93025";
+      statusDiv.style.color = "#B3261E";
     } finally {
       prepareButton.disabled = false;
       prepareButton.textContent = "Prepare next invite";
@@ -227,10 +227,10 @@ document.addEventListener("DOMContentLoaded", function (): void {
       const tab = tabs[0];
       if (tab?.url?.includes("linkedin.com/search/results/people")) {
         statusDiv.textContent = "Ready — click 'Prepare next invite' to open the next invite dialog.";
-        statusDiv.style.color = "#0077b5";
+        statusDiv.style.color = "#0A66C2";
       } else {
         statusDiv.textContent = "Navigate to a LinkedIn people search page to get started.";
-        statusDiv.style.color = "#666";
+        statusDiv.style.color = "#56687A";
       }
     });
   }
