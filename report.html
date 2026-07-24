@@ -60,6 +60,20 @@
   #report h2 { font-size: 16px; }
   #report h3 { font-size: 14px; color: var(--c-text-secondary); text-transform: uppercase; letter-spacing: .04em; }
   #report p { margin: 0 0 12px; }
+  #report ul, #report ol { margin: 0 0 12px; padding-left: 22px; }
+  #report li { margin: 0 0 6px; }
+  #report table { width: 100%; border-collapse: collapse; margin: 0 0 16px; font-size: 13px; }
+  #report th, #report td { border: 1px solid var(--c-border); padding: 8px 10px; text-align: left; vertical-align: top; }
+  #report th { background: var(--c-surface-2); font-weight: 700; color: var(--c-text); }
+  #report strong { font-weight: 700; }
+  #report em { font-style: italic; }
+  .section-copy {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 10px;
+    margin: 0 0 0 10px;
+    vertical-align: middle;
+  }
   #status {
     font-size: 13px;
     font-weight: 600;
@@ -156,7 +170,6 @@
     font-size: 0.8em;
     margin-left: 4px;
   }
-  #sectionCopy { margin-bottom: 6px; }
   #report {
     display: block;
     background: var(--c-surface);
@@ -210,7 +223,6 @@
   <div id="recoveryNotice" class="issue" hidden><span id="recoveryNoticeText"></span> <button id="retrySave">Retry save</button></div>
   <div id="disclaimer" class="notice" hidden></div>
   <div id="issues" class="issue" hidden></div>
-  <section id="sectionCopy"></section>
   <article id="report"></article>
   <section id="sources" hidden>
     <h2>Sources</h2>

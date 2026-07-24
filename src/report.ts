@@ -62,19 +62,31 @@ function isActive(job = current): boolean {
   return !job || ["running", "queued", "interrupted"].includes(job.status);
 }
 
+/** Places a compact "Copy" button inline on each section's rendered heading, wired to that section's raw Markdown slice. */
 function copySections(job: Job): void {
-  const root = document.querySelector<HTMLElement>("#sectionCopy")!;
-  root.replaceChildren();
   const headings = HEADINGS_BY_KIND[job.kind];
+  const headingElements = [...report.querySelectorAll<HTMLElement>("h1, h2, h3")];
   for (const heading of headings) {
     const start = job.reportText.indexOf(heading);
     if (start < 0) continue;
-    const later = headings.map(item => job.reportText.indexOf(item, start + heading.length)).filter(index => index >= 0).sort((a, b) => a - b)[0];
+    // Exclude the current heading from the boundary search — otherwise a
+    // section body that happens to echo its own heading text (e.g. quoting
+    // it verbatim) truncates the copied slice at that echo instead of at the
+    // next real section.
+    const later = headings.filter(item => item !== heading).map(item => job.reportText.indexOf(item, start + heading.length)).filter(index => index >= 0).sort((a, b) => a - b)[0];
     const text = job.reportText.slice(start, later === undefined ? undefined : later);
+    const title = heading.replace(/^##\s*/, "");
+    // Only headings that actually rendered as h1/h2/h3 get a button — a
+    // heading string present in reportText but absent from the DOM (e.g.
+    // withheld) has nowhere safe to anchor one.
+    const element = headingElements.find(item => item.textContent?.startsWith(title));
+    if (!element) continue;
     const button = document.createElement("button");
-    button.textContent = `Copy ${heading.replace(/^##\s*/, "")}`;
+    button.className = "section-copy";
+    button.textContent = "Copy";
+    button.setAttribute("aria-label", `Copy ${title}`);
     button.onclick = () => navigator.clipboard.writeText(text);
-    root.append(button);
+    element.append(button);
   }
 }
 
@@ -235,17 +247,24 @@ function markInvalidEstimateRows(job: Job): void {
   const findings = (job.validation?.findings || []).filter(finding => finding.kind === "estimate" && finding.line !== undefined);
   if (!findings.length) return;
   const lines = trustedText(job).split(/\r?\n/);
-  const elements = [...report.children] as HTMLElement[];
   const claimed = new Set<number>();
   for (const finding of findings) {
     const target = (finding.line as string).trim();
     const index = lines.findIndex((line, position) => !claimed.has(position) && line.trim() === target);
-    if (index < 0 || !elements[index]) continue;
+    if (index < 0) continue;
+    // Tables/lists no longer keep a 1:1 index alignment with report.children,
+    // so the source line is looked up via the data-md-line stamp the
+    // renderer attaches to every element that maps to exactly one line.
+    const element = report.querySelector<HTMLElement>(`[data-md-line="${index}"]`);
+    if (!element) continue;
     claimed.add(index);
     const badge = document.createElement("span");
     badge.className = "estimate-row-invalid-badge";
     badge.textContent = finding.message.startsWith("Malformed") ? " ⚠ malformed row" : " ⚠ claim outside table";
-    elements[index].append(badge);
+    // A stray inline element appended directly to a <tr> gets reparented out
+    // of the table by the browser; anchor it inside the row's last cell instead.
+    const host = element.tagName === "TR" ? element.querySelector("td:last-child") || element : element;
+    host.append(badge);
   }
 }
 

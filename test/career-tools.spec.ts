@@ -367,6 +367,61 @@ describe("extraction and safe rendering", () => {
     expect(target.textContent).toContain("[S1]");
   });
 
+  it("renders **bold** and *italic* inline emphasis as real elements", () => {
+    const target=document.createElement("div");
+    renderMarkdown(target, "This is **bold** and this is *italic* text.", []);
+    expect(target.querySelector("strong")?.textContent).toBe("bold");
+    expect(target.querySelector("em")?.textContent).toBe("italic");
+    expect(target.textContent).toBe("This is bold and this is italic text.");
+  });
+
+  it("renders unordered and ordered lists as real list elements", () => {
+    const target=document.createElement("div");
+    renderMarkdown(target, "- first\n- second\n\n1. one\n2. two", []);
+    const ul=target.querySelector("ul")!;
+    expect([...ul.querySelectorAll("li")].map(li=>li.textContent)).toEqual(["first","second"]);
+    const ol=target.querySelector("ol")!;
+    expect([...ol.querySelectorAll("li")].map(li=>li.textContent)).toEqual(["one","two"]);
+  });
+
+  it("renders a pipe table with a header row, consumed separator row, and body rows", () => {
+    const target=document.createElement("div");
+    renderMarkdown(target, "| Metric | Estimate |\n| --- | --- |\n| Runway | 12–18 |", []);
+    const table=target.querySelector("table")!;
+    expect(table).not.toBeNull();
+    expect([...table.querySelectorAll("th")].map(th=>th.textContent)).toEqual(["Metric","Estimate"]);
+    expect(table.textContent).not.toContain("---");
+    const row=table.querySelector("tbody tr")!;
+    expect([...row.querySelectorAll("td")].map(td=>td.textContent)).toEqual(["Runway","12–18"]);
+  });
+
+  it("resolves [S#] citations nested inside **bold** emphasis", () => {
+    const target=document.createElement("div");
+    renderMarkdown(target, "**Verified [S1] figure**", [{id:"S1",url:"https://safe.example",title:"Safe"}]);
+    const strong=target.querySelector("strong")!;
+    const link=strong.querySelector<HTMLAnchorElement>("a")!;
+    expect(link.textContent).toBe("[S1]");
+    expect(link.getAttribute("href")).toBe("https://safe.example");
+  });
+
+  it("keeps script-bearing text inert inside table cells and list items", () => {
+    const target=document.createElement("div");
+    renderMarkdown(target, "- <script>bad()</script>\n\n| A |\n| --- |\n| <script>evil()</script> |", []);
+    expect(target.querySelector("script")).toBeNull();
+    expect(target.querySelector("li")?.textContent).toContain("<script>bad()</script>");
+    expect(target.querySelector("td")?.textContent).toContain("<script>evil()</script>");
+  });
+
+  it("stamps data-md-line on every element mapped to exactly one source line", () => {
+    const target=document.createElement("div");
+    renderMarkdown(target, "## Heading\npara\n\n- item\n\n| A |\n| --- |\n| cell |", []);
+    expect(target.querySelector("h2")?.dataset.mdLine).toBe("0");
+    expect(target.querySelector("p")?.dataset.mdLine).toBe("1");
+    expect(target.querySelector("br")?.dataset.mdLine).toBe("2");
+    expect(target.querySelector("li")?.dataset.mdLine).toBe("3");
+    expect(target.querySelector("tr")?.dataset.mdLine).toBe("5");
+  });
+
   it("only ever admits http(s) citation URLs into the persisted source table", () => {
     const blocks=[{type:"text",citations:[{url:"javascript:alert(1)",title:"Bad"},{url:"https://safe.example",title:"Good"}]}];
     const table=sourceTable(blocks);
@@ -550,7 +605,7 @@ describe("report page rendering", () => {
     // validator carries a per-finding `line`, but only an integration test
     // through the real report.html DOM proves the renderer actually attaches
     // a badge to that specific element rather than only the section heading.
-    document.body.innerHTML = `<p id="status"></p><p id="reasoning" hidden></p><button id="copy"></button><button id="regenerate"></button><button id="cancel"></button><div id="disclaimer" hidden></div><div id="issues" hidden></div><section id="sectionCopy"></section><article id="report"></article><section id="sources" hidden><div id="sourceList"></div></section><section id="generationContext"></section>`;
+    document.body.innerHTML = `<p id="status"></p><p id="reasoning" hidden></p><button id="copy"></button><button id="regenerate"></button><button id="cancel"></button><div id="disclaimer" hidden></div><div id="issues" hidden></div><article id="report"></article><section id="sources" hidden><div id="sourceList"></div></section><section id="generationContext"></section>`;
 
     // jsdom 26's `window.location` is a non-configurable accessor (matching
     // real browsers), so it cannot be replaced with Object.defineProperty —
@@ -586,15 +641,74 @@ describe("report page rendering", () => {
       expect(rowBadges).toHaveLength(2);
       expect(rowBadges[0].textContent).toContain("malformed row");
       expect(rowBadges[1].textContent).toContain("claim outside table");
+      // The malformed row is a table line — its badge must land inside that
+      // row's own <td>, not directly on the <tr> (browsers reparent stray
+      // inline children out of table rows) or on an unrelated element.
+      expect(rowBadges[0].closest("tr")).not.toBeNull();
+      expect(rowBadges[0].closest("td")).not.toBeNull();
+      // The out-of-table claim is a plain prose line — its badge lands on the <p>.
+      expect(rowBadges[1].closest("p")).not.toBeNull();
       expect(document.querySelectorAll(".estimate-invalid-badge").length).toBeGreaterThan(0);
+
+      // Per-section Copy buttons render inline on each section heading, not
+      // in a removed top-level #sectionCopy bar.
+      expect(document.querySelector("#sectionCopy")).toBeNull();
+      const sectionCopyButtons = [...document.querySelectorAll("h2 .section-copy")];
+      expect(sectionCopyButtons).toHaveLength(COMPANY_HEADINGS.length);
     } finally {
       history.pushState({}, "", originalUrl);
       Object.defineProperty(globalThis, "chrome", { configurable: true, value: originalChrome });
     }
   });
 
+  it("wires each section's inline Copy button to that section's own raw Markdown slice", async () => {
+    document.body.innerHTML = `<p id="status"></p><p id="reasoning" hidden></p><button id="copy"></button><button id="regenerate"></button><button id="cancel"></button><div id="disclaimer" hidden></div><div id="issues" hidden></div><article id="report"></article><section id="sources" hidden><div id="sourceList"></div></section><section id="generationContext"></section>`;
+
+    const originalUrl = location.href;
+    const originalChrome = globalThis.chrome;
+    const originalClipboard = navigator.clipboard;
+    const writeText = vi.fn();
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    history.pushState({}, "", "/report.html?job=copy-job");
+    let onMessage: ((message: unknown) => void) | undefined;
+    const port = {
+      onMessage: { addListener: (fn: (message: unknown) => void) => { onMessage = fn; } },
+      onDisconnect: { addListener: vi.fn() },
+      postMessage: vi.fn(),
+    };
+    Object.defineProperty(globalThis, "chrome", { configurable: true, value: {
+      runtime: { connect: vi.fn().mockReturnValue(port), sendMessage: vi.fn() },
+    }});
+
+    try {
+      vi.resetModules();
+      await import("../src/report");
+      expect(onMessage).toBeDefined();
+
+      const reportText = COMPANY_HEADINGS.map(heading => `${heading}\ntext for ${heading}`).join("\n");
+      onMessage!({ type: "CAREER_JOB", job: {
+        id: "copy-job", kind: "company", status: "complete", stage: "",
+        reportText, input: {}, sources: [], researchAvailable: true,
+      } });
+
+      const headingElements = [...document.querySelectorAll("h2")];
+      expect(headingElements).toHaveLength(COMPANY_HEADINGS.length);
+      const secondHeading = headingElements[1];
+      const button = secondHeading.querySelector<HTMLButtonElement>(".section-copy")!;
+      expect(button).not.toBeNull();
+      button.click();
+      // The slice runs up to (but not including) the next heading, so it
+      // retains the separator newline the section body ended with.
+      expect(writeText).toHaveBeenCalledWith(`${COMPANY_HEADINGS[1]}\ntext for ${COMPANY_HEADINGS[1]}\n`);
+    } finally {
+      history.pushState({}, "", originalUrl);
+      Object.defineProperty(globalThis, "chrome", { configurable: true, value: originalChrome });
+      Object.defineProperty(navigator, "clipboard", { configurable: true, value: originalClipboard });
+    }
+  });
+
   it("regenerate names and resends the job's own provider, not the current popup setting", async () => {
-    document.body.innerHTML = `<p id="status"></p><p id="reasoning" hidden></p><button id="copy"></button><button id="regenerate"></button><button id="cancel"></button><div id="disclaimer" hidden></div><div id="issues" hidden></div><section id="sectionCopy"></section><article id="report"></article><section id="sources" hidden><div id="sourceList"></div></section><section id="generationContext"></section>`;
+    document.body.innerHTML = `<p id="status"></p><p id="reasoning" hidden></p><button id="copy"></button><button id="regenerate"></button><button id="cancel"></button><div id="disclaimer" hidden></div><div id="issues" hidden></div><article id="report"></article><section id="sources" hidden><div id="sourceList"></div></section><section id="generationContext"></section>`;
 
     const originalUrl = location.href;
     const originalChrome = globalThis.chrome;
@@ -644,7 +758,7 @@ describe("report page rendering", () => {
   });
 
   it("renders the generation-context snapshot with field labels, provenance, and provider/model metadata via textContent (never innerHTML)", async () => {
-    document.body.innerHTML = `<p id="status"></p><p id="reasoning" hidden></p><button id="copy"></button><button id="regenerate"></button><button id="cancel"></button><div id="disclaimer" hidden></div><div id="issues" hidden></div><section id="sectionCopy"></section><article id="report"></article><section id="sources" hidden><div id="sourceList"></div></section><section id="generationContext"></section>`;
+    document.body.innerHTML = `<p id="status"></p><p id="reasoning" hidden></p><button id="copy"></button><button id="regenerate"></button><button id="cancel"></button><div id="disclaimer" hidden></div><div id="issues" hidden></div><article id="report"></article><section id="sources" hidden><div id="sourceList"></div></section><section id="generationContext"></section>`;
 
     const originalUrl = location.href;
     const originalChrome = globalThis.chrome;
