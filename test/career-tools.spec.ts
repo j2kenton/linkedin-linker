@@ -20,7 +20,7 @@ import { renderMarkdown } from "../src/render/markdown";
 import { CAREER_VALUE_KEYS, FORM_ID, careerInputToForm, formToCareerInput, isConformantCareerInput, normalizeCareerInput, normalizeCareerValuePatch } from "../src/career/fields";
 import { mergeExtraction } from "../src/career/merge";
 import { hasUsefulCareerPatch, toPatch } from "../src/career/patch";
-import { DEFAULT_MODEL, KNOWN_MODELS, getKnownModelOption, resolveKnownModel } from "../src/models";
+import { DEFAULT_MODEL, KNOWN_MODELS, getKnownModelOption, resolveKnownModel, coerceToKnownModel, getKnownModelOptionByLabel } from "../src/models";
 import { byteSize, baseBytes, fixedFingerprint, boundJobForPersistence, MAX_REPORT_TEXT_BYTES, MAX_FINDINGS_BYTES, MAX_SOURCE_ENTRIES, MAX_SOURCES_BYTES, MAX_RESEARCH_MESSAGES_BYTES, MAX_WARNINGS_BYTES, STORAGE_TRUNCATION_MARKER, type BoundableJob } from "../src/career/bytes";
 import { isConformantPersistedJob, normalizePersistedJob, MIGRATION_WARNING, type PersistedJob } from "../src/career/persistedJob";
 import { reservePendingJob, clearPendingJob, clearAllPendingJobs, readPendingJob, readAllPendingJobs } from "../src/career/pendingJobs";
@@ -1441,6 +1441,26 @@ describe("model catalog", () => {
     expect(getKnownModelOption("anthropic", "not-a-real-model")).toBeUndefined();
     expect(getKnownModelOption("anthropic", DEFAULT_MODEL.anthropic)?.id).toBe(DEFAULT_MODEL.anthropic);
   });
+
+  it("finds models by case-insensitive label match", () => {
+    expect(getKnownModelOptionByLabel("anthropic", "Claude Haiku 4.5")?.id).toBe("claude-haiku-4-5");
+    expect(getKnownModelOptionByLabel("anthropic", "claude haiku 4.5")?.id).toBe("claude-haiku-4-5");
+    expect(getKnownModelOptionByLabel("anthropic", "CLAUDE-HAIKU-4-5")?.id).toBe("claude-haiku-4-5");
+    expect(getKnownModelOptionByLabel("openai", "gpt-5.6 terra")?.id).toBe("gpt-5.6-terra");
+    expect(getKnownModelOptionByLabel("openai", "GPT-5.6-TERRA")?.id).toBe("gpt-5.6-terra");
+  });
+
+  it("coerces user-typed text to known model ID with last-valid fallback", () => {
+    // Unknown text → reverts to previousValid
+    expect(coerceToKnownModel("anthropic", "garbage-text", "claude-haiku-4-5")).toBe("claude-haiku-4-5");
+    // Exact ID match → the ID
+    expect(coerceToKnownModel("anthropic", "claude-opus-4-8", "claude-haiku-4-5")).toBe("claude-opus-4-8");
+    // Case-insensitive label match → that option's ID
+    expect(coerceToKnownModel("anthropic", "Claude Haiku 4.5", "claude-opus-4-8")).toBe("claude-haiku-4-5");
+    expect(coerceToKnownModel("openai", "GPT-5.6 LUNA", "gpt-5.6-terra")).toBe("gpt-5.6-luna");
+    // Empty string → reverts to previousValid (not default, not empty)
+    expect(coerceToKnownModel("anthropic", "", "claude-sonnet-5")).toBe("claude-sonnet-5");
+  });
 });
 
 describe("career field contract", () => {
@@ -1635,16 +1655,23 @@ describe("career tools panel — combined report, additive extraction, model cat
     }
   });
 
-  it("offers a constrained, searchable model selector per provider — a native <select> plus a filter input, never free text", () => {
+  it("offers a constrained, searchable model selector per provider — an input with datalist that restricts choices to known models", () => {
     for (const html of [popupHtml, popupStoreHtml]) {
       document.body.innerHTML = html;
-      expect(document.getElementById("careerModel")!.tagName).toBe("SELECT");
-      expect(document.getElementById("careerOpenAiModel")!.tagName).toBe("SELECT");
-      expect(document.getElementById("careerModelFilter")).not.toBeNull();
-      expect(document.getElementById("careerOpenAiModelFilter")).not.toBeNull();
+      const careerModel = document.getElementById("careerModel") as HTMLInputElement;
+      const careerOpenAiModel = document.getElementById("careerOpenAiModel") as HTMLInputElement;
+      expect(careerModel.tagName).toBe("INPUT");
+      expect(careerOpenAiModel.tagName).toBe("INPUT");
+      expect(careerModel.hasAttribute("list")).toBe(true);
+      expect(careerOpenAiModel.hasAttribute("list")).toBe(true);
+      expect(document.getElementById("careerModelList")).not.toBeNull();
+      expect(document.getElementById("careerOpenAiModelList")).not.toBeNull();
+      expect(document.getElementById("careerModelFilter")).toBeNull();
+      expect(document.getElementById("careerOpenAiModelFilter")).toBeNull();
     }
     expect(popupCareerSharedSource).toContain("resolveKnownModel");
     expect(popupCareerSharedSource).toContain("KNOWN_MODELS");
+    expect(popupCareerSharedSource).toContain("coerceToKnownModel");
   });
 
   it("keeps a single job-description field — the legacy separate careerJd field is gone, migrated additively on load", () => {

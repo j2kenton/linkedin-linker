@@ -5,7 +5,7 @@ import type { JobExtraction } from "./extract/job";
 import type { ProfileExtraction } from "./extract/profile";
 import type { CompanyExtraction } from "./extract/company";
 import type { GenericExtraction } from "./extract/generic";
-import { KNOWN_MODELS, getKnownModelOption, resolveKnownModel } from "./models";
+import { KNOWN_MODELS, getKnownModelOption, resolveKnownModel, coerceToKnownModel, DEFAULT_MODEL, getKnownModelOptionByLabel } from "./models";
 import { estimateRequestTokenUpperBound } from "./aiClient/modelBudget";
 import type { Provider } from "./aiClient/provider";
 import { classifyUrl, hasDeclaredContentScript, type LinkedInPageKind } from "./pageDetect";
@@ -54,33 +54,46 @@ export function initCareerTools(options: CareerToolsOptions): void {
     const currentProvider = (): Provider => providerSelect.value === "openai" ? "openai" : "anthropic";
     const providerLabel = (provider: Provider) => provider === "openai" ? "OpenAI" : "Anthropic";
 
-    const anthropicSelect = careerElement<HTMLSelectElement>("careerModel");
-    const anthropicFilter = careerElement<HTMLInputElement>("careerModelFilter");
-    const openAiSelect = careerElement<HTMLSelectElement>("careerOpenAiModel");
-    const openAiFilter = careerElement<HTMLInputElement>("careerOpenAiModelFilter");
+    const anthropicModelInput = careerElement<HTMLInputElement>("careerModel");
+    const openAiModelInput = careerElement<HTMLInputElement>("careerOpenAiModel");
     const migrationNote = careerElement<HTMLElement>("careerModelMigrationNote");
-    const currentProviderModel = () => currentProvider() === "openai" ? openAiSelect.value : anthropicSelect.value;
-
-    /** A constrained, searchable model selector: a native <select> (so only listed IDs can ever be chosen) paired with a text filter that jumps to the first match as the user types. */
-    const setupModelSelect = (provider: Provider, select: HTMLSelectElement, filterInput: HTMLInputElement, onChange: (modelId: string) => void) => {
-      select.replaceChildren();
-      for (const option of KNOWN_MODELS[provider]) {
-        const el = document.createElement("option");
-        el.value = option.id; el.textContent = option.label;
-        select.append(el);
-      }
-      select.addEventListener("change", () => onChange(select.value));
-      filterInput.addEventListener("input", () => {
-        const query = filterInput.value.trim().toLowerCase();
-        if (!query) return;
-        const match = KNOWN_MODELS[provider].find(o => o.id.toLowerCase().includes(query) || o.label.toLowerCase().includes(query));
-        if (match) { select.value = match.id; onChange(match.id); }
-      });
+    const currentProviderModel = () => {
+      const provider = currentProvider();
+      const value = provider === "openai" ? openAiModelInput.value : anthropicModelInput.value;
+      return resolveKnownModel(provider, value);
     };
 
-    const restoreModel = (provider: Provider, select: HTMLSelectElement, saved: string) => {
+    /** Populates a datalist with model options and wires change events for a combobox input.
+   * Tracks previousValid to revert unknown text to last valid selection.
+   * Returns a handle to sync the valid value after restoration. */
+  const setupModelCombobox = (provider: Provider, input: HTMLInputElement, onChange: (modelId: string) => void) => {
+      let previousValid = DEFAULT_MODEL[provider];
+      const datalistId = input.getAttribute("list");
+      const datalist = datalistId ? careerElement<HTMLDataListElement>(datalistId) : null;
+      if (datalist) {
+        datalist.replaceChildren();
+        for (const option of KNOWN_MODELS[provider]) {
+          const el = document.createElement("option");
+          el.value = option.id;
+          el.label = option.label;
+          datalist.append(el);
+        }
+      }
+      input.addEventListener("change", () => {
+        // Coerce to known model if user typed something not in the list
+        const resolved = coerceToKnownModel(provider, input.value, previousValid);
+        input.value = resolved;
+        previousValid = resolved;
+        onChange(resolved);
+      });
+      return {
+        setValid: (id: string) => { previousValid = id; }
+      };
+    };
+
+    const restoreModel = (provider: Provider, input: HTMLInputElement, saved: string) => {
       const resolved = resolveKnownModel(provider, saved);
-      select.value = resolved;
+      input.value = resolved;
       if (saved && resolved !== saved) {
         migrationNote.hidden = false;
         migrationNote.textContent = `Saved ${providerLabel(provider)} model "${saved}" is no longer supported — reset to ${getKnownModelOption(provider, resolved)?.label || resolved}.`;
@@ -135,8 +148,8 @@ export function initCareerTools(options: CareerToolsOptions): void {
       if (!requireCareerReady()) return;
       const provider = currentProvider();
       await careerSet(provider === "openai"
-        ? { careerProvider:provider, careerOpenAiApiKey:field("careerOpenAiApiKey").value, careerOpenAiModel:openAiSelect.value }
-        : { careerProvider:provider, careerApiKey:field("careerApiKey").value, careerModel:anthropicSelect.value });
+        ? { careerProvider:provider, careerOpenAiApiKey:field("careerOpenAiApiKey").value, careerOpenAiModel:openAiModelInput.value }
+        : { careerProvider:provider, careerApiKey:field("careerApiKey").value, careerModel:anthropicModelInput.value });
       const response = await chrome.runtime.sendMessage({ action:"CAREER_RUN", previewed:true, input });
       if (!response.ok) { setResult("careerPreviewResult", response.error, "error"); return; }
       chrome.tabs.create({ url: chrome.runtime.getURL(`report.html?job=${encodeURIComponent(response.jobId)}`) });
@@ -492,10 +505,13 @@ export function initCareerTools(options: CareerToolsOptions): void {
         await new Promise<void>(resolve => chrome.storage.local.remove(["careerJd", "careerJdOrigin"], resolve));
       }
 
-      setupModelSelect("anthropic", anthropicSelect, anthropicFilter, modelId => { careerSet({ careerModel: modelId }).catch(() => undefined); });
-      setupModelSelect("openai", openAiSelect, openAiFilter, modelId => { careerSet({ careerOpenAiModel: modelId }).catch(() => undefined); });
-      const resolvedAnthropic = restoreModel("anthropic", anthropicSelect, saved.careerModel || "");
-      const resolvedOpenAi = restoreModel("openai", openAiSelect, saved.careerOpenAiModel || "");
+      const anthropicModelHandle = setupModelCombobox("anthropic", anthropicModelInput, modelId => { careerSet({ careerModel: modelId }).catch(() => undefined); });
+      const openAiModelHandle = setupModelCombobox("openai", openAiModelInput, modelId => { careerSet({ careerOpenAiModel: modelId }).catch(() => undefined); });
+      const resolvedAnthropic = restoreModel("anthropic", anthropicModelInput, saved.careerModel || "");
+      const resolvedOpenAi = restoreModel("openai", openAiModelInput, saved.careerOpenAiModel || "");
+      // Sync the combobox's previousValid tracking to the restored value
+      anthropicModelHandle.setValid(resolvedAnthropic);
+      openAiModelHandle.setValid(resolvedOpenAi);
       if (saved.careerModel && resolvedAnthropic !== saved.careerModel) await careerSet({ careerModel: resolvedAnthropic });
       if (saved.careerOpenAiModel && resolvedOpenAi !== saved.careerOpenAiModel) await careerSet({ careerOpenAiModel: resolvedOpenAi });
 
@@ -595,8 +611,8 @@ export function initCareerTools(options: CareerToolsOptions): void {
       const provider = currentProvider();
       showPreview(`Test connection: model "${currentProviderModel()}", prompt "OK" sent to ${providerLabel(provider)}.`, async () => {
         await careerSet(provider === "openai"
-          ? { careerProvider:provider, careerOpenAiApiKey:field("careerOpenAiApiKey").value, careerOpenAiModel:openAiSelect.value }
-          : { careerProvider:provider, careerApiKey:field("careerApiKey").value, careerModel:anthropicSelect.value });
+          ? { careerProvider:provider, careerOpenAiApiKey:field("careerOpenAiApiKey").value, careerOpenAiModel:openAiModelInput.value }
+          : { careerProvider:provider, careerApiKey:field("careerApiKey").value, careerModel:anthropicModelInput.value });
         const result = await chrome.runtime.sendMessage({ action:"CAREER_TEST", previewed:true });
         setResult("careerPreviewResult", result.ok ? "Connection authenticated." : result.error, result.ok ? "success" : "error");
       }, "Testing connection…");

@@ -182,6 +182,11 @@
     .career-tools textarea:focus, .career-tools input:focus, .career-tools select:focus {
       outline: none; border-color: var(--c-primary); box-shadow: 0 0 0 3px var(--c-primary-tint);
     }
+    .career-tools input[list] {
+      background: var(--c-surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='%2356687A'%3E%3Cpath d='M4 6l4 4 4-4z'/%3E%3C/svg%3E") no-repeat right 10px center;
+      background-size: 16px;
+      padding-right: 32px;
+    }
     .career-tools small { display:block; color: var(--c-text-secondary); margin-bottom:8px; font-size: 12px; }
     .career-tools details { margin-top: 10px; }
     .career-tools summary { cursor: pointer; font-size: 12.5px; font-weight: 600; color: var(--c-primary); }
@@ -313,9 +318,9 @@
               </div>
             </div>
             <div class="career-field">
-              <label for="careerModelFilter">Model</label>
-              <input id="careerModelFilter" type="text" placeholder="Type to search models…" autocomplete="off">
-              <select id="careerModel"></select>
+              <label for="careerModel">Model</label>
+              <input id="careerModel" type="text" list="careerModelList" autocomplete="off" placeholder="Type to search models…">
+              <datalist id="careerModelList"></datalist>
             </div>
           </div>
 
@@ -328,9 +333,9 @@
               </div>
             </div>
             <div class="career-field">
-              <label for="careerOpenAiModelFilter">Model</label>
-              <input id="careerOpenAiModelFilter" type="text" placeholder="Type to search models…" autocomplete="off">
-              <select id="careerOpenAiModel"></select>
+              <label for="careerOpenAiModel">Model</label>
+              <input id="careerOpenAiModel" type="text" list="careerOpenAiModelList" autocomplete="off" placeholder="Type to search models…">
+              <datalist id="careerOpenAiModelList"></datalist>
             </div>
           </div>
           <small id="careerModelMigrationNote" class="career-result" hidden></small>

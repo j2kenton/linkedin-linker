@@ -50,7 +50,34 @@ export function getKnownModelOption(provider: Provider, model: string | undefine
   return KNOWN_MODELS[provider].find(option => option.id === trimmed);
 }
 
+/** Finds a model option by exact ID or case-insensitive label match. */
+export function getKnownModelOptionByLabel(provider: Provider, label: string): ModelOption | undefined {
+  const trimmed = label.trim().toLowerCase();
+  return KNOWN_MODELS[provider].find(option =>
+    option.label.toLowerCase() === trimmed || option.id.toLowerCase() === trimmed
+  );
+}
+
 /** Replaces an empty, stale, or custom saved model value with the verified default for that provider. */
 export function resolveKnownModel(provider: Provider, value: string | undefined | null): string {
   return getKnownModelOption(provider, value)?.id ?? DEFAULT_MODEL[provider];
+}
+
+/**
+ * Coerces user-typed text to a known model ID.
+ * Exact ID match → the ID
+ * Case-insensitive label match → that option's ID
+ * Otherwise → previousValid (the last valid selection)
+ * This function is exported for unit testing without DOM event wiring.
+ */
+export function coerceToKnownModel(provider: Provider, typed: string, previousValid: string): string {
+  const trimmed = typed.trim();
+  // Exact ID match
+  const exactMatch = getKnownModelOption(provider, trimmed);
+  if (exactMatch) return exactMatch.id;
+  // Case-insensitive label match
+  const labelMatch = getKnownModelOptionByLabel(provider, trimmed);
+  if (labelMatch) return labelMatch.id;
+  // Unknown text → revert to last valid selection
+  return previousValid;
 }
