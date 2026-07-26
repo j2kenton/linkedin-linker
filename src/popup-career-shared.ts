@@ -43,6 +43,173 @@ export interface CareerToolsOptions {
   careerLockPromise?: Promise<{ locked: boolean; reason?: string }>;
 }
 
+/** Wires an accessible combobox (input + toggle button + filtered listbox)
+ * over the provider's model catalog. The input keeps its original id, so
+ * every persistence read/write site is unchanged. Typing filters the visible
+ * options; Up/Down move the active option, Enter selects, Escape closes.
+ * Tracks previousValid to revert unknown text to last valid selection.
+ * Returns a handle to sync the valid value after restoration.
+ * Module-scoped (rather than nested in initCareerTools) so tests can drive
+ * the combobox behavior directly against minimal markup. */
+export const setupModelCombobox = (provider: Provider, input: HTMLInputElement, onChange: (modelId: string) => void) => {
+  let previousValid = DEFAULT_MODEL[provider];
+  const listbox = document.getElementById(input.getAttribute("aria-controls") || "") as HTMLUListElement | null;
+  const toggle = input.parentElement?.querySelector<HTMLButtonElement>(".model-combobox-toggle") || null;
+  let visibleOptions: HTMLLIElement[] = [];
+  let activeIndex = -1;
+
+  const isOpen = () => Boolean(listbox && !listbox.hidden);
+
+  const close = () => {
+    if (!listbox) return;
+    listbox.hidden = true;
+    input.setAttribute("aria-expanded", "false");
+    input.removeAttribute("aria-activedescendant");
+    activeIndex = -1;
+  };
+
+  const setActive = (index: number) => {
+    visibleOptions.forEach(option => option.classList.remove("active"));
+    activeIndex = index;
+    const option = visibleOptions[index];
+    if (!option) { input.removeAttribute("aria-activedescendant"); return; }
+    option.classList.add("active");
+    option.scrollIntoView?.({ block:"nearest" });
+    input.setAttribute("aria-activedescendant", option.id);
+  };
+
+  const commit = (option: HTMLLIElement) => {
+    input.value = option.dataset.modelId || "";
+    close();
+    input.dispatchEvent(new Event("change"));
+  };
+
+  const open = (filter: string) => {
+    if (!listbox) return;
+    listbox.replaceChildren();
+    const needle = filter.trim().toLowerCase();
+    const matches = KNOWN_MODELS[provider].filter(option => !needle || option.id.toLowerCase().includes(needle) || option.label.toLowerCase().includes(needle));
+    // A filter with no hits would present a dead-looking dropdown; fall
+    // back to the full catalog so the user still sees what can be picked.
+    visibleOptions = (matches.length ? matches : [...KNOWN_MODELS[provider]]).map((option, index) => {
+      const item = document.createElement("li");
+      item.id = `${input.id}Option${index}`;
+      item.setAttribute("role", "option");
+      item.dataset.modelId = option.id;
+      item.setAttribute("aria-selected", String(option.id === input.value.trim()));
+      const label = document.createElement("span");
+      label.textContent = option.label;
+      const id = document.createElement("span");
+      id.className = "model-combobox-id";
+      id.textContent = option.id;
+      item.append(label, id);
+      // mousedown (not click) so the selection commits before the input's
+      // blur handler closes and rebuilds the list.
+      item.addEventListener("mousedown", event => { event.preventDefault(); commit(item); });
+      listbox.append(item);
+      return item;
+    });
+    listbox.hidden = false;
+    input.setAttribute("aria-expanded", "true");
+    setActive(visibleOptions.findIndex(item => item.getAttribute("aria-selected") === "true"));
+  };
+
+  input.addEventListener("input", () => open(input.value));
+  input.addEventListener("keydown", event => {
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      if (!isOpen()) { open(""); if (activeIndex < 0) setActive(0); return; }
+      const count = visibleOptions.length;
+      if (!count) return;
+      const delta = event.key === "ArrowDown" ? 1 : -1;
+      const start = activeIndex < 0 ? (delta > 0 ? -1 : 0) : activeIndex;
+      setActive((start + delta + count) % count);
+    } else if (event.key === "Enter") {
+      if (isOpen() && activeIndex >= 0 && visibleOptions[activeIndex]) { event.preventDefault(); commit(visibleOptions[activeIndex]); }
+    } else if (event.key === "Escape") {
+      if (isOpen()) {
+        event.stopPropagation();
+        close();
+        // Escape abandons in-progress typing: restore the last valid value
+        // immediately instead of leaving unknown text in the field until blur.
+        input.value = coerceToKnownModel(provider, input.value, previousValid);
+      }
+    }
+  });
+  input.addEventListener("blur", close);
+  toggle?.addEventListener("mousedown", event => {
+    event.preventDefault();
+    if (isOpen()) { close(); return; }
+    input.focus();
+    open("");
+  });
+
+  input.addEventListener("change", () => {
+    // Coerce to known model if user typed something not in the list
+    const resolved = coerceToKnownModel(provider, input.value, previousValid);
+    input.value = resolved;
+    previousValid = resolved;
+    onChange(resolved);
+  });
+  return {
+    setValid: (id: string) => { previousValid = id; }
+  };
+};
+
+/** The user-facing fields the popup fills from a job extraction. Snapshot
+ * ranking counts these first, so a pane that has rendered Seniority and
+ * Location always outranks one that merely has more optional strings
+ * (salary, benefits, workplace type). Non-job extractions score equally
+ * here and fall through to the total-count tiebreak. */
+const CORE_SNAPSHOT_FIELDS: readonly string[] = ["title", "companyName", "location", "seniority", "description"];
+
+const filledCount = (extraction: CareerExtraction, keys: readonly string[]): number =>
+  keys.filter(key => { const value = extraction[key]; return typeof value === "string" && value.trim(); }).length;
+
+/** True when candidate is at least as complete as incumbent: more core
+ * fields wins outright; ties fall back to the total non-empty-string count
+ * (>= so a later equally-full snapshot supersedes an earlier one). */
+const isFullerSnapshot = (candidate: CareerExtraction, incumbent: CareerExtraction): boolean => {
+  const coreDelta = filledCount(candidate, CORE_SNAPSHOT_FIELDS) - filledCount(incumbent, CORE_SNAPSHOT_FIELDS);
+  if (coreDelta !== 0) return coreDelta > 0;
+  return filledCount(candidate, Object.keys(candidate)) >= filledCount(incumbent, Object.keys(incumbent));
+};
+
+/** Polls the tab's content script for an extraction. A ready result that
+ * carries a "sections" warning means the page's lazy sections are still
+ * mounting, so polling continues within the retry budget; a completed
+ * response (no "sections" warning) wins immediately. Best-snapshot ranking
+ * only governs what to return when the budget runs out with every response
+ * still mounting — and it prioritizes the core user-facing fields over
+ * optional strings, so an early pane with salary/benefits but no Seniority
+ * never outranks one that rendered the fields the form actually needs.
+ * Module-scoped (rather than nested in initCareerTools) so tests can drive
+ * the retry contract directly with a stubbed chrome.tabs.sendMessage. */
+export async function requestExtraction(tabId: number, action: "EXTRACT_JOB" | "EXTRACT_PROFILE" | "EXTRACT_COMPANY" | "EXTRACT_PAGE"): Promise<CareerExtraction | null> {
+  let bestReady: CareerExtraction | null = null;
+  let lastReadyFalse: CareerExtraction | null = null;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try {
+      const result = await chrome.tabs.sendMessage(tabId, { action }, { frameId:0 }) as CareerExtraction;
+      if (result.ready) {
+        const stillMounting = (result.warnings || []).some(w => w.field === "sections");
+        if (!stillMounting) return result;
+        if (!bestReady || isFullerSnapshot(result, bestReady)) bestReady = result;
+      } else {
+        lastReadyFalse = result;
+      }
+    } catch (error) {
+      // A dead side-panel runtime can never reach any tab; retrying just
+      // burns ~10s (reading as a hang) while emitting failing
+      // chrome-extension://invalid/ requests. Surface the reload it needs.
+      if (isContextInvalidatedError(error) || !isExtensionContextAlive()) throw error;
+      /* else: content script not responding yet; retry */
+    }
+    if (attempt < 4) await careerSleep(1000);
+  }
+  return bestReady || lastReadyFalse;
+}
+
 export function initCareerTools(options: CareerToolsOptions): void {
   document.addEventListener("DOMContentLoaded", () => {
     const tools = careerElement<HTMLElement>("careerTools");
@@ -61,34 +228,6 @@ export function initCareerTools(options: CareerToolsOptions): void {
       const provider = currentProvider();
       const value = provider === "openai" ? openAiModelInput.value : anthropicModelInput.value;
       return resolveKnownModel(provider, value);
-    };
-
-    /** Populates a datalist with model options and wires change events for a combobox input.
-   * Tracks previousValid to revert unknown text to last valid selection.
-   * Returns a handle to sync the valid value after restoration. */
-  const setupModelCombobox = (provider: Provider, input: HTMLInputElement, onChange: (modelId: string) => void) => {
-      let previousValid = DEFAULT_MODEL[provider];
-      const datalistId = input.getAttribute("list");
-      const datalist = datalistId ? careerElement<HTMLDataListElement>(datalistId) : null;
-      if (datalist) {
-        datalist.replaceChildren();
-        for (const option of KNOWN_MODELS[provider]) {
-          const el = document.createElement("option");
-          el.value = option.id;
-          el.label = option.label;
-          datalist.append(el);
-        }
-      }
-      input.addEventListener("change", () => {
-        // Coerce to known model if user typed something not in the list
-        const resolved = coerceToKnownModel(provider, input.value, previousValid);
-        input.value = resolved;
-        previousValid = resolved;
-        onChange(resolved);
-      });
-      return {
-        setValid: (id: string) => { previousValid = id; }
-      };
     };
 
     const restoreModel = (provider: Provider, input: HTMLInputElement, saved: string) => {
@@ -194,31 +333,6 @@ export function initCareerTools(options: CareerToolsOptions): void {
       const handlerResult = await ensureExtractionHandler(tab.id, capabilities);
       if (handlerResult === "ready") return { ok:true };
       return { ok:false, message:"Could not run the reader; reload the tab and try again." };
-    }
-
-    async function requestExtraction(tabId: number, action: "EXTRACT_JOB" | "EXTRACT_PROFILE" | "EXTRACT_COMPANY" | "EXTRACT_PAGE"): Promise<CareerExtraction | null> {
-      let lastReady: CareerExtraction | null = null;
-      let lastReadyFalse: CareerExtraction | null = null;
-      for (let attempt = 0; attempt < 5; attempt++) {
-        try {
-          const result = await chrome.tabs.sendMessage(tabId, { action }, { frameId:0 }) as CareerExtraction;
-          if (result.ready) {
-            lastReady = result;
-            const stillMounting = (result.warnings || []).some(w => w.field === "sections");
-            if (!stillMounting) return result;
-          } else {
-            lastReadyFalse = result;
-          }
-        } catch (error) {
-          // A dead side-panel runtime can never reach any tab; retrying just
-          // burns ~10s (reading as a hang) while emitting failing
-          // chrome-extension://invalid/ requests. Surface the reload it needs.
-          if (isContextInvalidatedError(error) || !isExtensionContextAlive()) throw error;
-          /* else: content script not responding yet; retry */
-        }
-        if (attempt < 4) await careerSleep(1000);
-      }
-      return lastReady || lastReadyFalse;
     }
 
     const getValues = (): CareerValues => Object.fromEntries(CAREER_VALUE_KEYS.map(key => [key, field(FORM_ID[key]).value])) as CareerValues;

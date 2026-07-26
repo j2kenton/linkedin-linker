@@ -1,0 +1,40 @@
+<!--
+  Provenance: modeled DOM, not a saved page capture. Hand-built 2026-07-26 to
+  mirror the class tokens LinkedIn's authenticated split-pane job search UI
+  (/jobs/search-results/?currentJobId=...) uses for the right-hand detail pane:
+  jobs-search__job-details--wrapper > jobs-details__main-content, with the
+  job-details-jobs-unified-top-card__* title/company/tertiary-description/
+  job-insight nodes. JSON-LD is deliberately omitted so tests exercise the
+  DOM-selector rung rather than the JobPosting fallback. Not yet re-verified
+  against a live authenticated session; if extraction regresses on the real
+  page, re-capture this layout and update both the fixture and the selectors
+  in src/extract/job.ts together.
+-->
+<header class="global-nav"><h1 class="sr-only">LinkedIn</h1></header>
+<div class="jobs-search-two-pane__wrapper">
+  <aside class="jobs-search-results-list">
+    <ul class="jobs-search-results__list">
+      <li class="jobs-search-results__list-item">
+        <a class="job-card-container__link" href="/jobs/view/999/"><span>Decoy Role</span></a>
+        <a href="https://www.linkedin.com/company/decoy-corp/">Decoy Corp</a>
+      </li>
+    </ul>
+  </aside>
+  <div class="jobs-search__job-details--wrapper">
+    <div class="jobs-search__job-details--container">
+      <div class="jobs-details__main-content">
+        <div class="job-details-jobs-unified-top-card__container">
+          <h1 class="job-details-jobs-unified-top-card__job-title">Platform Engineer</h1>
+          <div class="job-details-jobs-unified-top-card__company-name"><a href="https://www.linkedin.com/company/acme/">Acme</a></div>
+          <div class="job-details-jobs-unified-top-card__tertiary-description-container">
+            <span>Tel Aviv-Yafo, Israel</span> · <span>Reposted 1 week ago</span> · <span>Over 100 applicants</span>
+          </div>
+          <div class="job-details-jobs-unified-top-card__job-insight">Full-time · Mid-Senior level</div>
+        </div>
+        <div id="job-details" class="jobs-description__content">
+          <div class="jobs-box__html-content">Run the shared platform.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -50,11 +50,40 @@ export function readJsonLd(document: Document, types: string[]): Record<string, 
   return results;
 }
 
+/**
+ * Containers that never carry page content: executable/embedded resources plus
+ * LinkedIn chrome (global nav, ad modules, recommendation rails, the site
+ * footer with its language selector). Removed from a clone before reading
+ * visible text, so ad boilerplate and inline-script source never leak into
+ * extractions.
+ */
+const BOILERPLATE_SELECTORS = [
+  "script", "style", "noscript", "iframe", "template", "svg", "footer",
+  ".global-nav", ".global-footer", ".global-alert-container", ".language-selector",
+  ".ad-banner-container", ".ads-container", "[data-ad-banner]",
+  ".scaffold-layout__aside", ".feed-follows-module", ".right-rail",
+].join(", ");
+
+/**
+ * English-UI markers for trailing LinkedIn chrome that renders outside any
+ * recognisable container — a fallback cutoff only; the DOM removal above is
+ * the primary defence and survives copy/localisation changes.
+ */
+const TRAILING_BOILERPLATE_MARKERS = ["More profiles for you", "People you may know", "Pages for you", "Ad Options", "Why am I seeing this ad?"];
+
 /** Capped, whitespace-collapsed visible text — the last-resort fallback shared by every extractor. */
 export function visibleText(root: Document | Element, max: number): string {
   const element = root instanceof Document ? root.body : root;
   if (!element) return "";
-  const text = (element.textContent || "").replace(/\s+/g, " ").trim();
+  const clone = element.cloneNode(true) as Element;
+  clone.querySelectorAll(BOILERPLATE_SELECTORS).forEach(node => node.remove());
+  let text = (clone.textContent || "").replace(/\s+/g, " ").trim();
+  let cut = -1;
+  for (const marker of TRAILING_BOILERPLATE_MARKERS) {
+    const index = text.indexOf(marker);
+    if (index > 0 && (cut < 0 || index < cut)) cut = index;
+  }
+  if (cut > 0) text = text.slice(0, cut).trim();
   return text.length > max ? `${text.slice(0, max)}…` : text;
 }
 

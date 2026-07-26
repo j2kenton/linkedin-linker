@@ -85,9 +85,64 @@ function copySections(job: Job): void {
     button.className = "section-copy";
     button.textContent = "Copy";
     button.setAttribute("aria-label", `Copy ${title}`);
-    button.onclick = () => navigator.clipboard.writeText(text);
+    wireCopyButton(button, () => text);
     element.append(button);
   }
+}
+
+/**
+ * Announces a copy outcome in the shared visually-hidden `role="status"`
+ * region, so screen readers hear the result without focus leaving the button.
+ * The region is cleared after ~2s (matching the button-label reset) so a
+ * repeat of the same outcome still registers as a content change and gets
+ * re-announced. One shared timer: a newer announcement supersedes the
+ * pending clear of an older one.
+ */
+let announceTimer: number | undefined;
+function announceCopyResult(message: string): void {
+  const region = document.querySelector<HTMLElement>("#copyStatus");
+  if (!region) return;
+  if (announceTimer !== undefined) clearTimeout(announceTimer);
+  region.textContent = message;
+  announceTimer = window.setTimeout(() => {
+    region.textContent = "";
+    announceTimer = undefined;
+  }, 2000);
+}
+
+/**
+ * Wires a copy button to show transient feedback: "Copied!" on success,
+ * "Copy failed" when the clipboard write is rejected, restoring the original
+ * label after ~2s. Each click takes a sequence token and only the newest
+ * click's outcome may touch the button, so an older clipboard write that
+ * resolves late can never overwrite fresher feedback, and exactly one reset
+ * timer is ever pending.
+ */
+function wireCopyButton(button: HTMLButtonElement, getText: () => string | undefined): void {
+  const originalLabel = button.textContent || "Copy";
+  let resetTimer: number | undefined;
+  let clickSeq = 0;
+  button.onclick = async () => {
+    const text = getText();
+    if (text === undefined) return;
+    const seq = ++clickSeq;
+    let succeeded = true;
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      succeeded = false;
+    }
+    if (seq !== clickSeq) return;
+    if (resetTimer !== undefined) clearTimeout(resetTimer);
+    button.textContent = succeeded ? "Copied!" : "Copy failed";
+    button.classList.toggle("copy-failed", !succeeded);
+    announceCopyResult(succeeded ? "Copied to clipboard." : "Copy failed — clipboard was not available.");
+    resetTimer = window.setTimeout(() => {
+      button.textContent = originalLabel;
+      button.classList.remove("copy-failed");
+      resetTimer = undefined;
+    }, 2000);
+  };
 }
 
 function isSafeLinkUrl(raw: string): boolean {
@@ -311,7 +366,7 @@ function connect(): void {
   }
 }
 
-document.querySelector<HTMLButtonElement>("#copy")!.onclick = () => current && navigator.clipboard.writeText(current.reportText);
+wireCopyButton(document.querySelector<HTMLButtonElement>("#copy")!, () => current?.reportText);
 document.querySelector<HTMLButtonElement>("#cancel")!.onclick = () => chrome.runtime.sendMessage({ action:"CAREER_CANCEL", id });
 document.querySelector<HTMLButtonElement>("#retrySave")?.addEventListener("click", async () => {
   // Sending the tab's own in-memory copy (when available) lets the worker

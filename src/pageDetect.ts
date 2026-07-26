@@ -21,7 +21,7 @@ export function classifyUrl(rawUrl: string): LinkedInPageKind {
   if (/\/(login|authwall|checkpoint)(\/|$)/i.test(path)) return "generic";
   if (/^\/in\/[^/]+/i.test(path)) return "profile";
   if (/^\/jobs\/view\/\d+$/i.test(path)) return "job";
-  if (/^\/jobs\/(search|collections)\/?$/i.test(path) && /^\d+$/.test(url.searchParams.get("currentJobId") || "")) return "job";
+  if (/^\/jobs\/(search|search-results|collections)\/?$/i.test(path) && /^\d+$/.test(url.searchParams.get("currentJobId") || "")) return "job";
   if (/^\/company\/[^/]+/i.test(path)) return "company";
   return "generic";
 }

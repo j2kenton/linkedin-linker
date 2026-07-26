@@ -100,6 +100,7 @@
     border: none;
   }
   button#copy:hover { background: var(--c-primary-hover); }
+  button.copy-failed, button#copy.copy-failed { background: #B3261E; border-color: #B3261E; color: #fff; }
   pre {
     white-space: pre-wrap;
     line-height: 1.5;
@@ -209,6 +210,17 @@
     color: var(--c-primary);
   }
   details[open] summary { margin-bottom: 8px; }
+  .visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
 </style>
 </head>
 <body>
@@ -219,6 +231,7 @@
     <button id="copy">Copy as Markdown</button>
     <button id="regenerate">Regenerate</button>
     <button id="cancel">Cancel</button>
+    <span id="copyStatus" class="visually-hidden" role="status"></span>
   </p>
   <div id="recoveryNotice" class="issue" hidden><span id="recoveryNoticeText"></span> <button id="retrySave">Retry save</button></div>
   <div id="disclaimer" class="notice" hidden></div>

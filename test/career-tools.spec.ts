@@ -21,6 +21,7 @@ import { CAREER_VALUE_KEYS, FORM_ID, careerInputToForm, formToCareerInput, isCon
 import { mergeExtraction } from "../src/career/merge";
 import { hasUsefulCareerPatch, toPatch } from "../src/career/patch";
 import { DEFAULT_MODEL, KNOWN_MODELS, getKnownModelOption, resolveKnownModel, coerceToKnownModel, getKnownModelOptionByLabel } from "../src/models";
+import { setupModelCombobox, requestExtraction } from "../src/popup-career-shared";
 import { byteSize, baseBytes, fixedFingerprint, boundJobForPersistence, MAX_REPORT_TEXT_BYTES, MAX_FINDINGS_BYTES, MAX_SOURCE_ENTRIES, MAX_SOURCES_BYTES, MAX_RESEARCH_MESSAGES_BYTES, MAX_WARNINGS_BYTES, STORAGE_TRUNCATION_MARKER, type BoundableJob } from "../src/career/bytes";
 import { isConformantPersistedJob, normalizePersistedJob, MIGRATION_WARNING, type PersistedJob } from "../src/career/persistedJob";
 import { reservePendingJob, clearPendingJob, clearAllPendingJobs, readPendingJob, readAllPendingJobs } from "../src/career/pendingJobs";
@@ -32,6 +33,7 @@ describe("LinkedIn page detection", () => {
     expect(classifyUrl("https://www.linkedin.com/in/alex/?x=1")).toBe("profile");
     expect(classifyUrl("https://linkedin.com/jobs/view/1234/")).toBe("job");
     expect(classifyUrl("https://www.linkedin.com/jobs/collections/?currentJobId=2")).toBe("job");
+    expect(classifyUrl("https://www.linkedin.com/jobs/search-results/?currentJobId=4242")).toBe("job");
     expect(classifyUrl("https://www.linkedin.com/company/acme/")).toBe("company");
     expect(classifyUrl("https://www.linkedin.com/company/acme/posts/")).toBe("company");
   });
@@ -44,6 +46,7 @@ describe("LinkedIn page detection", () => {
   it("treats every other readable page — LinkedIn or not — as generic, still worth a best-effort attempt", () => {
     expect(classifyUrl("https://www.linkedin.com/authwall")).toBe("generic");
     expect(classifyUrl("https://www.linkedin.com/jobs/search/?currentJobId=nope")).toBe("generic");
+    expect(classifyUrl("https://www.linkedin.com/jobs/search-results/?currentJobId=nope")).toBe("generic");
     expect(classifyUrl("https://evil.example/in/alex")).toBe("generic");
     expect(classifyUrl("https://www.linkedin.com/feed/")).toBe("generic");
     expect(classifyUrl("https://www.linkedin.com/posts/someone-activity-123/")).toBe("generic");
@@ -293,10 +296,31 @@ describe("extraction and safe rendering", () => {
     document.body.innerHTML=readFileSync(fileURLToPath(new NodeUrl("./fixtures/linkedin-profile.html", import.meta.url)), "utf8");
     expect(extractProfile(document)).toMatchObject({ready:true,name:"Ada Lovelace",headline:"Engineering Manager",experience:expect.stringContaining("Lead at Acme")});
     document.body.innerHTML=readFileSync(fileURLToPath(new NodeUrl("./fixtures/linkedin-job.html", import.meta.url)), "utf8");
-    expect(extractJob(document)).toMatchObject({ready:true,title:"Staff Engineer",companyName:"Acme",companyUrl:"https://www.linkedin.com/company/acme/",description:"Build distributed systems."});
+    expect(extractJob(document)).toMatchObject({ready:true,title:"Staff Engineer",companyName:"Acme",companyUrl:"https://www.linkedin.com/company/acme/",description:"Build distributed systems.",location:"Tel Aviv, Israel",seniority:"Senior level"});
     document.body.innerHTML="<div>loading</div>";
     expect(extractProfile(document).ready).toBe(false);
     expect(extractJob(document).ready).toBe(false);
+  });
+
+  it("extracts title, seniority, and location from the /jobs/search-results/ split-pane layout, scoped to the detail pane", () => {
+    document.body.innerHTML=readFileSync(fileURLToPath(new NodeUrl("./fixtures/linkedin-job-search-results.html", import.meta.url)), "utf8");
+    const job=extractJob(document);
+    expect(job.ready).toBe(true);
+    expect(job).toMatchObject({title:"Platform Engineer",companyName:"Acme",companyUrl:"https://www.linkedin.com/company/acme/",description:"Run the shared platform."});
+    // The combined "location · posted · applicants" line yields only its location segment.
+    expect(job.location).toBe("Tel Aviv-Yafo, Israel");
+    // Seniority comes from the "·"-joined insight pill, not a positional selector.
+    expect(job.seniority).toBe("Mid-Senior level");
+  });
+
+  it("matches seniority by the 'Seniority level' criteria label, never by position", () => {
+    document.body.innerHTML=`<main class="jobs-details__main-content"><h1>Engineer</h1><ul><li class="description__job-criteria-item"><h3 class="description__job-criteria-subheader">Employment type</h3><span class="description__job-criteria-text">Full-time</span></li><li class="description__job-criteria-item"><h3 class="description__job-criteria-subheader">Seniority level</h3><span class="description__job-criteria-text">Director</span></li></ul></main>`;
+    expect(extractJob(document).seniority).toBe("Director");
+  });
+
+  it("pulls a known seniority term out of an insight pill even when the pill has no '·' separators", () => {
+    document.body.innerHTML=`<main class="jobs-details__main-content"><h1>Engineer</h1><div class="job-details-jobs-unified-top-card__job-insight"><span>Hybrid</span> <span>Full-time</span> <span>Mid-Senior level</span></div></main>`;
+    expect(extractJob(document).seniority).toBe("Mid-Senior level");
   });
 
   it("reports sparse-profile fields and extraction truncation warnings", () => {
@@ -347,6 +371,16 @@ describe("extraction and safe rendering", () => {
       {field:"companyUrl",message:"companyUrl was not found on the page."},
       {field:"description",message:"description was not found on the page."},
     ]));
+  });
+
+  it("adds a sections warning when a recognised job pane is missing core fields, so the popup keeps polling while LinkedIn finishes mounting", () => {
+    document.body.innerHTML=`<main class="jobs-details__main-content"><h1>Platform Engineer</h1><a href="https://www.linkedin.com/company/acme/">Acme</a><div id="job-details">Run the shared platform.</div></main>`;
+    const mounting=extractJob(document);
+    expect(mounting.ready).toBe(true);
+    expect(mounting.warnings).toEqual(expect.arrayContaining([{field:"sections",message:"Some job details (location, seniority) may not have rendered yet."}]));
+    // A fully rendered pane carries no sections warning, so polling stops on the first response.
+    document.body.innerHTML=readFileSync(fileURLToPath(new NodeUrl("./fixtures/linkedin-job-search-results.html", import.meta.url)), "utf8");
+    expect(extractJob(document).warnings.some(w=>w.field==="sections")).toBe(false);
   });
 
   it("escapes model HTML and only resolves stored citation IDs", () => {
@@ -508,6 +542,23 @@ describe("resilient extraction fallbacks", () => {
     expect(result.text).toContain("Useful content.");
   });
 
+  it("excludes LinkedIn trailing boilerplate — ads, recommendation rails, footer, language list, inline scripts — from generic page text", () => {
+    document.body.innerHTML = readFileSync(fileURLToPath(new NodeUrl("./fixtures/linkedin-profile.html", import.meta.url)), "utf8");
+    const result = extractGenericPage(document);
+    expect(result.ready).toBe(true);
+    expect(result.text).toContain("Builds reliable systems.");
+    for (const junk of ["Why am I seeing this ad?", "Ad Options", "More profiles for you", "People you may know", "Pages for you", "LinkedIn Corporation ©", "Deutsch (German)", "__como_module_cache__"]) {
+      expect(result.text).not.toContain(junk);
+    }
+  });
+
+  it("cuts generic page text at a trailing-boilerplate marker even when it renders outside any recognisable container", () => {
+    document.body.innerHTML = `<main><p>Real content about the role.</p></main><div><h2>More profiles for you</h2><p>Decoy Person — Surgeon and CEO</p></div>`;
+    const result = extractGenericPage(document);
+    expect(result.text).toContain("Real content about the role.");
+    expect(result.text).not.toContain("Decoy Person");
+  });
+
   it("reports the generic extractor as not-ready only when the page has no readable content at all", () => {
     document.body.innerHTML = "";
     expect(extractGenericPage(document).ready).toBe(false);
@@ -662,7 +713,7 @@ describe("report page rendering", () => {
   });
 
   it("wires each section's inline Copy button to that section's own raw Markdown slice", async () => {
-    document.body.innerHTML = `<p id="status"></p><p id="reasoning" hidden></p><button id="copy"></button><button id="regenerate"></button><button id="cancel"></button><div id="disclaimer" hidden></div><div id="issues" hidden></div><article id="report"></article><section id="sources" hidden><div id="sourceList"></div></section><section id="generationContext"></section>`;
+    document.body.innerHTML = `<p id="status"></p><p id="reasoning" hidden></p><button id="copy"></button><button id="regenerate"></button><button id="cancel"></button><span id="copyStatus" role="status"></span><div id="disclaimer" hidden></div><div id="issues" hidden></div><article id="report"></article><section id="sources" hidden><div id="sourceList"></div></section><section id="generationContext"></section>`;
 
     const originalUrl = location.href;
     const originalChrome = globalThis.chrome;
@@ -700,6 +751,43 @@ describe("report page rendering", () => {
       // The slice runs up to (but not including) the next heading, so it
       // retains the separator newline the section body ended with.
       expect(writeText).toHaveBeenCalledWith(`${COMPANY_HEADINGS[1]}\ntext for ${COMPANY_HEADINGS[1]}\n`);
+      // A successful write shows transient feedback on the button itself,
+      // and announces it in the shared role="status" live region.
+      await vi.waitFor(() => expect(button.textContent).toBe("Copied!"));
+      const copyStatus = document.querySelector<HTMLElement>("#copyStatus")!;
+      expect(copyStatus.textContent).toBe("Copied to clipboard.");
+
+      // The top-level Copy as Markdown button gets the same feedback.
+      const mainCopy = document.querySelector<HTMLButtonElement>("#copy")!;
+      mainCopy.click();
+      expect(writeText).toHaveBeenCalledWith(reportText);
+      await vi.waitFor(() => expect(mainCopy.textContent).toBe("Copied!"));
+
+      // A rejected clipboard write flips to an error label instead, and the
+      // live region announces the failure.
+      writeText.mockRejectedValueOnce(new Error("denied"));
+      mainCopy.click();
+      await vi.waitFor(() => expect(mainCopy.textContent).toBe("Copy failed"));
+      expect(mainCopy.classList.contains("copy-failed")).toBe(true);
+      expect(copyStatus.textContent).toBe("Copy failed — clipboard was not available.");
+
+      // Overlapping clicks: when an older clipboard write is still pending
+      // and a newer click's write settles first, the older write resolving
+      // late must not overwrite the newer click's feedback.
+      let resolveStale!: () => void;
+      let rejectFresh!: (reason: unknown) => void;
+      writeText.mockImplementationOnce(() => new Promise<void>(resolve => { resolveStale = resolve; }));
+      writeText.mockImplementationOnce(() => new Promise<void>((_resolve, reject) => { rejectFresh = reject; }));
+      mainCopy.click();
+      mainCopy.click();
+      rejectFresh(new Error("denied"));
+      await vi.waitFor(() => expect(mainCopy.textContent).toBe("Copy failed"));
+      resolveStale();
+      // Let the stale click's continuation run — it must be a no-op.
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(mainCopy.textContent).toBe("Copy failed");
+      expect(mainCopy.classList.contains("copy-failed")).toBe(true);
     } finally {
       history.pushState({}, "", originalUrl);
       Object.defineProperty(globalThis, "chrome", { configurable: true, value: originalChrome });
@@ -803,7 +891,9 @@ describe("report page rendering", () => {
 });
 
 describe("durable job lifecycle guards", () => {
-  it("never deletes a job record, even under byte pressure; detects stale workers and rejects superseded writes", () => {
+  // Builds multi-megabyte job payloads to exercise byte-pressure compaction;
+  // the allocations legitimately take 3-6s, past vitest's default 5s timeout.
+  it("never deletes a job record, even under byte pressure; detects stale workers and rejects superseded writes", { timeout: 20_000 }, () => {
     const records=Array.from({length:11},(_,i)=>({id:String(i),payload:"small"}));
     expect(retainJobsForStorage(records as never).map(record=>record.id)).toEqual(records.map(record=>record.id));
 
@@ -1769,23 +1859,99 @@ describe("career tools panel — combined report, additive extraction, model cat
     }
   });
 
-  it("offers a constrained, searchable model selector per provider — an input with datalist that restricts choices to known models", () => {
+  it("offers a constrained, searchable model combobox per provider — a visible filtered listbox that restricts choices to known models", () => {
     for (const html of [popupHtml, popupStoreHtml]) {
       document.body.innerHTML = html;
-      const careerModel = document.getElementById("careerModel") as HTMLInputElement;
-      const careerOpenAiModel = document.getElementById("careerOpenAiModel") as HTMLInputElement;
-      expect(careerModel.tagName).toBe("INPUT");
-      expect(careerOpenAiModel.tagName).toBe("INPUT");
-      expect(careerModel.hasAttribute("list")).toBe(true);
-      expect(careerOpenAiModel.hasAttribute("list")).toBe(true);
-      expect(document.getElementById("careerModelList")).not.toBeNull();
-      expect(document.getElementById("careerOpenAiModelList")).not.toBeNull();
-      expect(document.getElementById("careerModelFilter")).toBeNull();
-      expect(document.getElementById("careerOpenAiModelFilter")).toBeNull();
+      for (const [inputId, listboxId] of [["careerModel", "careerModelListbox"], ["careerOpenAiModel", "careerOpenAiModelListbox"]] as const) {
+        const input = document.getElementById(inputId) as HTMLInputElement;
+        expect(input.tagName).toBe("INPUT");
+        expect(input.getAttribute("role")).toBe("combobox");
+        expect(input.getAttribute("aria-expanded")).toBe("false");
+        expect(input.getAttribute("aria-controls")).toBe(listboxId);
+        const listbox = document.getElementById(listboxId)!;
+        expect(listbox).not.toBeNull();
+        expect(listbox.getAttribute("role")).toBe("listbox");
+        expect(input.closest(".model-combobox")?.querySelector(".model-combobox-toggle")).not.toBeNull();
+        // The old invisible-until-typing <datalist> pairing is gone.
+        expect(input.hasAttribute("list")).toBe(false);
+      }
+      expect(document.getElementById("careerModelList")).toBeNull();
+      expect(document.getElementById("careerOpenAiModelList")).toBeNull();
     }
     expect(popupCareerSharedSource).toContain("resolveKnownModel");
     expect(popupCareerSharedSource).toContain("KNOWN_MODELS");
     expect(popupCareerSharedSource).toContain("coerceToKnownModel");
+  });
+
+  it("combobox behavior: toggle opens, typing filters, Arrow/Enter selects, Escape closes, unknown text reverts", () => {
+    document.body.innerHTML = popupHtml;
+    const input = document.getElementById("careerModel") as HTMLInputElement;
+    const listbox = document.getElementById("careerModelListbox") as HTMLUListElement;
+    const toggle = input.closest(".model-combobox")!.querySelector<HTMLButtonElement>(".model-combobox-toggle")!;
+    const onChange = vi.fn();
+    setupModelCombobox("anthropic", input, onChange);
+
+    // Toggle opens the full catalog.
+    toggle.dispatchEvent(new MouseEvent("mousedown"));
+    expect(listbox.hidden).toBe(false);
+    expect(input.getAttribute("aria-expanded")).toBe("true");
+    const optionIds = () => [...listbox.querySelectorAll<HTMLLIElement>("[role='option']")].map(option => option.dataset.modelId);
+    expect(optionIds()).toEqual(KNOWN_MODELS.anthropic.map(option => option.id));
+
+    // Escape closes without committing anything.
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    expect(listbox.hidden).toBe(true);
+    expect(input.getAttribute("aria-expanded")).toBe("false");
+    expect(onChange).not.toHaveBeenCalled();
+
+    // Typing reopens and filters the visible options.
+    input.value = "haiku";
+    input.dispatchEvent(new Event("input"));
+    expect(listbox.hidden).toBe(false);
+    expect(optionIds()).toEqual(["claude-haiku-4-5"]);
+
+    // ArrowDown activates an option (exposed via aria-activedescendant), Enter commits it.
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown" }));
+    const active = listbox.querySelector<HTMLLIElement>(".active")!;
+    expect(active.dataset.modelId).toBe("claude-haiku-4-5");
+    expect(input.getAttribute("aria-activedescendant")).toBe(active.id);
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+    expect(input.value).toBe("claude-haiku-4-5");
+    expect(listbox.hidden).toBe(true);
+    expect(input.getAttribute("aria-expanded")).toBe("false");
+    expect(input.hasAttribute("aria-activedescendant")).toBe(false);
+    expect(onChange).toHaveBeenLastCalledWith("claude-haiku-4-5");
+
+    // Unknown typed text reverts to the last valid selection on change.
+    input.value = "totally-made-up-model";
+    input.dispatchEvent(new Event("change"));
+    expect(input.value).toBe("claude-haiku-4-5");
+    expect(onChange).toHaveBeenLastCalledWith("claude-haiku-4-5");
+
+    // A case-insensitive label match commits that option's ID instead of reverting.
+    input.value = "claude sonnet 5";
+    input.dispatchEvent(new Event("change"));
+    expect(input.value).toBe("claude-sonnet-5");
+    expect(onChange).toHaveBeenLastCalledWith("claude-sonnet-5");
+
+    // Escape while typing restores the last valid value immediately —
+    // invalid text never lingers in the field until blur — without committing.
+    onChange.mockClear();
+    input.value = "gibberish";
+    input.dispatchEvent(new Event("input"));
+    expect(listbox.hidden).toBe(false);
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    expect(listbox.hidden).toBe(true);
+    expect(input.value).toBe("claude-sonnet-5");
+    expect(onChange).not.toHaveBeenCalled();
+
+    // Selecting with the mouse (mousedown, so it beats the input's blur) commits too.
+    toggle.dispatchEvent(new MouseEvent("mousedown"));
+    const first = listbox.querySelector<HTMLLIElement>("[role='option']")!;
+    first.dispatchEvent(new MouseEvent("mousedown"));
+    expect(input.value).toBe(KNOWN_MODELS.anthropic[0].id);
+    expect(listbox.hidden).toBe(true);
+    expect(onChange).toHaveBeenLastCalledWith(KNOWN_MODELS.anthropic[0].id);
   });
 
   it("keeps a single job-description field — the legacy separate careerJd field is gone, migrated additively on load", () => {
@@ -1902,9 +2068,76 @@ describe("career tools panel — combined report, additive extraction, model cat
 
   it("keeps polling within the retry budget when a page is ready but sections are still lazy-mounting, instead of settling on the first incomplete result", () => {
     expect(popupCareerSharedSource).toMatch(/stillMounting\s*=\s*\(result\.warnings\s*\|\|\s*\[\]\)\.some\(w\s*=>\s*w\.field\s*===\s*"sections"\)/);
+    // A completed (no-warning) response wins immediately — snapshot ranking
+    // only governs what to return on retry-budget exhaustion.
     expect(popupCareerSharedSource).toContain("if (!stillMounting) return result;");
+    // And that ranking counts the core user-facing fields before optional strings.
+    expect(popupCareerSharedSource).toContain('CORE_SNAPSHOT_FIELDS: readonly string[] = ["title", "companyName", "location", "seniority", "description"]');
     // Exhausting the retry budget must still return the best ready result seen.
-    expect(popupCareerSharedSource).toContain("return lastReady || lastReadyFalse;");
+    expect(popupCareerSharedSource).toContain("return bestReady || lastReadyFalse;");
+  });
+
+  it("keeps polling a ready-but-still-mounting job pane and returns the completed extraction, not the partial first response", async () => {
+    vi.useFakeTimers();
+    try {
+      const partial = { ready:true, title:"Platform Engineer", location:"", seniority:"", warnings:[{ field:"sections", message:"Some job details may not have rendered yet." }] };
+      const complete = { ready:true, title:"Platform Engineer", location:"Tel Aviv-Yafo, Israel", seniority:"Mid-Senior level", warnings:[] };
+      const sendMessage = vi.fn().mockResolvedValueOnce(partial).mockResolvedValueOnce(complete);
+      vi.stubGlobal("chrome", { tabs: { sendMessage } });
+      const pending = requestExtraction(7, "EXTRACT_JOB");
+      await vi.advanceTimersByTimeAsync(1000);
+      await expect(pending).resolves.toBe(complete);
+      expect(sendMessage).toHaveBeenCalledTimes(2);
+    } finally { vi.unstubAllGlobals(); vi.useRealTimers(); }
+  });
+
+  it("returns the fullest ready snapshot seen when the retry budget runs out while fields are still mounting", async () => {
+    vi.useFakeTimers();
+    try {
+      const mounting = { field:"sections", message:"Some job details may not have rendered yet." };
+      const sparse = { ready:true, title:"Platform Engineer", location:"", seniority:"", warnings:[mounting] };
+      const fuller = { ready:true, title:"Platform Engineer", location:"Tel Aviv-Yafo, Israel", seniority:"", warnings:[mounting] };
+      const sendMessage = vi.fn().mockResolvedValueOnce(sparse).mockResolvedValueOnce(fuller).mockResolvedValue(sparse);
+      vi.stubGlobal("chrome", { tabs: { sendMessage } });
+      const pending = requestExtraction(7, "EXTRACT_JOB");
+      await vi.advanceTimersByTimeAsync(5000);
+      await expect(pending).resolves.toBe(fuller);
+      expect(sendMessage).toHaveBeenCalledTimes(5);
+    } finally { vi.unstubAllGlobals(); vi.useRealTimers(); }
+  });
+
+  it("returns a later completed response even when an earlier still-mounting snapshot had more optional fields filled", async () => {
+    vi.useFakeTimers();
+    try {
+      const mounting = { field:"sections", message:"Some job details may not have rendered yet." };
+      // 8 non-empty strings, but Seniority — a required user-facing field — is missing.
+      const optionalRich = { ready:true, title:"Platform Engineer", companyName:"Acme", location:"Tel Aviv-Yafo, Israel", seniority:"", description:"Build things.", salary:"$100k", benefits:"Snacks", workplaceType:"Hybrid", warnings:[mounting] };
+      // Only 6 non-empty strings, but every core field rendered and no warning.
+      const complete = { ready:true, title:"Platform Engineer", companyName:"Acme", location:"Tel Aviv-Yafo, Israel", seniority:"Mid-Senior level", description:"Build things.", salary:"", benefits:"", workplaceType:"", warnings:[] };
+      const sendMessage = vi.fn().mockResolvedValueOnce(optionalRich).mockResolvedValueOnce(complete);
+      vi.stubGlobal("chrome", { tabs: { sendMessage } });
+      const pending = requestExtraction(7, "EXTRACT_JOB");
+      await vi.advanceTimersByTimeAsync(1000);
+      await expect(pending).resolves.toBe(complete);
+      expect(sendMessage).toHaveBeenCalledTimes(2);
+    } finally { vi.unstubAllGlobals(); vi.useRealTimers(); }
+  });
+
+  it("on retry-budget exhaustion prefers the snapshot with more core fields over one with more optional strings", async () => {
+    vi.useFakeTimers();
+    try {
+      const mounting = { field:"sections", message:"Some job details may not have rendered yet." };
+      // 5 non-empty strings but only 2 core fields (title, companyName).
+      const optionalRich = { ready:true, title:"Platform Engineer", companyName:"Acme", location:"", seniority:"", description:"", salary:"$100k", benefits:"Snacks", workplaceType:"Hybrid", warnings:[mounting] };
+      // 4 non-empty strings but 4 core fields — this must win the ranking.
+      const coreRich = { ready:true, title:"Platform Engineer", companyName:"Acme", location:"Tel Aviv-Yafo, Israel", seniority:"Mid-Senior level", description:"", salary:"", benefits:"", workplaceType:"", warnings:[mounting] };
+      const sendMessage = vi.fn().mockResolvedValueOnce(optionalRich).mockResolvedValueOnce(coreRich).mockResolvedValue(optionalRich);
+      vi.stubGlobal("chrome", { tabs: { sendMessage } });
+      const pending = requestExtraction(7, "EXTRACT_JOB");
+      await vi.advanceTimersByTimeAsync(5000);
+      await expect(pending).resolves.toBe(coreRich);
+      expect(sendMessage).toHaveBeenCalledTimes(5);
+    } finally { vi.unstubAllGlobals(); vi.useRealTimers(); }
   });
 
   it("tracks extracted-vs-manual provenance for every long-text field, including CV and company info", () => {
