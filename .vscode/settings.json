@@ -6,5 +6,12 @@
         "**/.DS_Store": true,
         "**/Thumbs.db": true,
         "**/node_modules": false
-    }
+    },
+    // Verification must rebuild this repo's generated output, not just
+    // type-check and test it: `dist/` and `release/store/` are committed build
+    // artifacts, so checks that skip the build can pass against source while the
+    // shipped bundles are still stale. `npm run verify` is that full sequence.
+    "ensemble.publishVerificationCommands": [
+        "npm run verify"
+    ]
 }
