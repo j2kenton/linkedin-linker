@@ -15,6 +15,10 @@ It helps you:
 
 The result is a focused workflow from **discover → understand → reach out**. It keeps the human in control of the final message and the final decision.
 
+-------------------------
+
+## Example Screenshots
+
 ![Career Connect - Career tab - screenshot 1 of 2](assets/screenshots/fullsize/screenshot-1.png)
 
 ![Career Connect - Career tab - screenshot 2 of 2](assets/screenshots/fullsize/screenshot-2.png)
@@ -24,6 +28,8 @@ The result is a focused workflow from **discover → understand → reach out**.
 ![Career Connect - Connect tab - screenshot 2 of 2](assets/screenshots/fullsize/screenshot-4.png)
 
 ![Career Connect - Report sample](assets/screenshots/fullsize/screenshot-5.png)
+
+-------------------------
 
 ## One workflow for the work around networking
 
