@@ -24,7 +24,8 @@
     "generate:store-baseline:b2": "node scripts/generate-store-baseline.js --variant=b2",
     "verify:store-baseline": "node scripts/generate-store-baseline.js --check --variant=b1",
     "verify:store-baseline:b2": "node scripts/generate-store-baseline.js --check --variant=b2",
-    "verify:clean-checkout": "node scripts/verify-clean-checkout.js"
+    "verify:clean-checkout": "node scripts/verify-clean-checkout.js",
+    "verify": "npm run check-types && npm run build:store && npm run generate:store-baseline && npm run verify:store-baseline && npm run build && npm run test"
   },
   "devDependencies": {
     "@types/chrome": "^0.0.260",
