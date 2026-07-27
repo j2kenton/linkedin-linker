@@ -12,7 +12,7 @@
     "webstore:upload:b2": "npm run package:b2 && node scripts/run-webstore-cli.js upload --source release/store-b2.zip --extension-id poedmlfffaldgihhpffkbknjegmkpclj",
     "webstore:publish": "node scripts/run-webstore-cli.js publish --extension-id poedmlfffaldgihhpffkbknjegmkpclj",
     "release": "node scripts/publish-live.js",
-    "ensemble:release": "npm run release",
+    "ensemble:release": "npm run package",
     "watch": "node scripts/set-build-target.js developer && node scripts/build-dev.js --watch",
     "typecheck:watch": "node scripts/set-build-target.js developer && tsc --noEmit --watch",
     "check-types": "node scripts/set-build-target.js developer && tsc --noEmit",
