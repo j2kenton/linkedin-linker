@@ -30,8 +30,10 @@ export function extractJob(document: Document): JobExtraction {
 
   // ".jobs-details"/".jobs-unified-top-card" are legacy class tokens kept as
   // a fallback; the live tokens are "jobs-details__main-content" and
-  // "job-details-jobs-unified-top-card__container".
-  const jobRoot = document.querySelector(".jobs-details__main-content, .job-details-jobs-unified-top-card__container, .jobs-search__job-details--wrapper, .jobs-details, .jobs-unified-top-card, .job-view-layout");
+  // "job-details-jobs-unified-top-card__container". ".jobs-search__job-details"
+  // (the wrapper's base class) is a conservative addition — unverified against
+  // a live DOM capture, pending one (LinkedIn A/B-tests these tokens).
+  const jobRoot = document.querySelector(".jobs-details__main-content, .job-details-jobs-unified-top-card__container, .jobs-search__job-details--wrapper, .jobs-search__job-details, .jobs-details, .jobs-unified-top-card, .job-view-layout");
   let structureFound = Boolean(jobRoot);
   let bestEffort = !jobRoot;
   if (jobRoot) {
@@ -42,11 +44,15 @@ export function extractJob(document: Document): JobExtraction {
     // right-hand detail wrapper, not the page root.
     const root = document.querySelector(".jobs-details__main-content")
       || document.querySelector(".jobs-search__job-details--wrapper")
+      || document.querySelector(".jobs-search__job-details") // unverified against a live DOM capture, pending one
       || jobRoot;
     const companyLink = root.querySelector<HTMLAnchorElement>('a[href*="/company/"]');
     // The top-card description container renders one combined
     // "location · posted · applicants" line; only the first segment is the location.
-    const locationLine = findText(root, [".job-details-jobs-unified-top-card__tertiary-description-container", ".job-details-jobs-unified-top-card__primary-description-container", ".jobs-unified-top-card__bullet-text"]);
+    // The ".jobs-unified-top-card__primary-description-container" legacy-prefix
+    // variant is a conservative addition — unverified against a live DOM
+    // capture, pending one.
+    const locationLine = findText(root, [".job-details-jobs-unified-top-card__tertiary-description-container", ".job-details-jobs-unified-top-card__primary-description-container", ".jobs-unified-top-card__primary-description-container", ".jobs-unified-top-card__bullet-text"]);
     const seniorityFromCriteria = (): string => {
       // The job-criteria list labels each item ("Seniority level",
       // "Employment type", …); match on the label, never on position.
@@ -71,7 +77,9 @@ export function extractJob(document: Document): JobExtraction {
       return "";
     };
     fill({
-      title: findText(root, ["h1", ".job-details-jobs-unified-top-card__job-title"]),
+      // ".jobs-unified-top-card__job-title" (legacy prefix) is a conservative
+      // addition — unverified against a live DOM capture, pending one.
+      title: findText(root, ["h1", ".job-details-jobs-unified-top-card__job-title", ".jobs-unified-top-card__job-title"]),
       companyName: cleanText(companyLink?.textContent || ""),
       companyUrl: companyLink ? canonicalCompanyUrl(companyLink.href) : "",
       location: cleanText(locationLine.split("·")[0]),

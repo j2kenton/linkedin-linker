@@ -1,3 +1,11 @@
+<!--
+  Provenance: modeled DOM, not a saved page capture. The top-card container
+  additionally carries the legacy "jobs-unified-top-card" class token (added
+  2026-07-27) to model both token families coexisting on one node — synthetic,
+  unverified against a live authenticated session; if extraction regresses on
+  the real page, re-capture this layout and update both the fixture and the
+  selectors in src/extract/job.ts together.
+-->
 <aside class="jobs-search-results-list">
   <ul>
     <li class="jobs-search-results__list-item">
@@ -9,7 +17,7 @@
   </ul>
 </aside>
 <main class="jobs-details__main-content">
-  <div class="job-details-jobs-unified-top-card__container">
+  <div class="job-details-jobs-unified-top-card__container jobs-unified-top-card">
     <h1 class="job-details-jobs-unified-top-card__job-title">Staff Engineer</h1>
     <div class="job-details-jobs-unified-top-card__company-name"><a href="https://www.linkedin.com/company/acme/">Acme</a></div>
     <div class="job-details-jobs-unified-top-card__primary-description-container">Tel Aviv, Israel · Hybrid</div>

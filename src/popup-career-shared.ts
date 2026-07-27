@@ -1,6 +1,6 @@
 import { CAREER_VALUE_KEYS, FORM_ID, formToCareerInput, careerInputToForm, careerInputToSources, type CareerValueKey, type CareerValues, type CareerSources } from "./career/fields";
 import { mergeExtraction, type MergeOutcome } from "./career/merge";
-import { toPatch, hasUsefulCareerPatch, type ExtractTarget } from "./career/patch";
+import { toPatch, hasUsefulCareerPatch, mergeCareerPatches, type ExtractTarget } from "./career/patch";
 import type { JobExtraction } from "./extract/job";
 import type { ProfileExtraction } from "./extract/profile";
 import type { CompanyExtraction } from "./extract/company";
@@ -9,7 +9,7 @@ import { KNOWN_MODELS, getKnownModelOption, resolveKnownModel, coerceToKnownMode
 import { estimateRequestTokenUpperBound } from "./aiClient/modelBudget";
 import type { Provider } from "./aiClient/provider";
 import { classifyUrl, hasDeclaredContentScript, type LinkedInPageKind } from "./pageDetect";
-import { readActiveTab, getExtractionCapabilities, requestBroadPageAccess, ensureExtractionHandler } from "./extract/capabilities";
+import { readActiveTab, getExtractionCapabilities, requestBroadPageAccess, ensureExtractionHandler, type ExtractionCapabilities, type EnsureExtractionHandlerResult } from "./extract/capabilities";
 import { isExtensionContextAlive, isContextInvalidatedError } from "./runtime/context";
 import type { CareerJob, AnnotatedCareerJob } from "./aiClient";
 
@@ -210,6 +210,66 @@ export async function requestExtraction(tabId: number, action: "EXTRACT_JOB" | "
   return bestReady || lastReadyFalse;
 }
 
+export type ReachOutcome = { ok: true } | { ok: false; message: string; needsGrant?: boolean };
+
+/** The live-runtime seams ensureReachable needs; tests stub them to drive each reachability branch directly. */
+export interface ReachDeps {
+  /** Re-reads a tab by id (chrome.tabs.get) — used when the queried tab arrived without its URL. */
+  refetchTab: (tabId: number) => Promise<chrome.tabs.Tab | undefined>;
+  /** Probes (and, capability permitting, installs) the extraction handler in the tab. */
+  ensureHandler: (tabId: number, capabilities: ExtractionCapabilities) => Promise<EnsureExtractionHandlerResult>;
+  isContextAlive: () => boolean;
+}
+
+/**
+ * Determines whether the active tab can be reached for extraction
+ * without ever calling chrome.permissions or chrome.scripting when it
+ * isn't needed. A readable tab.url means the declared content script (or,
+ * capability permitting, on-demand injection) can be used directly. When the
+ * tab arrives without its URL — chrome.tabs.query can return it transiently
+ * during side-panel startup — one direct re-read usually recovers it; if the
+ * address stays unreadable, a live extraction handler in the tab still proves
+ * reachability (the store build's declared LinkedIn host access lets it probe
+ * a LinkedIn tab without ever reading its address), and only a genuinely
+ * unresponsive tab is declared unreachable.
+ * Module-scoped (rather than nested in initCareerTools) so tests can drive
+ * each branch with stubbed deps.
+ */
+export async function ensureReachable(tab: chrome.tabs.Tab, hostPattern: RegExp | null, deps: ReachDeps): Promise<ReachOutcome> {
+  let url = tab.url || "";
+  if (!url && tab.id !== undefined) {
+    try {
+      const refreshed = await deps.refetchTab(tab.id);
+      url = refreshed?.url || "";
+    } catch (error) {
+      // A dead side-panel runtime can never recover without a reload.
+      if (isContextInvalidatedError(error) || !deps.isContextAlive()) return { ok:false, message:RELOAD_REQUIRED_MESSAGE };
+      // Any other failure (e.g. the tab closed mid-flight) falls through to
+      // the URL-less handler probe below.
+    }
+  }
+  if (!url) {
+    if (tab.id !== undefined) {
+      const capabilities = getExtractionCapabilities();
+      if (await deps.ensureHandler(tab.id, capabilities) === "ready") return { ok:true };
+      // Only a build that can request broad page access offers the grant
+      // button; every other build just gets the guidance message.
+      if (capabilities.canRequestBroadPageAccess) {
+        return { ok:false, message:"Career Connect cannot read this tab's address yet — grant site access or reload the tab.", needsGrant:true };
+      }
+    }
+    return { ok:false, message:"Career Connect cannot read this tab's address yet — grant site access or reload the tab." };
+  }
+  const kind = classifyUrl(url);
+  if (kind === "unsupported") return { ok:false, message:"Chrome blocks extensions from reading this kind of page." };
+  if (hasDeclaredContentScript(url, hostPattern)) return { ok:true };
+  if (!tab.id) return { ok:false, message:"No active tab found." };
+  const capabilities = getExtractionCapabilities();
+  const handlerResult = await deps.ensureHandler(tab.id, capabilities);
+  if (handlerResult === "ready") return { ok:true };
+  return { ok:false, message:"Could not run the reader; reload the tab and try again." };
+}
+
 export function initCareerTools(options: CareerToolsOptions): void {
   document.addEventListener("DOMContentLoaded", () => {
     const tools = careerElement<HTMLElement>("careerTools");
@@ -309,32 +369,6 @@ export function initCareerTools(options: CareerToolsOptions): void {
 
     // --- Extraction ---------------------------------------------------
 
-    type ReachOutcome = { ok: true } | { ok: false; message: string; needsGrant?: boolean };
-
-    /**
-     * Determines whether the active tab can be reached for extraction
-     * without ever calling chrome.permissions or chrome.scripting when it
-     * isn't needed. A readable tab.url means the declared content script (or,
-     * capability permitting, on-demand injection) can be used directly; an
-     * unreadable tab.url means only the capability-gated broad-page-access
-     * grant can help (and only in a build that declares it).
-     */
-    async function ensureReachable(tab: chrome.tabs.Tab): Promise<ReachOutcome> {
-      if (!tab.url) {
-        const capabilities = getExtractionCapabilities();
-        if (!capabilities.canRequestBroadPageAccess) return { ok:false, message:"Extraction outside LinkedIn is not available in this build." };
-        return { ok:false, message:"Career Connect cannot read this tab yet.", needsGrant:true };
-      }
-      const kind = classifyUrl(tab.url);
-      if (kind === "unsupported") return { ok:false, message:"Chrome blocks extensions from reading this kind of page." };
-      if (hasDeclaredContentScript(tab.url, options.hostPattern)) return { ok:true };
-      if (!tab.id) return { ok:false, message:"No active tab found." };
-      const capabilities = getExtractionCapabilities();
-      const handlerResult = await ensureExtractionHandler(tab.id, capabilities);
-      if (handlerResult === "ready") return { ok:true };
-      return { ok:false, message:"Could not run the reader; reload the tab and try again." };
-    }
-
     const getValues = (): CareerValues => Object.fromEntries(CAREER_VALUE_KEYS.map(key => [key, field(FORM_ID[key]).value])) as CareerValues;
     const getSources = (): CareerSources => Object.fromEntries(SOURCE_KEYS.map(key => [key, fieldSource[FORM_ID[key]] || "manual"])) as CareerSources;
     const applyMerge = (outcome: MergeOutcome) => {
@@ -370,9 +404,21 @@ export function initCareerTools(options: CareerToolsOptions): void {
       let patch = targeted ? toPatch(target, targeted as unknown as AnyExtraction) : {};
       let usedGeneric = false;
 
-      if (!targeted || !hasUsefulCareerPatch(patch)) {
+      // A job page whose top-card selectors went stale (LinkedIn A/B-tests
+      // them constantly) still yields a JD-only targeted patch — treat that
+      // as incomplete so the generic pass gets a chance to recover the role
+      // details (title, company, location, seniority) too.
+      const jobPatchIncomplete = target === "job" && Boolean(patch.jobDescription)
+        && !patch.jobTitle && !patch.companyName && !patch.location && !patch.seniority;
+
+      if (!targeted || !hasUsefulCareerPatch(patch) || jobPatchIncomplete) {
         const generic = await requestExtraction(tab.id, "EXTRACT_PAGE");
-        if (generic && generic.ready) { patch = toPatch(target, generic as unknown as AnyExtraction, true); usedGeneric = true; }
+        if (generic && generic.ready) {
+          // Merge the generic pass UNDER the targeted patch: the precise
+          // targeted fields always win; the best-effort page read only fills gaps.
+          patch = mergeCareerPatches(toPatch(target, generic as unknown as AnyExtraction, true), patch);
+          usedGeneric = true;
+        }
       }
 
       if (!hasUsefulCareerPatch(patch)) {
@@ -392,7 +438,11 @@ export function initCareerTools(options: CareerToolsOptions): void {
       const tab = await readActiveTab();
       if (!tab?.id) return { text:"No active tab found.", kind:"error" };
 
-      const reachable = await ensureReachable(tab);
+      const reachable = await ensureReachable(tab, options.hostPattern, {
+        refetchTab: tabId => chrome.tabs.get(tabId),
+        ensureHandler: ensureExtractionHandler,
+        isContextAlive: isExtensionContextAlive,
+      });
       if (!reachable.ok) {
         if (reachable.needsGrant) { pendingExtractTarget = target; showGrantButton(target); }
         else hideGrantButton();

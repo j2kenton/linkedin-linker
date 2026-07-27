@@ -19,9 +19,9 @@ import { extractGenericPage } from "../src/extract/generic";
 import { renderMarkdown } from "../src/render/markdown";
 import { CAREER_VALUE_KEYS, FORM_ID, careerInputToForm, formToCareerInput, isConformantCareerInput, normalizeCareerInput, normalizeCareerValuePatch } from "../src/career/fields";
 import { mergeExtraction } from "../src/career/merge";
-import { hasUsefulCareerPatch, toPatch } from "../src/career/patch";
+import { hasUsefulCareerPatch, mergeCareerPatches, toPatch } from "../src/career/patch";
 import { DEFAULT_MODEL, KNOWN_MODELS, getKnownModelOption, resolveKnownModel, coerceToKnownModel, getKnownModelOptionByLabel } from "../src/models";
-import { setupModelCombobox, requestExtraction } from "../src/popup-career-shared";
+import { setupModelCombobox, requestExtraction, ensureReachable, type ReachDeps } from "../src/popup-career-shared";
 import { byteSize, baseBytes, fixedFingerprint, boundJobForPersistence, MAX_REPORT_TEXT_BYTES, MAX_FINDINGS_BYTES, MAX_SOURCE_ENTRIES, MAX_SOURCES_BYTES, MAX_RESEARCH_MESSAGES_BYTES, MAX_WARNINGS_BYTES, STORAGE_TRUNCATION_MARKER, type BoundableJob } from "../src/career/bytes";
 import { isConformantPersistedJob, normalizePersistedJob, MIGRATION_WARNING, type PersistedJob } from "../src/career/persistedJob";
 import { reservePendingJob, clearPendingJob, clearAllPendingJobs, readPendingJob, readAllPendingJobs } from "../src/career/pendingJobs";
@@ -291,6 +291,58 @@ describe("lossless stream assembly", () => {
   });
 });
 
+describe("ensureReachable — transient unreadable tab address", () => {
+  const sharedSource = readFileSync(fileURLToPath(new NodeUrl("../src/popup-career-shared.ts", import.meta.url)), "utf8");
+  const linkedInJobTab = { id:7, url:"https://www.linkedin.com/jobs/view/123/" } as chrome.tabs.Tab;
+  const noUrlTab = { id:7 } as chrome.tabs.Tab;
+  const makeDeps = (overrides: Partial<ReachDeps> = {}): ReachDeps => ({
+    refetchTab: vi.fn().mockResolvedValue(undefined),
+    ensureHandler: vi.fn().mockResolvedValue("reload-required"),
+    isContextAlive: () => true,
+    ...overrides,
+  });
+
+  it("accepts a LinkedIn tab whose URL is readable without any re-read or probe (regression)", async () => {
+    const deps = makeDeps();
+    await expect(ensureReachable(linkedInJobTab, STORE_CONTENT_SCRIPT_HOST, deps)).resolves.toEqual({ ok:true });
+    expect(deps.refetchTab).not.toHaveBeenCalled();
+    expect(deps.ensureHandler).not.toHaveBeenCalled();
+  });
+
+  it("re-reads the tab once when its URL is missing and classifies the recovered LinkedIn URL normally", async () => {
+    const deps = makeDeps({ refetchTab: vi.fn().mockResolvedValue({ id:7, url:"https://www.linkedin.com/jobs/view/123/" }) });
+    await expect(ensureReachable(noUrlTab, STORE_CONTENT_SCRIPT_HOST, deps)).resolves.toEqual({ ok:true });
+    expect(deps.refetchTab).toHaveBeenCalledTimes(1);
+    expect(deps.ensureHandler).not.toHaveBeenCalled();
+  });
+
+  it("falls through to the handler probe when the URL stays unreadable — a ready handler proves reachability", async () => {
+    const deps = makeDeps({ ensureHandler: vi.fn().mockResolvedValue("ready") });
+    await expect(ensureReachable(noUrlTab, STORE_CONTENT_SCRIPT_HOST, deps)).resolves.toEqual({ ok:true });
+    expect(deps.ensureHandler).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows the grant/reload guidance — never the retired outside-LinkedIn line — when neither re-read nor probe succeeds", async () => {
+    vi.stubGlobal("chrome", { runtime: { getManifest: () => ({}) } });
+    try {
+      const deps = makeDeps(); // refetch recovers no URL; the handler probe reports "reload-required".
+      const outcome = await ensureReachable(noUrlTab, STORE_CONTENT_SCRIPT_HOST, deps);
+      expect(outcome).toEqual({ ok:false, message:"Career Connect cannot read this tab's address yet — grant site access or reload the tab." });
+    } finally { vi.unstubAllGlobals(); }
+  });
+
+  it("escapes cleanly with the reload-required shape when the re-read hits an invalidated extension context", async () => {
+    const deps = makeDeps({ refetchTab: vi.fn().mockRejectedValue(new Error("Extension context invalidated.")), isContextAlive: () => false });
+    const outcome = await ensureReachable(noUrlTab, STORE_CONTENT_SCRIPT_HOST, deps);
+    expect(outcome).toEqual({ ok:false, message:"Career Connect was reloaded or updated. Reload this page (reopen the side panel), then try again." });
+  });
+
+  it("no longer carries the retired 'Extraction outside LinkedIn is not available in this build.' message anywhere", () => {
+    expect(sharedSource).not.toContain("Extraction outside LinkedIn is not available in this build");
+    expect(sharedSource).toContain("Career Connect cannot read this tab's address yet");
+  });
+});
+
 describe("extraction and safe rendering", () => {
   it("extracts profile and job fixtures, with skeleton pages reporting not-ready", () => {
     document.body.innerHTML=readFileSync(fileURLToPath(new NodeUrl("./fixtures/linkedin-profile.html", import.meta.url)), "utf8");
@@ -321,6 +373,45 @@ describe("extraction and safe rendering", () => {
   it("pulls a known seniority term out of an insight pill even when the pill has no '·' separators", () => {
     document.body.innerHTML=`<main class="jobs-details__main-content"><h1>Engineer</h1><div class="job-details-jobs-unified-top-card__job-insight"><span>Hybrid</span> <span>Full-time</span> <span>Mid-Senior level</span></div></main>`;
     expect(extractJob(document).seniority).toBe("Mid-Senior level");
+  });
+
+  it("extracts from the legacy/suspected-current container tokens when the job-details- prefixed ones are absent (synthetic, unverified against live DOM)", () => {
+    // Defensive fallback selectors added 2026-07-27 without a live capture:
+    // .jobs-search__job-details in the root chain and
+    // .jobs-unified-top-card__primary-description-container for the location
+    // line. Re-verify against a real job page and re-baseline with the
+    // captured layout.
+    document.body.innerHTML=`<header class="global-nav"><h1 class="sr-only">LinkedIn</h1></header><div class="jobs-search__job-details"><div class="jobs-unified-top-card"><h1 class="jobs-unified-top-card__job-title">Data Engineer</h1><div class="jobs-unified-top-card__company-name"><a href="https://www.linkedin.com/company/acme/">Acme</a></div><div class="jobs-unified-top-card__primary-description-container">Haifa, Israel · Reposted 2 days ago · 30 applicants</div><div class="jobs-unified-top-card__job-insight">Full-time · Associate</div><div id="job-details">Model pipelines.</div></div></div>`;
+    const job=extractJob(document);
+    expect(job).toMatchObject({ready:true,title:"Data Engineer",companyName:"Acme",companyUrl:"https://www.linkedin.com/company/acme/",location:"Haifa, Israel",seniority:"Associate",description:"Model pipelines."});
+  });
+
+  it("recovers role details from a generic job-page read when the targeted selectors missed them", () => {
+    // Defensive fallback (unverified against a live capture): LinkedIn's
+    // standard "<Company> hiring <Role> in <Location> | LinkedIn" page title
+    // plus the labeled seniority term in the collapsed visible text.
+    const generic={ready:true,title:"Acme hiring Staff Engineer in Tel Aviv, Israel | LinkedIn",text:"About the job  Build distributed systems.  Seniority level Mid-Senior level Employment type Full-time",companyUrls:[],warnings:[]};
+    const patch=toPatch("job", generic, true);
+    expect(patch).toMatchObject({jobTitle:"Staff Engineer",companyName:"Acme",location:"Tel Aviv, Israel",seniority:"Mid-Senior level"});
+    expect(patch.jobDescription).toContain("About the job");
+    // A "(n) " notification-count prefix is stripped before parsing.
+    expect(toPatch("job", {...generic,title:"(3) Acme hiring Staff Engineer in Tel Aviv, Israel | LinkedIn"}, true)).toMatchObject({jobTitle:"Staff Engineer",companyName:"Acme"});
+  });
+
+  it("adds no invented role fields when the page title matches no known job-title shape", () => {
+    const patch=toPatch("job", {ready:true,title:"Quarterly report",text:"plain text with no labels",companyUrls:[],warnings:[]}, true);
+    expect(patch.jobTitle).toBeUndefined();
+    expect(patch.companyName).toBeUndefined();
+    expect(patch.location).toBeUndefined();
+    expect(patch.seniority).toBeUndefined();
+    expect(patch.jobDescription).toContain("Quarterly report");
+  });
+
+  it("merges a generic fallback patch under a partial targeted patch — the targeted fields always win", () => {
+    const targeted={jobDescription:"Precise JD from the job container."};
+    const fallback={jobTitle:"Staff Engineer",location:"Tel Aviv, Israel",jobDescription:"Raw page text dump."};
+    expect(mergeCareerPatches(fallback, targeted)).toEqual({jobTitle:"Staff Engineer",location:"Tel Aviv, Israel",jobDescription:"Precise JD from the job container."});
+    expect(mergeCareerPatches(fallback, {})).toEqual(fallback);
   });
 
   it("reports sparse-profile fields and extraction truncation warnings", () => {
@@ -2024,6 +2115,32 @@ describe("career tools panel — combined report, additive extraction, model cat
         expect(Boolean(ids[i - 1].compareDocumentPosition(ids[i]) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
       }
     }
+  });
+
+  it("places the transmission preview with its Send approved data action in section 4, between the transmission notice and the generate button", () => {
+    for (const html of [popupHtml, popupStoreHtml]) {
+      document.body.innerHTML = html;
+      const preview = document.getElementById("careerPreview")!;
+      const notice = document.getElementById("careerTransmissionNotice")!;
+      const generate = document.getElementById("generateReportButton")!;
+      const testButton = document.getElementById("careerTestButton")!;
+      // A direct child of the same section-4 container as the generate button…
+      expect(preview.parentElement).toBe(generate.parentElement);
+      // …positioned between the notice and the button…
+      expect(Boolean(notice.compareDocumentPosition(preview) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
+      expect(Boolean(preview.compareDocumentPosition(generate) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
+      // …and no longer inside the AI provider section with the test button.
+      expect(Boolean(testButton.compareDocumentPosition(preview) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
+      expect(preview.querySelector("#careerPreviewConfirm")?.textContent).toContain("Send approved data");
+    }
+  });
+
+  it("backfills a JD-only job extraction from the generic page read, merged under the targeted fields", () => {
+    // Source-level guard alongside the behavioral toPatch/mergeCareerPatches
+    // tests above: the generic fallback must also trigger on an incomplete
+    // (JD-only) job patch and merge — never replace — the targeted result.
+    expect(popupCareerSharedSource).toContain("jobPatchIncomplete");
+    expect(popupCareerSharedSource).toContain("mergeCareerPatches");
   });
 
   it("adds a History section with Open/Delete per report, a New action, and no automatic report eviction", () => {

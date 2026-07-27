@@ -1,4 +1,4 @@
-import type { CareerValuePatch } from "./fields";
+import { CAREER_VALUE_KEYS, type CareerValuePatch } from "./fields";
 import type { JobExtraction } from "../extract/job";
 import { formatProfileProse, type ProfileExtraction } from "../extract/profile";
 import type { CompanyExtraction } from "../extract/company";
@@ -36,6 +36,24 @@ function companyPatch(data: CompanyExtraction): CareerValuePatch {
 }
 
 /**
+ * LinkedIn's public job-page <title>/og:title shape:
+ * "<Company> hiring <Role> in <Location> | LinkedIn", optionally with a
+ * "(n) " notification-count prefix. English-UI only. The role segment is
+ * greedy so a role containing " in " still splits at the final " in ".
+ * Unverified against a live capture — defensive fallback, pending a
+ * sanitized DOM capture (LinkedIn A/B-tests these shapes).
+ */
+const LINKEDIN_JOB_TITLE_PATTERN = /^(?:\(\d+\)\s+)?(.+?)\s+hiring\s+(.+)\s+in\s+(.+?)(?:\s*[|–—-]\s*LinkedIn)?$/i;
+
+/**
+ * The labeled seniority value inside collapsed visible text ("… Seniority
+ * level Mid-Senior level Employment type …") — matched by its label against
+ * LinkedIn's fixed vocabulary, never positionally. Unverified against a live
+ * capture — defensive fallback, pending a sanitized DOM capture.
+ */
+const LABELED_SENIORITY_PATTERN = /\bseniority level[:\s]+(internship|entry level|associate|mid-senior level|director|executive)\b/i;
+
+/**
  * Maps a generic-page extraction onto the field(s) relevant to the section
  * that requested it. companyUrl inference is restricted to the Company
  * target, only offered when exactly one distinct company link was found —
@@ -46,7 +64,36 @@ function genericPatch(data: GenericExtraction, forTarget: ExtractTarget): Career
   if (forTarget === "company") return { companyUrl: data.companyUrls.length === 1 ? data.companyUrls[0] : undefined, companyInfo: block };
   if (forTarget === "cv") return { cv: block };
   if (forTarget === "profile") return { profile: block };
-  return { jobDescription: block };
+  // Job target: beyond the raw JD block, try to recover the role details a
+  // stale targeted selector set missed — the company/role/location triple
+  // from LinkedIn's standard job-page title and the labeled seniority term
+  // from the collapsed visible text. Every recovered value is best-effort:
+  // the caller merges this patch UNDER the targeted one, so these only ever
+  // fill gaps, and off-pattern pages simply yield no extra fields.
+  const titleMatch = LINKEDIN_JOB_TITLE_PATTERN.exec(data.title);
+  const seniorityMatch = LABELED_SENIORITY_PATTERN.exec(data.text);
+  return {
+    jobTitle: clean(titleMatch?.[2]?.trim()),
+    companyName: clean(titleMatch?.[1]?.trim()),
+    location: clean(titleMatch?.[3]?.trim()),
+    seniority: clean(seniorityMatch?.[1]),
+    jobDescription: block,
+  };
+}
+
+/**
+ * Combines two patches for the same target, preferring `preferred` wherever
+ * it carries a non-empty value; `base` only fills fields `preferred` left
+ * empty. Lets a best-effort generic-page pass backfill the fields a partial
+ * targeted extraction missed without ever clobbering its precise values.
+ */
+export function mergeCareerPatches(base: CareerValuePatch, preferred: CareerValuePatch): CareerValuePatch {
+  const merged: CareerValuePatch = { ...base };
+  for (const key of CAREER_VALUE_KEYS) {
+    const value = preferred[key];
+    if (value && value.trim()) merged[key] = value;
+  }
+  return merged;
 }
 
 export function toPatch(

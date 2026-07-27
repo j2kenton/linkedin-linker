@@ -4,11 +4,13 @@
   (/jobs/search-results/?currentJobId=...) uses for the right-hand detail pane:
   jobs-search__job-details--wrapper > jobs-details__main-content, with the
   job-details-jobs-unified-top-card__* title/company/tertiary-description/
-  job-insight nodes. JSON-LD is deliberately omitted so tests exercise the
-  DOM-selector rung rather than the JobPosting fallback. Not yet re-verified
-  against a live authenticated session; if extraction regresses on the real
-  page, re-capture this layout and update both the fixture and the selectors
-  in src/extract/job.ts together.
+  job-insight nodes. The wrapper additionally carries the base token
+  "jobs-search__job-details" (added 2026-07-27) to model both tokens
+  coexisting on one node. JSON-LD is deliberately omitted so tests exercise
+  the DOM-selector rung rather than the JobPosting fallback. Not yet
+  re-verified against a live authenticated session; if extraction regresses
+  on the real page, re-capture this layout and update both the fixture and
+  the selectors in src/extract/job.ts together.
 -->
 <header class="global-nav"><h1 class="sr-only">LinkedIn</h1></header>
 <div class="jobs-search-two-pane__wrapper">
@@ -20,7 +22,7 @@
       </li>
     </ul>
   </aside>
-  <div class="jobs-search__job-details--wrapper">
+  <div class="jobs-search__job-details--wrapper jobs-search__job-details">
     <div class="jobs-search__job-details--container">
       <div class="jobs-details__main-content">
         <div class="job-details-jobs-unified-top-card__container">
