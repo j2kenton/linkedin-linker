@@ -278,7 +278,7 @@ document.addEventListener('DOMContentLoaded', function(): void {
       try {
         pingResponse = await chrome.tabs.sendMessage(tab.id!, {
           action: "ping"
-        });
+        }, { frameId: 0 });
       } catch {
         pingResponse = null;
       }
@@ -310,7 +310,8 @@ document.addEventListener('DOMContentLoaded', function(): void {
         messageText: messageTextTextarea.value
       };
 
-      // Send message to content script with live mode setting, message settings, max pages, max connections, and auto-adjust
+      // Send message to content script with live mode setting, message settings, max pages, max connections, and auto-adjust.
+      // Top frame only: the content script also runs in LinkedIn's iframes, which would each start a run.
       const response = await chrome.tabs.sendMessage(tab.id!, {
         action: "startAutomation",
         liveMode: liveModeCheckbox.checked,
@@ -318,12 +319,16 @@ document.addEventListener('DOMContentLoaded', function(): void {
         maxPages: stopPageInput.value,
         maxConnections: maxConnectionsInput.value,
         autoAdjust: autoAdjustCheckbox.checked
-      } as AutomationMessage) as AutomationResponse;
+      } as AutomationMessage, { frameId: 0 }) as AutomationResponse;
 
       if (response && response.status === "started") {
         startButton.textContent = 'Running...';
         statusDiv.textContent = `Automation started in ${liveModeCheckbox.checked ? 'LIVE' : 'TEST'} mode! Check console for progress.`;
         statusDiv.style.color = liveModeCheckbox.checked ? '#B3261E' : '#9A6700';
+      } else if (response && response.status === "alreadyRunning") {
+        startButton.textContent = 'Running...';
+        statusDiv.textContent = 'Automation is already running on this tab.';
+        statusDiv.style.color = '#9A6700';
       } else {
         throw new Error('Content script did not respond properly');
       }
@@ -375,13 +380,13 @@ document.addEventListener('DOMContentLoaded', function(): void {
   });
 
   // Listen for completion message from content script
-  chrome.runtime.onMessage.addListener((request: { action: string }, sender, sendResponse) => {
+  chrome.runtime.onMessage.addListener((request: { action: string; summary?: string }, sender, sendResponse) => {
     if (request.action === "automationCompleted") {
       // Re-enable UI elements
       startButton.disabled = false;
       startButton.textContent = 'Start Automation';
       liveModeCheckbox.disabled = false;
-      statusDiv.textContent = 'Automation completed! Ready for next run.';
+      statusDiv.textContent = request.summary ?? 'Automation completed! Ready for next run.';
       statusDiv.style.color = '#057642';
       hideConfirmationPanel();
     }

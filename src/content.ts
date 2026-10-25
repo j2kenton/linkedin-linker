@@ -1,6 +1,6 @@
 import { BUILD_TARGET } from "./build-target";
 import { registerExtractionListener } from "./extract/messageHandler";
-import { buildNote, generateRandomTimeout, extractFirstName, findConnectButton, findModal, type MessageSettings } from "./content-shared";
+import { buildNote, generateRandomTimeout, extractProspectFirstName, findConnectButton, findModal, collectProspectCards, type MessageSettings } from "./content-shared";
 
 // Career Connect Content Script
 // esbuild inlines this generated build target into the developer bundle.
@@ -88,6 +88,21 @@ let messageSettings: MessageSettings = {
 let maxPages: number | null = null; // null means no limit
 let maxConnections: number | null = null; // null means no limit
 let autoAdjust = false; // auto-adjust max connections setting
+let isRunning = false;
+let emptyPagesSeen = 0; // pages where no Connect buttons were found at all
+let abortReason: string | null = null;
+
+// One completion message per run, with a human-readable outcome for the popup status line.
+const notifyCompleted = (): void => {
+  const mode = isLiveMode ? "LIVE" : "TEST";
+  let summary = `Done (${mode}): ${prospectsProcessed} prospect(s) processed.`;
+  if (abortReason) {
+    summary = `Stopped (${mode}) after ${prospectsProcessed} prospect(s): ${abortReason}`;
+  } else if (prospectsProcessed === 0 && emptyPagesSeen > 0) {
+    summary = `No Connect buttons found on this page (${mode}). Everyone shown may already be connected or pending, or LinkedIn changed its layout.`;
+  }
+  chrome.runtime.sendMessage({ action: "automationCompleted", summary }).catch(() => undefined);
+};
 
 // Called after a connection request is successfully sent (both builds).
 // Handles the auto-adjust decrement and notifies the popup of the new limit.
@@ -106,10 +121,6 @@ const connectToProspectAtIndex = async (): Promise<void> => {
     // Check if we've reached the max connections limit BEFORE processing
     if (maxConnections !== null && prospectsProcessed >= maxConnections) {
       console.log(`MAX LIMIT REACHED: Already processed ${prospectsProcessed}/${maxConnections} connections. Stopping automation.`);
-      console.log("Connection process completed.");
-
-      // Send completion message to popup
-      chrome.runtime.sendMessage({ action: "automationCompleted" });
       resolve();
       return;
     }
@@ -133,7 +144,7 @@ const connectToProspectAtIndex = async (): Promise<void> => {
       return;
     }
 
-    const firstName = extractFirstName(prospectElement.innerText);
+    const firstName = extractProspectFirstName(prospectElement);
 
     // Find the connect button within this specific prospect
     const connectButton = findConnectButton(prospectElement);
@@ -156,10 +167,6 @@ const connectToProspectAtIndex = async (): Promise<void> => {
     // Check if we've reached the max connections limit BEFORE processing
     if (maxConnections !== null && prospectsProcessed >= maxConnections) {
       console.log(`Reached maximum connections limit (${maxConnections}). Stopping automation.`);
-      console.log("Connection process completed.");
-
-      // Send completion message to popup
-      chrome.runtime.sendMessage({ action: "automationCompleted" });
 
       // Don't process this prospect since we've reached the limit
       resolve();
@@ -272,11 +279,8 @@ const connectToProspectAtIndex = async (): Promise<void> => {
           resolve();
         }
       } else {
-        console.log(`LIVE: Modal not found for ${firstName}. Aborting automation.`);
-        console.log("Connection process aborted due to modal not found.");
-
-        // Send completion message to popup
-        chrome.runtime.sendMessage({ action: "automationCompleted" });
+        console.log(`Modal not found for ${firstName}. Aborting automation.`);
+        abortReason = `Clicked Connect for ${firstName || "a prospect"} but LinkedIn's invite dialog wasn't found.`;
         resolve();
         return;
       }
@@ -286,27 +290,9 @@ const connectToProspectAtIndex = async (): Promise<void> => {
 
 // Function to initialize prospects list for current page
 const initializeCurrentPageList = (): void => {
-  // Use all selectors together for maximum coverage
-  const prospects: Element[] = [
-    // Search results specific selectors
-    ...document.querySelectorAll("div[role=main] div > a"),
-    ...document.querySelectorAll(".search-results-container ul li"),
-
-    // General people card selectors
-    ...document.querySelectorAll("div[data-test-id*='profile-card']"),
-    ...document.querySelectorAll("div[data-test-id*='connection-card']"),
-    ...document.querySelectorAll("div[data-test-id*='people-card']"),
-    ...document.querySelectorAll("div.entity-result__item"),
-    ...document.querySelectorAll("div.discovery-card"),
-    ...document.querySelectorAll("div[data-control-name*='people_card']")
-  ];
-
-  // Filter to only include elements that have connect buttons
-  currentProspectsList = prospects.filter(element => {
-    return findConnectButton(element) !== null;
-  });
-
+  currentProspectsList = collectProspectCards();
   currentProspectIndex = 0; // Reset index for new page
+  if (currentProspectsList.length === 0) emptyPagesSeen++;
 
   console.log(`Initialized page with ${currentProspectsList.length} prospects`);
 };
@@ -386,24 +372,7 @@ const clickMoreButton = (): Promise<void> => {
 // Function to check if new prospects were loaded after scrolling
 const checkForNewProspects = (previousCount: number): boolean => {
   // Re-scan for prospects
-  const newProspects: Element[] = [
-    // Search results specific selectors
-    ...document.querySelectorAll("div[role=main] div > a"),
-    ...document.querySelectorAll(".search-results-container ul li"),
-
-    // General people card selectors
-    ...document.querySelectorAll("div[data-test-id*='profile-card']"),
-    ...document.querySelectorAll("div[data-test-id*='connection-card']"),
-    ...document.querySelectorAll("div[data-test-id*='people-card']"),
-    ...document.querySelectorAll("div.entity-result__item"),
-    ...document.querySelectorAll("div.discovery-card"),
-    ...document.querySelectorAll("div[data-control-name*='people_card']")
-  ];
-
-  // Filter to only include elements that have connect buttons
-  const newFilteredProspects = newProspects.filter(element => {
-    return findConnectButton(element) !== null;
-  });
+  const newFilteredProspects = collectProspectCards();
 
   const newCount = newFilteredProspects.length;
   const newProspectsFound = newCount > previousCount;
@@ -444,6 +413,7 @@ const processCurrentPage = async (): Promise<void> => {
     }
 
     await connectToProspectAtIndex();
+    if (abortReason) break;
 
     // Add delay between prospects
     await new Promise<void>((resolve) =>
@@ -501,6 +471,7 @@ const processSearchResults = async (): Promise<void> => {
 
   // Process all prospects on the current page
   await processCurrentPage();
+  if (abortReason) return;
 
   // Increment pages processed counter
   pagesProcessed++;
@@ -508,20 +479,12 @@ const processSearchResults = async (): Promise<void> => {
   // Check if we've reached the max pages limit
   if (maxPages !== null && pagesProcessed >= maxPages) {
     console.log(`Reached maximum pages limit (${maxPages}). Stopping automation.`);
-    console.log("Connection process completed.");
-
-    // Send completion message to popup
-    chrome.runtime.sendMessage({ action: "automationCompleted" });
     return;
   }
 
   // Check if we've reached the max connections limit
   if (maxConnections !== null && prospectsProcessed >= maxConnections) {
     console.log(`Reached maximum connections limit (${maxConnections}). Stopping automation.`);
-    console.log("Connection process completed.");
-
-    // Send completion message to popup
-    chrome.runtime.sendMessage({ action: "automationCompleted" });
     return;
   }
 
@@ -542,16 +505,11 @@ const processSearchResults = async (): Promise<void> => {
       setTimeout(resolve, generateRandomTimeout(5000))
     );
 
-    // Continue processing the next page
-    setTimeout(() => {
-      processSearchResults();
-    }, generateRandomTimeout(5000));
+    // Continue processing the next page; awaited so completion is reported only once, at the very end
+    await new Promise<void>((resolve) => setTimeout(resolve, generateRandomTimeout(5000)));
+    await processSearchResults();
   } else {
     console.log("No more pages to process or next page button is disabled.");
-    console.log("Connection process completed.");
-
-    // Send completion message to popup
-    chrome.runtime.sendMessage({ action: "automationCompleted" });
   }
 };
 
@@ -569,18 +527,22 @@ const startConnectionProcess = async (): Promise<void> => {
   // Set currentPage based on URL page parameter
   currentPage = getCurrentPageFromURL();
   pagesProcessed = 0; // Reset pages processed counter
+  prospectsProcessed = 0;
+  emptyPagesSeen = 0;
+  abortReason = null;
   console.log(`Starting on page ${currentPage}`);
 
-  // Add a small delay to ensure everything is ready
-  await new Promise<void>((resolve) => setTimeout(resolve, generateRandomTimeout(5000)));
+  try {
+    // Add a small delay to ensure everything is ready
+    await new Promise<void>((resolve) => setTimeout(resolve, generateRandomTimeout(5000)));
 
-  // Start processing prospects
-  await processSearchResults();
-
-  console.log("Connection process completed.");
-
-  // Send completion message to popup
-  chrome.runtime.sendMessage({ action: "automationCompleted" });
+    // Start processing prospects
+    await processSearchResults();
+  } finally {
+    isRunning = false;
+    console.log("Connection process completed.");
+    notifyCompleted();
+  }
 };
 
 // Listen for messages from popup
@@ -594,6 +556,15 @@ chrome.runtime.onMessage.addListener(
       // Respond to ping to indicate content script is ready
       sendResponse({ status: "ready" });
     } else if (request.action === "startAutomation") {
+      // The content script is injected into every frame; only the top page drives automation,
+      // and a second Start while a run is in flight must not spawn a parallel run.
+      if (window !== window.top) return undefined;
+      if (isRunning) {
+        sendResponse({ status: "alreadyRunning" });
+        return true;
+      }
+      isRunning = true;
+
       // Set live mode based on popup setting
       isLiveMode = request.liveMode || false;
 

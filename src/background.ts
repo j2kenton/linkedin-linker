@@ -4,6 +4,7 @@ import { wireCareerTools } from "./careerBackground";
 interface AutomationMessage {
   action: string;
   from?: string;
+  summary?: string;
 }
 
 interface MessageResponse {
@@ -23,7 +24,8 @@ chrome.runtime.onMessage.addListener(
       // Send notification to side panel if it's open
       chrome.runtime.sendMessage({
         action: "automationCompleted",
-        from: "background"
+        from: "background",
+        summary: request.summary
       }).catch(() => {
         // Panel might not be open, that's okay
       });

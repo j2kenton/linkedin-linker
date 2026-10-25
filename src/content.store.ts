@@ -1,5 +1,5 @@
 import { registerExtractionListener } from "./extract/messageHandler";
-import { buildNote, generateRandomTimeout, extractFirstName, findConnectButton, findModal, type MessageSettings } from "./content-shared";
+import { buildNote, generateRandomTimeout, extractProspectFirstName, findConnectButton, findModal, collectProspectCards, type MessageSettings } from "./content-shared";
 
 {
 // Career Connect Content Script — store build
@@ -34,21 +34,10 @@ const getProfileUrl = (container: Element): string | null => {
 
 // Collect connectable profiles on the current page, deduped by profile URL.
 const collectProspects = (): Element[] => {
-  const candidates: Element[] = [
-    ...document.querySelectorAll(".search-results-container ul li"),
-    ...document.querySelectorAll("div.entity-result__item"),
-    ...document.querySelectorAll("div[data-test-id*='profile-card']"),
-    ...document.querySelectorAll("div[data-test-id*='connection-card']"),
-    ...document.querySelectorAll("div[data-test-id*='people-card']"),
-    ...document.querySelectorAll("div.discovery-card"),
-    ...document.querySelectorAll("div[data-control-name*='people_card']"),
-  ];
-
   const seen = new Set<string>();
   const deduped: Element[] = [];
 
-  for (const el of candidates) {
-    if (!findConnectButton(el)) continue;
+  for (const el of collectProspectCards()) {
     const url = getProfileUrl(el) ?? el.textContent?.trim().slice(0, 60) ?? "";
     if (url && seen.has(url)) continue;
     if (url) seen.add(url);
@@ -74,7 +63,7 @@ const prepareNextInvite = (messageSettings: MessageSettings): Promise<string> =>
     }
 
     const profileUrl = getProfileUrl(next);
-    const firstName = extractFirstName((next as HTMLElement).innerText ?? "");
+    const firstName = extractProspectFirstName(next);
     const connectButton = findConnectButton(next)!;
 
     connectButton.dispatchEvent(new Event("click", { bubbles: true }));
