@@ -15,6 +15,59 @@ export const buildNote = (firstName: string, messageSettings: MessageSettings): 
   return message;
 };
 
+// Advisory limits taken from the owner's report of LinkedIn's connection-note box
+// (about 200 characters, about 300 with Premium). They are NOT verified against
+// LinkedIn and must only ever be used to inform the user, never to block or cut a note.
+export const NOTE_LIMIT_FREE = 200;
+export const NOTE_LIMIT_PREMIUM = 300;
+
+export interface NoteMeasure {
+  /** Characters in the note excluding the first name itself (includes the separating space when a name is added). */
+  fixed: number;
+  /** Whether a first name will be inserted at send time. */
+  includesName: boolean;
+}
+
+export const measureNote = (messageSettings: MessageSettings): NoteMeasure => {
+  const includesName = messageSettings.includeFirstName;
+  return { fixed: buildNote("", messageSettings).length + (includesName ? 1 : 0), includesName };
+};
+
+export type NoteLengthLevel = "ok" | "warn" | "over";
+
+export interface NoteLengthAssessment {
+  level: NoteLengthLevel;
+  message: string;
+}
+
+export const assessNoteLength = (fixed: number, includesName: boolean): NoteLengthAssessment => {
+  // With a name the shortest possible note is one character longer than `fixed`.
+  const shortest = includesName ? fixed + 1 : fixed;
+  const level: NoteLengthLevel = shortest > NOTE_LIMIT_PREMIUM ? "over" : shortest > NOTE_LIMIT_FREE ? "warn" : "ok";
+  const nameRoom = (limit: number): number => Math.max(0, limit - fixed);
+  const counted = includesName ? `${fixed} characters plus the first name` : `${fixed} characters`;
+  if (level === "over") {
+    return {
+      level,
+      message: `${counted}. Over the approximate ${NOTE_LIMIT_PREMIUM}-character Premium limit; LinkedIn may reject or cut the note. Limits are approximate and not enforced here.`,
+    };
+  }
+  if (level === "warn") {
+    return {
+      level,
+      message: includesName
+        ? `${counted}. Over the approximate ${NOTE_LIMIT_FREE}-character limit without Premium; fits the approximate ${NOTE_LIMIT_PREMIUM}-character Premium limit for first names up to ${nameRoom(NOTE_LIMIT_PREMIUM)} characters.`
+        : `${counted}. Over the approximate ${NOTE_LIMIT_FREE}-character limit without Premium; within the approximate ${NOTE_LIMIT_PREMIUM}-character Premium limit.`,
+    };
+  }
+  return {
+    level,
+    message: includesName
+      ? `${counted}. Fits the approximate ${NOTE_LIMIT_FREE}-character limit for first names up to ${nameRoom(NOTE_LIMIT_FREE)} characters (up to ${nameRoom(NOTE_LIMIT_PREMIUM)} with Premium's approximate ${NOTE_LIMIT_PREMIUM}).`
+      : `${counted}. Within the approximate ${NOTE_LIMIT_FREE}-character limit.`,
+  };
+};
+
 export const generateRandomTimeout = (multiplier: number): number =>
   Math.floor(Math.random() * multiplier) + 500;
 

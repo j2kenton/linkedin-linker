@@ -65,6 +65,16 @@
     .button:active { background-color: var(--c-primary-active); }
     .button:disabled { background-color: #C7CDD4; color: #fff; cursor: not-allowed; box-shadow: none; }
     .status { margin-top: 16px; font-size: 12.5px; color: var(--c-text-secondary); text-align: center; }
+    #panelConnect .status {
+      position: sticky;
+      bottom: 0;
+      padding: 8px 12px;
+      background: var(--c-surface);
+      border-top: 1px solid var(--c-border);
+      max-height: 30vh;
+      overflow-y: auto;
+    }
+    .status:empty { display: none; }
     .settings {
       text-align: left;
       margin: 16px 0;
@@ -111,6 +121,25 @@
       transition: background-color 0.15s ease, border-color 0.15s ease;
     }
     .url-btn:hover { background: var(--c-primary-tint); border-color: var(--c-primary); }
+    .url-result { display: block; margin-top: 4px; font-size: 11.5px; line-height: 1.4; }
+    .url-result:empty { display: none; }
+    .field-hint { display: block; margin: 4px 0 0; font-size: 11px; line-height: 1.4; color: var(--c-text-secondary); font-style: italic; }
+    .input-wrap { position: relative; }
+    .input-wrap input, .input-wrap textarea { padding-right: 30px; }
+    .input-wrap input[type=number] { padding-right: 50px; }
+    .input-clear {
+      position: absolute; top: 50%; right: 7px; transform: translateY(-50%);
+      width: 20px; height: 20px; padding: 0; border: none; border-radius: 50%;
+      background: transparent; color: var(--c-text-secondary);
+      font-size: 16px; line-height: 20px; text-align: center; cursor: pointer;
+    }
+    .input-wrap input[type=number] ~ .input-clear { right: 28px; }
+    .input-wrap textarea ~ .input-clear { top: 6px; transform: none; }
+    .input-clear:hover { background: var(--c-primary-tint); color: var(--c-text); }
+    .input-clear:focus-visible { outline: 2px solid var(--c-primary); }
+    .note-length { margin-top: 6px; font-size: 11.5px; line-height: 1.4; color: var(--c-text-secondary); }
+    .note-length-warn { color: #7A5300; }
+    .note-length-over { color: var(--c-danger); }
     .checkbox-row { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-bottom: 12px; color: var(--c-text); }
     .checkbox-row input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--c-primary); }
     .preview-box {
@@ -428,24 +457,39 @@
 
       <div class="settings">
         <h4>Step 1: Search for connections</h4>
+        <small class="field-hint" style="margin: 0 0 14px;">The "Get from current URL" buttons read the LinkedIn people search page open in this tab. Target company name can also be read from the company's LinkedIn page.</small>
         <div class="field">
           <label for="companyName">Target company name</label>
-          <input type="text" id="companyName" placeholder="e.g. Microsoft">
+          <div class="input-wrap">
+            <input type="text" id="companyName" placeholder="e.g. Microsoft">
+            <button type="button" class="input-clear" data-clear-for="companyName" aria-label="Clear Target company name">&times;</button>
+          </div>
+          <small class="field-hint">Open the company's LinkedIn page and click, or type it. Optional when Current company ID is set.</small>
           <button class="url-btn" id="getCompanyNameFromUrlButton">Get from current URL</button>
         </div>
         <div class="field">
           <label for="companiesIds">Current company ID</label>
-          <input type="text" id="companiesIds" placeholder="e.g. 1035">
+          <div class="input-wrap">
+            <input type="text" id="companiesIds" placeholder="e.g. 1035">
+            <button type="button" class="input-clear" data-clear-for="companiesIds" aria-label="Clear Current company ID">&times;</button>
+          </div>
           <button class="url-btn" id="getFromUrlButton">Get from current URL</button>
         </div>
         <div class="field">
-          <label for="titleOfProspect">Job title of connection</label>
-          <input type="text" id="titleOfProspect" placeholder="e.g. Engineering Manager">
+          <label for="titleOfProspect">Search keywords (free text)</label>
+          <div class="input-wrap">
+            <input type="text" id="titleOfProspect" placeholder="e.g. Software Engineering Manager">
+            <button type="button" class="input-clear" data-clear-for="titleOfProspect" aria-label="Clear Search keywords">&times;</button>
+          </div>
+          <small class="field-hint">Sent to LinkedIn as search keywords - not limited to job title.</small>
           <button class="url-btn" id="getTitleFromUrlButton">Get from current URL</button>
         </div>
         <div class="field">
           <label for="locationIds">Location ID</label>
-          <input type="text" id="locationIds" placeholder="e.g. 101620260">
+          <div class="input-wrap">
+            <input type="text" id="locationIds" placeholder="e.g. 101620260">
+            <button type="button" class="input-clear" data-clear-for="locationIds" aria-label="Clear Location ID">&times;</button>
+          </div>
           <button class="url-btn" id="getLocationFromUrlButton">Get from current URL</button>
         </div>
         <div class="field">
@@ -459,7 +503,10 @@
         </div>
         <div class="field">
           <label for="startPage">Start page</label>
-          <input type="number" id="startPage" placeholder="1" min="1">
+          <div class="input-wrap">
+            <input type="number" id="startPage" placeholder="1" min="1">
+            <button type="button" class="input-clear" data-clear-for="startPage" aria-label="Clear Start page">&times;</button>
+          </div>
           <button class="url-btn" id="getStartPageFromUrlButton">Get from current URL</button>
         </div>
         <button id="goToSearchButton" class="button" style="margin-top:14px;">Save &amp; open search</button>
@@ -469,7 +516,10 @@
         <h4>Step 2: Compose your message</h4>
         <div class="field">
           <label for="greetingPart1">Greeting (part 1)</label>
-          <input type="text" id="greetingPart1" placeholder="e.g. Hi">
+          <div class="input-wrap">
+            <input type="text" id="greetingPart1" placeholder="e.g. Hi">
+            <button type="button" class="input-clear" data-clear-for="greetingPart1" aria-label="Clear Greeting part 1">&times;</button>
+          </div>
         </div>
         <div class="checkbox-row">
           <input type="checkbox" id="includeFirstNameCheckbox">
@@ -477,15 +527,22 @@
         </div>
         <div class="field">
           <label for="greetingPart2">Greeting (part 2)</label>
-          <input type="text" id="greetingPart2" placeholder="e.g. 👋,">
+          <div class="input-wrap">
+            <input type="text" id="greetingPart2" placeholder="e.g. 👋,">
+            <button type="button" class="input-clear" data-clear-for="greetingPart2" aria-label="Clear Greeting part 2">&times;</button>
+          </div>
         </div>
         <div class="field">
           <label for="messageText">Message body</label>
-          <textarea id="messageText" rows="6" placeholder="Enter your connection message here..."></textarea>
+          <div class="input-wrap">
+            <textarea id="messageText" rows="6" placeholder="Enter your connection message here..."></textarea>
+            <button type="button" class="input-clear" data-clear-for="messageText" aria-label="Clear Message body">&times;</button>
+          </div>
         </div>
         <div class="field">
           <label>Preview</label>
           <div id="messagePreview" class="preview-box"></div>
+          <div id="messageLength" class="note-length" aria-live="polite"></div>
         </div>
         <button id="saveSettingsButton" class="save-btn">Save settings</button>
       </div>

@@ -15,11 +15,11 @@
   "assets/screenshots/screenshot-3.png": "302275f486e518d8bee30e2e92b9a0b00c9c080f5024ed63db62e91dbe100f4e",
   "assets/screenshots/screenshot-4.png": "6194d349a516686be8775543a89a4bd3d6ca7b229facb057d40e4b36ffcc78a3",
   "assets/screenshots/screenshot-5.jpg": "b862e24f14a8455f7e499c12ed29878765669bdb4ec66d2f73c9bc39c76caea1",
-  "dist/background.js": "46755d2098df4419b94b3895df93e7386abe0d72cc5b5701b28c725d42bdd88f",
-  "dist/content.js": "b6f6bfbd6ad685996cbafc3bfd65ea6cd45a1a327734ff04855c41e439e19d81",
-  "dist/popup.js": "ec93f49ab42fedfa5518fcabac846c75f035b5f41232feeb17302b2d953a8629",
+  "dist/background.js": "28667e9dc95be2b277d2d7e0e9c0667c91453baca48c480b56428b023b69d501",
+  "dist/content.js": "ad83cff92fe7c87dbe89c886cbdd8bc7e090245766bcfc1b8e457121eae1f72d",
+  "dist/popup.js": "1bdd814fc0827e10d329fc89a83d1ad8c2961d877a24cf59d4318951bfc86179",
   "dist/report.js": "f2759739ab77aa7fd6ffa3d77b4e767706a940836e49c77a66a9e60b4c6b7b26",
-  "manifest.json": "9596eb94a5542470c981b1a94436931c5640354042c0d6e35d8defa1c01104b6",
-  "popup.store.html": "d19e17c53d800ba39a2d6ddaef5e66fa83ece01b9ab78e5dbad0ffe55f8af80b",
+  "manifest.json": "bc31b10e3ac6b40119b8ca9c0551f0cda20623d6f4b789afd0f636a630a42a9f",
+  "popup.store.html": "a06e66f7626b3f37cca52fe1a76f908049b402e82ac5067656a1a9c684d79fbd",
   "report.html": "dfbdc469650ed9e43205a54d7780f73f51e51f63b28fac4f6b96d71d3a3105c0"
 }

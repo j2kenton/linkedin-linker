@@ -4,8 +4,9 @@
 import { STORE_CONTENT_SCRIPT_HOST } from "./pageDetect";
 import { initCareerTools } from "./popup-career-shared";
 import { initPopupTabs } from "./popup-tabs";
-import { attachUrlExtractionHandlers, generateLinkedInURL } from "./popup-search-shared";
+import { attachUrlExtractionHandlers, attachClearButtons, generateLinkedInURL } from "./popup-search-shared";
 import type { SearchStrings } from "./popup-search-shared";
+import { measureNote, assessNoteLength } from "./content-shared";
 
 interface MessageSettings {
   greetingPart1: string;
@@ -63,6 +64,7 @@ document.addEventListener("DOMContentLoaded", function (): void {
   const greetingPart2Input = document.getElementById("greetingPart2") as HTMLInputElement;
   const messageTextTextarea = document.getElementById("messageText") as HTMLTextAreaElement;
   const messagePreviewDiv = document.getElementById("messagePreview") as HTMLDivElement;
+  const messageLengthDiv = document.getElementById("messageLength") as HTMLDivElement;
   const saveSettingsButton = document.getElementById("saveSettingsButton") as HTMLButtonElement;
 
   // Load saved settings
@@ -97,6 +99,17 @@ document.addEventListener("DOMContentLoaded", function (): void {
     if (includeFirstNameCheckbox.checked) preview += " [First Name]";
     preview += ` ${greetingPart2Input.value}\n${messageTextTextarea.value}`;
     messagePreviewDiv.textContent = preview;
+
+    // Advisory only: never blocks Save or Prepare, and never truncates the message.
+    const { fixed, includesName } = measureNote({
+      greetingPart1: greetingPart1Input.value,
+      includeFirstName: includeFirstNameCheckbox.checked,
+      greetingPart2: greetingPart2Input.value,
+      messageText: messageTextTextarea.value,
+    });
+    const assessment = assessNoteLength(fixed, includesName);
+    messageLengthDiv.textContent = assessment.message;
+    messageLengthDiv.className = `note-length note-length-${assessment.level}`;
   }
 
   greetingPart1Input.addEventListener("input", updatePreview);
@@ -119,7 +132,7 @@ document.addEventListener("DOMContentLoaded", function (): void {
 
   const storeSearchStrings: SearchStrings = {
     noTabUrl: "Please navigate to a LinkedIn people search page first.",
-    notSearchPage: "Please navigate to a LinkedIn people search page first.",
+    notSearchPage: "This button reads a LinkedIn people search results page (linkedin.com/search/results/people/...). Open one in this tab, then click again.",
     noCompany: "No company ID in URL.",
     invalidCompany: "Invalid company data in URL",
     companyExtracted: (ids) => `Company ID(s) extracted: ${ids}`,
@@ -128,12 +141,16 @@ document.addEventListener("DOMContentLoaded", function (): void {
     invalidLocation: "Invalid location data in URL",
     locationExtracted: (ids) => `Location ID(s) extracted: ${ids}`,
     parseLocationFailed: "Failed to parse location ID from URL.",
-    noCompanyName: "No company name in URL.",
+    noCompanyName: "No company name in this search URL. Open the company's LinkedIn page (linkedin.com/company/...) and click again, or type the name.",
     companyNameExtracted: (name) => `Company name extracted: ${name}`,
     parseCompanyNameFailed: "Failed to parse company name from URL.",
-    noTitle: "No job title in URL.",
-    titleExtracted: (title) => `Job title extracted: ${title}`,
-    parseTitleFailed: "Failed to parse job title from URL.",
+    companyPagePending: "Reading company name from this page...",
+    companyPageFailed: "Could not read the company name from this page. Wait for the page to finish loading and click again, or type the name.",
+    companyIdOnly: (ids) => `This search URL only has company ID ${ids}; LinkedIn search URLs do not include the company name. Open the company's LinkedIn page (linkedin.com/company/...) and click again, or type the name.`,
+    companyNameWrongPage: "Open the company's LinkedIn page (linkedin.com/company/...) or a LinkedIn people search that includes the company, then click again.",
+    noTitle: "No search keywords in this search URL (it needs a keywords or titleFreeText parameter).",
+    titleExtracted: (title) => `Search keywords extracted: ${title}`,
+    parseTitleFailed: "Failed to parse search keywords from URL.",
     noConnectionDegree: "No connection degree in URL.",
     invalidConnectionDegree: "Invalid connection degree data in URL",
     connectionDegreeExtracted: (degrees) => `Connection degrees extracted: ${degrees}`,
@@ -149,6 +166,8 @@ document.addEventListener("DOMContentLoaded", function (): void {
     { statusDiv, getFromUrlButton, getLocationFromUrlButton, getCompanyNameFromUrlButton, getTitleFromUrlButton, getConnectionDegreeFromUrlButton, getStartPageFromUrlButton },
     storeSearchStrings
   );
+
+  attachClearButtons(document);
 
   goToSearchButton.addEventListener("click", () => {
     const selectedDegrees = Array.from(connectionDegreeInput.selectedOptions).map(o => o.value);
